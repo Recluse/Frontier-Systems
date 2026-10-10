@@ -17,7 +17,8 @@
         "pressure": { "$ref": "#/$defs/pressureSystem" },
         "production": { "oneOf": [
           { "$ref": "urn:frontier-systems:schema:production-system:v1" },
-          { "$ref": "urn:frontier-systems:schema:production-system:v2" }
+          { "$ref": "urn:frontier-systems:schema:production-system:v2" },
+          { "$ref": "urn:frontier-systems:schema:production-system:v3" }
         ] },
         "health": { "oneOf": [
           { "$ref": "urn:frontier-systems:schema:health-system:v1" },

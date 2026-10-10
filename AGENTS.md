@@ -4,6 +4,7 @@
 
 - Godot is the real-time client and authoritative simulation runtime. Keep canonical world state in simulation systems and persistent records, not in UI nodes or cached presentation data.
 - Use composition through typed components and data-driven definitions. Prefer small interfaces and explicit ownership over deep inheritance trees or global singletons.
+- Tools use independent, repairable, replaceable and upgradable component records and data-driven materials/mounts/capabilities. Space-tier routine wear is conservative; apply wear to completed work rather than simulation ticks. Keep detached parts and their material provenance, and preserve useful partial functionality.
 - Ship and component damage should usually degrade or disable capabilities while preserving stable parts for repair and salvage. Do not equate zero integrity with deletion or occupant death.
 - Gas and liquid pressure systems share versioned volume/port/network contracts, with documented units, conservation assumptions, and phase-specific behavior. Docking, EVA suits, small craft, and remote bodies use the same authoritative command and capability rules.
 - PHP services are separate Composer packages or applications under `packages/` and `services/`. Every PHP namespace must be PSR-4 autoloadable and every PHP file must declare `strict_types=1`.

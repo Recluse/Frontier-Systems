@@ -28,6 +28,6 @@ Two invite slots and periodic/manual checkpoints are the current operational mod
 
 ## Next milestones
 
-First collect two-player feedback and measure the active route. Add sustained hand-tool extraction and craftable carriers, then Space Station 13-style terrain excavation through material/chunk transactions. Improve transport movement authority, persistence guarantees and distribution readiness as audience grows.
+First collect two-player feedback and measure the active route. [Equipment fabrication and salvage](equipment-fabrication-milestone.md) now completes craftable carriers/tools. Sustained hand-tool extraction comes next, then Space Station 13-style terrain excavation through material/chunk transactions. Improve transport movement authority, persistence guarantees and distribution readiness as audience grows.
 
 [Planet-start civilization progression](../design/civilization-to-space-progression.md), informed by the owner's Civ13 reference, is a later update. Full chemistry/medicine, atmospheric survival, modular colonies/ships, procedural planets, away missions, platform chat/voice, LLM automation and broad roleplay remain long-term work. Optional VR is not required for this first playable route.

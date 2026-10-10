@@ -124,7 +124,8 @@ func owned_resource_carriers(context: AuthenticatedCommandContext) -> ServiceRes
 		return own
 	var ids: Array = []
 	for item in own.value["items"]:
-		if item["definition_id"] == "item.resource-canister.prototype" and int(item["definition_revision"]) == 1:
+		var definition: ServiceResult = _catalog.get_definition(item["definition_id"], int(item["definition_revision"]))
+		if definition.is_success and definition.value["tags"].has("resource.carrier"):
 			ids.append(item["item_id"])
 	return ServiceResult.success(ids)
 
@@ -142,6 +143,15 @@ func production_capability(context: AuthenticatedCommandContext, voluntary: bool
 
 ## Prepare a trusted physical plate factory/recycler transaction without committing.
 func prepare_plate_change(context: AuthenticatedCommandContext, request_id: String, item_id: String, create: bool, masses: Dictionary) -> ServiceResult:
+	return prepare_equipment_change(context, request_id, item_id, create, masses, "item.plate.prototype")
+
+
+func factory_definition(id: String) -> ServiceResult:
+	return _catalog.get_definition(id, 1)
+
+
+## Trusted owner chooses the catalog definition; client output records are never accepted.
+func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: String, item_id: String, create: bool, masses: Dictionary, definition_id: String) -> ServiceResult:
 	var authorized: ServiceResult = authorize(context, true)
 	if not authorized.is_success or not ControlContractValidation.is_id(item_id):
 		return _failure("A capable bound actor and stable component identity are required.")
@@ -162,14 +172,17 @@ func prepare_plate_change(context: AuthenticatedCommandContext, request_id: Stri
 	if create:
 		if found >= 0:
 			return _failure("That physical component already exists.")
-		candidate["ledger"]["items"].append({"item_id": item_id, "definition_id": "item.plate.prototype", "definition_revision": 1, "condition_permille": 1000, "container_id": body["body_container_id"]})
+		var definition: ServiceResult = factory_definition(definition_id)
+		if not definition.is_success or definition.value["storage"] != null:
+			return _failure("The factory requires a registered non-container inventory definition.")
+		candidate["ledger"]["items"].append({"item_id": item_id, "definition_id": definition_id, "definition_revision": 1, "condition_permille": 1000, "container_id": body["body_container_id"]})
 	else:
 		if found < 0:
 			return _failure("The recyclable component no longer exists.")
 		var item: Dictionary = candidate["ledger"]["items"][found]
 		var ledger: InventoryLedger = InventoryLedger.from_record(candidate["ledger"], _catalog).value
-		if item["definition_id"] != "item.plate.prototype" or int(item["definition_revision"]) != 1 or ledger.root_for_container(item["container_id"]).value != body["body_container_id"]:
-			return _failure("Only an owned physical plate can be recycled.")
+		if item["definition_id"] != definition_id or int(item["definition_revision"]) != 1 or ledger.root_for_container(item["container_id"]).value != body["body_container_id"]:
+			return _failure("Only owned equipment with the matching trusted definition can be salvaged.")
 		candidate["ledger"]["items"].remove_at(found)
 		var bindings: Array = []
 		for binding in body["equipped"]:
@@ -181,7 +194,7 @@ func prepare_plate_change(context: AuthenticatedCommandContext, request_id: Stri
 	body["state_revision"] += 1
 	candidate["ledger"]["state_revision"] += 1
 	candidate["state_revision"] += 1
-	var fingerprint: String = JSON.stringify(["plate", item_id, create, authorized.value]).sha256_text()
+	var fingerprint: String = JSON.stringify(["equipment", definition_id, item_id, create, authorized.value]).sha256_text()
 	candidate["receipts"].append({"request_id": request_id, "fingerprint": fingerprint, "state_revision": candidate["state_revision"]})
 	if candidate["receipts"].size() > SharedInventoryCoordinator.MAX_RECEIPTS:
 		candidate["receipts"].pop_front()

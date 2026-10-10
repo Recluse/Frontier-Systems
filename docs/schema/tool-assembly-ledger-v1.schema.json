@@ -1,0 +1,84 @@
+{
+  "properties": {
+    "assemblies": {
+      "additionalProperties": {
+        "required": [
+          "definition_id",
+          "slots"
+        ],
+        "type": "object",
+        "properties": {
+          "definition_id": {
+            "minLength": 1,
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "\\S"
+          },
+          "slots": {
+            "additionalProperties": {
+              "minLength": 1,
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            "type": "object",
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            "maxProperties": 16
+          }
+        },
+        "additionalProperties": false
+      },
+      "type": "object",
+      "propertyNames": {
+        "minLength": 1,
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "\\S"
+      },
+      "maxProperties": 64
+    },
+    "state_revision": {
+      "type": "integer",
+      "maximum": 9007199254740000,
+      "minimum": 0
+    },
+    "catalog_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "parts": {
+      "additionalProperties": {
+        "$ref": "urn:frontier-systems:schema:tool-part:v1"
+      },
+      "type": "object",
+      "propertyNames": {
+        "minLength": 1,
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "\\S"
+      },
+      "maxProperties": 512
+    },
+    "schema_version": {
+      "const": 1
+    }
+  },
+  "$id": "urn:frontier-systems:schema:tool-assembly-ledger:v1",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalog_fingerprint",
+    "state_revision",
+    "parts",
+    "assemblies"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Standalone part registry and tool mount ownership ledger v1",
+  "type": "object",
+  "description": "Domain record, not a network intent or world snapshot subsystem yet. Runtime validates key/part identity, supported grades, mount compatibility, no duplicate mounting and pinned catalog. Material stock counts each part once including detached parts."
+}

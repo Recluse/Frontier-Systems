@@ -65,13 +65,13 @@ func _rebuild() -> void:
 			elif item["definition_id"] == "item.pouch.prototype":
 				dimensions = Vector3(0.18, 0.12, 0.12)
 				color = Color("#bba064")
-			elif item["definition_id"] == "item.resource-canister.prototype":
+			elif item["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated"]:
 				dimensions = Vector3(0.16, 0.3, 0.16)
 				color = Color("#79b4c2")
 			elif item["definition_id"] == "item.plate.prototype":
 				dimensions = Vector3(0.4, 0.035, 0.3)
 				color = Color("#b9c2ce")
-			elif item["definition_id"] == "item.extractor.prototype":
+			elif item["definition_id"] in ["item.extractor.prototype", "item.extractor.fabricated"]:
 				dimensions = Vector3(0.32, 0.16, 0.12)
 				color = Color("#dfa645")
 			var location: Vector3 = origin + Vector3(-0.3 + float(index % 4) * 0.2, 0.75 + dimensions.y / 2.0, -0.15 + float(index / 4) * 0.3)

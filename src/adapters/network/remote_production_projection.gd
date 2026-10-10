@@ -8,7 +8,8 @@ const MATERIALS: Array[String] = ["ore.iron", "ice", "regolith", "iron", "tailin
 
 func accept_record(value: Dictionary) -> ServiceResult:
 	var fields := PackedStringArray(["schema_version", "catalog_revision", "catalog_fingerprint", "timebase_hz", "last_tick", "state_revision", "deposits", "store", "vessel", "wall_mass_milligrams", "energy_joules", "powered", "job", "cargo", "components", "recipes", "dispensable", "can_operate", "vessel_pressure_kpa", "extractable_sources"])
-	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 2, 2) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
+	fields.append_array(PackedStringArray(["structures", "blueprints"]))
+	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 3, 3) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
 		return _invalid()
 	for field in ["last_tick", "state_revision", "catalog_revision", "wall_mass_milligrams", "energy_joules"]:
 		if not ControlContractValidation.is_integer(value[field], 0, 9007199254740000):
@@ -19,6 +20,21 @@ func accept_record(value: Dictionary) -> ServiceResult:
 		return _invalid()
 	for id in value["cargo"]:
 		if not ControlContractValidation.is_id(id) or not _valid_stock(value["cargo"][id], true):
+			return _invalid()
+	if typeof(value["blueprints"]) != TYPE_DICTIONARY or value["blueprints"].size() > 32 or typeof(value["structures"]) != TYPE_DICTIONARY or value["structures"].size() > 32:
+		return _invalid()
+	for id in value["blueprints"]:
+		var blueprint: Variant = value["blueprints"][id]
+		if not ControlContractValidation.is_id(id) or typeof(blueprint) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(blueprint, PackedStringArray(["name", "definition_id", "definition_revision", "materials", "fabrication_energy_joules", "salvage_energy_joules", "fingerprint"])) or typeof(blueprint["name"]) != TYPE_STRING or blueprint["name"].length() > 80 or not ControlContractValidation.is_id(blueprint["definition_id"]) or not ControlContractValidation.is_integer(blueprint["definition_revision"], 1, 1) or not _valid_stock(blueprint["materials"]) or typeof(blueprint["fingerprint"]) != TYPE_STRING or blueprint["fingerprint"].length() != 64:
+			return _invalid()
+		for field in ["fabrication_energy_joules", "salvage_energy_joules"]:
+			if not ControlContractValidation.is_integer(blueprint[field], 1, 100000):
+				return _invalid()
+	for id in value["structures"]:
+		var structure: Variant = value["structures"][id]
+		if not ControlContractValidation.is_id(id) or typeof(structure) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(structure, PackedStringArray(["blueprint_id", "fingerprint", "materials"])) or typeof(structure["blueprint_id"]) != TYPE_STRING or not value["blueprints"].has(structure["blueprint_id"]) or structure["fingerprint"] != value["blueprints"][structure["blueprint_id"]]["fingerprint"] or not _valid_stock(structure["materials"]):
+			return _invalid()
+		if not _same_stock(structure["materials"], value["blueprints"][structure["blueprint_id"]]["materials"]):
 			return _invalid()
 	for field in ["components", "recipes", "dispensable", "extractable_sources"]:
 		if not ControlContractValidation.decode_ids(value[field], 0, 32).is_success:

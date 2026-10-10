@@ -1,0 +1,241 @@
+{
+  "properties": {
+    "tools": {
+      "propertyNames": {
+        "minLength": 1,
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "required": [
+          "name",
+          "slots",
+          "actions"
+        ],
+        "type": "object",
+        "properties": {
+          "actions": {
+            "additionalProperties": {
+              "items": {
+                "minLength": 1,
+                "type": "string",
+                "maxLength": 128,
+                "pattern": "\\S"
+              },
+              "type": "array",
+              "maxItems": 32,
+              "uniqueItems": true
+            },
+            "type": "object",
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            "maxProperties": 32
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string",
+            "maxLength": 80
+          },
+          "slots": {
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            "additionalProperties": {
+              "required": [
+                "mount_interfaces"
+              ],
+              "type": "object",
+              "properties": {
+                "mount_interfaces": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string",
+                    "maxLength": 128,
+                    "pattern": "\\S"
+                  },
+                  "type": "array",
+                  "minItems": 1,
+                  "maxItems": 16,
+                  "uniqueItems": true
+                }
+              },
+              "additionalProperties": false
+            },
+            "type": "object",
+            "minProperties": 1,
+            "maxProperties": 16
+          }
+        },
+        "additionalProperties": false
+      },
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64
+    },
+    "components": {
+      "propertyNames": {
+        "minLength": 1,
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "required": [
+          "name",
+          "mount_interfaces",
+          "material_ids",
+          "mass_milligrams",
+          "wear_scale_permille",
+          "operational_above_ppm",
+          "repair_joules_per_permille",
+          "functions"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string",
+            "maxLength": 80
+          },
+          "functions": {
+            "additionalProperties": {
+              "items": {
+                "minLength": 1,
+                "type": "string",
+                "maxLength": 128,
+                "pattern": "\\S"
+              },
+              "type": "array",
+              "maxItems": 32,
+              "uniqueItems": true
+            },
+            "type": "object",
+            "propertyNames": {
+              "minLength": 1,
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            "maxProperties": 32
+          },
+          "mount_interfaces": {
+            "items": {
+              "minLength": 1,
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "uniqueItems": true
+          },
+          "mass_milligrams": {
+            "type": "integer",
+            "maximum": 100000000,
+            "minimum": 1
+          },
+          "operational_above_ppm": {
+            "type": "integer",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "material_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string",
+              "maxLength": 128,
+              "pattern": "\\S"
+            },
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 16,
+            "uniqueItems": true
+          },
+          "repair_joules_per_permille": {
+            "type": "integer",
+            "maximum": 10000,
+            "minimum": 1
+          },
+          "wear_scale_permille": {
+            "type": "integer",
+            "maximum": 10000,
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64
+    },
+    "materials": {
+      "propertyNames": {
+        "minLength": 1,
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "required": [
+          "name",
+          "raw_material_id",
+          "tier",
+          "wear_ppm_per_cycle"
+        ],
+        "type": "object",
+        "properties": {
+          "wear_ppm_per_cycle": {
+            "type": "integer",
+            "maximum": 1000000,
+            "minimum": 0
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string",
+            "maxLength": 80
+          },
+          "raw_material_id": {
+            "minLength": 1,
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "\\S"
+          },
+          "tier": {
+            "minLength": 1,
+            "type": "string",
+            "maxLength": 128,
+            "pattern": "\\S"
+          }
+        },
+        "additionalProperties": false
+      },
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64
+    },
+    "schema_version": {
+      "const": 1
+    }
+  },
+  "$id": "urn:frontier-systems:schema:tool-component-catalog:v1",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "materials",
+    "components",
+    "tools"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Reusable tool components, material grades and mount layouts v1",
+  "type": "object",
+  "description": "Trusted declarative definitions. Functions are names and prerequisites, never executable scripts or authorization. Physical mounting and capability resolution are separate."
+}

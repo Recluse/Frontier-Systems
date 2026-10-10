@@ -18,6 +18,7 @@ var _catalog: Dictionary = {}
 var _catalog_fingerprint: String = ""
 var _state: Dictionary = {}
 var _inventory: InventorySimulationSystem
+var _blueprints := EquipmentBlueprintCatalog.new()
 
 
 func _init() -> void:
@@ -37,6 +38,9 @@ func configure(inventory: InventorySimulationSystem) -> ServiceResult:
 	_catalog = raw.duplicate(true)
 	_catalog_fingerprint = JSON.stringify(_catalog, "", true, true).sha256_text()
 	_inventory = inventory
+	var blueprints: ServiceResult = _blueprints.configure(JSON.parse_string(FileAccess.get_file_as_string("res://data/production/equipment-blueprints.v1.json")), inventory, _catalog["materials"])
+	if not blueprints.is_success:
+		return blueprints
 	_state = initial_record(0)
 	return inventory.bind_payload_mass_provider(payload_mass)
 
@@ -45,14 +49,21 @@ func initial_record(tick: int) -> Dictionary:
 	var powered: Dictionary = {}
 	for station in STATIONS:
 		powered[station] = true
-	return {"schema_version": 2, "catalog_revision": 1, "catalog_fingerprint": _catalog_fingerprint, "timebase_hz": Engine.physics_ticks_per_second,
+	return {"schema_version": 3, "structures": {}, "catalog_revision": 1, "catalog_fingerprint": _catalog_fingerprint, "timebase_hz": Engine.physics_ticks_per_second,
 		"last_tick": tick, "state_revision": 0, "deposits": _initial_deposits(), "store": _empty_stock(),
 		"vessel": _empty_stock(), "wall_mass_milligrams": 0, "energy_joules": 100000,
 		"powered": powered, "job": {}, "receipts": [], "cargo": {}}
 
 
 func payload_mass(item_id: String) -> int:
-	return _mass(_state["cargo"][item_id]) if _state.has("cargo") and _state["cargo"].has(item_id) else 0
+	return _mass(_state.get("cargo", {}).get(item_id, {})) + _mass(_state.get("structures", {}).get(item_id, {}).get("materials", {}))
+
+
+static func payload_masses(state: Dictionary) -> Dictionary:
+	var masses: Dictionary = cargo_masses(state.get("cargo", {}))
+	for id in state.get("structures", {}):
+		masses[id] = int(masses.get(id, 0)) + _mass(state["structures"][id]["materials"])
+	return masses
 
 
 static func cargo_masses(cargo: Dictionary) -> Dictionary:
@@ -70,17 +81,41 @@ func validate_inventory_links(record: Dictionary, inventory_record: Dictionary) 
 	for id in cargo:
 		if not _stock_valid(cargo[id], true):
 			return _failure("Cargo component contents must be valid before cross-system validation.")
-	var validated_owner: ServiceResult = _inventory.validate_payload_masses(cargo_masses(cargo), inventory_record["owner"])
+	var raw_structures: Variant = record.get("structures", {})
+	if typeof(raw_structures) != TYPE_DICTIONARY or raw_structures.size() > 32:
+		return _failure("A bounded structural map is required.")
+	for id in raw_structures:
+		if not ControlContractValidation.is_id(id) or not _blueprints.validate_structure(raw_structures[id]).is_success:
+			return _failure("Invalid equipment structure before inventory validation.")
+	var validated_owner: ServiceResult = _inventory.validate_payload_masses(payload_masses(record), inventory_record["owner"])
 	if not validated_owner.is_success:
 		return validated_owner
 	var carriers: Dictionary = {}
+	var structures: Dictionary = record.get("structures", {})
+	var matched: Dictionary = {}
 	for item in validated_owner.value.to_record()["ledger"]["items"]:
+		var definition: ServiceResult = _inventory.factory_definition(item["definition_id"])
 		if item["definition_id"] == "item.resource-canister.prototype" and int(item["definition_revision"]) == 1:
 			carriers[item["item_id"]] = true
 		elif item["definition_id"] == "item.plate.prototype" and int(item["definition_revision"]) == 1:
 			if not cargo.has(item["item_id"]) or int(cargo[item["item_id"]]["plate"]) != 1000000 or _mass(cargo[item["item_id"]]) != 1000000:
 				return _failure("Each physical plate requires exactly its conserved one kilogram material payload.")
 			carriers[item["item_id"]] = true
+		elif definition.is_success and definition.value["tags"].has("equipment.fabricated"):
+			var id: String = item["item_id"]
+			if not structures.has(id):
+				return _failure("Fabricated equipment requires its conserved structural record.")
+			var structure: ServiceResult = _blueprints.validate_structure(structures[id])
+			if not structure.is_success:
+				return structure
+			var blueprint: Dictionary = _blueprints.get_definition(structure.value["blueprint_id"]).value
+			if item["definition_id"] != blueprint["definition_id"] or int(item["definition_revision"]) != blueprint["definition_revision"]:
+				return _failure("Fabricated equipment must match its pinned inventory definition.")
+			matched[id] = true
+			if definition.value["tags"].has("resource.carrier"):
+				carriers[id] = true
+	if matched.size() != structures.size():
+		return _failure("Each structural record must reference an actual fabricated item.")
 	for id in cargo:
 		if not carriers.has(id) or not _stock_valid(cargo[id], true):
 			return _failure("Each payload must belong to an existing trusted physical carrier.")
@@ -122,6 +157,7 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 	var observed: Dictionary = _state.duplicate(false)
 	observed.erase("receipts")
 	observed.erase("cargo")
+	observed.erase("structures")
 	observed = observed.duplicate(true)
 	observed["cargo"] = {}
 	var carriers: ServiceResult = _inventory.owned_resource_carriers(context)
@@ -131,9 +167,13 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 		observed["cargo"][id] = _state["cargo"].get(id, _empty_stock()).duplicate(true)
 	observed["components"] = []
 	var own: ServiceResult = _inventory.own_inventory_observation(context)
+	observed["structures"] = {}
+	observed["blueprints"] = _blueprints.observation()
 	for item in own.value["items"]:
 		if item["definition_id"] == "item.plate.prototype":
 			observed["components"].append(item["item_id"])
+		if _state["structures"].has(item["item_id"]):
+			observed["structures"][item["item_id"]] = _state["structures"][item["item_id"]].duplicate(true)
 	observed["recipes"] = _catalog["recipes"].keys()
 	observed["dispensable"] = _catalog["dispensable"].duplicate()
 	observed["can_operate"] = authorize(context).is_success
@@ -162,6 +202,11 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 		return _failure("The production revision is stale or exhausted.")
 	var candidate: Dictionary = _state.duplicate(true)
 	var prepared_inventory: Dictionary = {}
+	if operation in ["fabricate_equipment", "salvage_equipment"]:
+		var factory: ServiceResult = _prepare_fabrication(candidate, context, request_id, operation, payload)
+		if not factory.is_success:
+			return factory
+		prepared_inventory = factory.value
 	if operation in ["materialize_plate", "recycle_component"]:
 		var create: bool = operation == "materialize_plate"
 		if not _fields(payload, ["expected_revision"] if create else ["expected_revision", "item_id"]):
@@ -181,7 +226,7 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 			candidate["cargo"].erase(item_id)
 			candidate["store"]["iron"] += 1000000
 			candidate["energy_joules"] -= 500
-		var prepared: ServiceResult = _inventory.prepare_plate_change(context, "factory-%s" % request_id.sha256_text().substr(0, 32), item_id, create, cargo_masses(candidate["cargo"]))
+		var prepared: ServiceResult = _inventory.prepare_plate_change(context, "factory-%s" % request_id.sha256_text().substr(0, 32), item_id, create, payload_masses(candidate))
 		if not prepared.is_success:
 			return prepared
 		prepared_inventory = prepared.value
@@ -197,7 +242,7 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 	candidate["receipts"].append(receipt)
 	if candidate["receipts"].size() > MAX_RECEIPTS:
 		candidate["receipts"].pop_front()
-	var capacity: ServiceResult = _inventory.validate_payload_masses(cargo_masses(candidate["cargo"]), prepared_inventory)
+	var capacity: ServiceResult = _inventory.validate_payload_masses(payload_masses(candidate), prepared_inventory)
 	if not capacity.is_success:
 		return capacity
 	var previous: Dictionary = _state
@@ -210,6 +255,49 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 	# Derived caches only; all capacities were validated above without an await.
 	_inventory.refresh_payload_loads()
 	return ServiceResult.success(receipt.duplicate(true))
+
+
+## Atomic bounded equipment assembly/disassembly; contents are returned intact.
+func _prepare_fabrication(candidate: Dictionary, context: AuthenticatedCommandContext, request_id: String, operation: String, payload: Dictionary) -> ServiceResult:
+	var create: bool = operation == "fabricate_equipment"
+	if not _fields(payload, ["expected_revision", "blueprint_id"] if create else ["expected_revision", "item_id"]):
+		return _failure("Equipment assembly requires an exact blueprint or item intent.")
+	var item_id: String
+	var blueprint_id: String
+	if create:
+		if not ControlContractValidation.is_id(payload["blueprint_id"]) or candidate["structures"].size() >= 32:
+			return _failure("Select a registered blueprint; the equipment registry is bounded.")
+		item_id = "equipment-%s" % request_id.sha256_text().substr(0, 24)
+		blueprint_id = payload["blueprint_id"]
+	else:
+		if not ControlContractValidation.is_id(payload["item_id"]) or not candidate["structures"].has(payload["item_id"]):
+			return _failure("Select an existing fabricated item.")
+		item_id = payload["item_id"]
+		blueprint_id = candidate["structures"][item_id]["blueprint_id"]
+	var result: ServiceResult = _blueprints.get_definition(blueprint_id)
+	if not result.is_success:
+		return result
+	var blueprint: Dictionary = result.value
+	var energy: int = blueprint["fabrication_energy_joules"] if create else blueprint["salvage_energy_joules"]
+	if not candidate["powered"]["printer" if create else "recycler"] or int(candidate["energy_joules"]) < energy:
+		return _failure("Assembly or salvage requires powered equipment and finite energy.")
+	if create:
+		for material in blueprint["materials"]:
+			if int(candidate["store"][material]) < int(blueprint["materials"][material]):
+				return _failure("Blueprint materials are missing from workstation storage.")
+		for material in blueprint["materials"]:
+			candidate["store"][material] -= int(blueprint["materials"][material])
+		candidate["structures"][item_id] = {"blueprint_id": blueprint_id, "fingerprint": blueprint["fingerprint"], "materials": blueprint["materials"].duplicate(true)}
+	else:
+		var contents: Dictionary = candidate["cargo"].get(item_id, {})
+		if _mass(candidate["store"]) + _reserved_mass(candidate) + _mass(blueprint["materials"]) + _mass(contents) > MAX_MASS:
+			return _failure("Salvage and contents exceed receiving storage capacity.")
+		_add(candidate["store"], blueprint["materials"])
+		_add(candidate["store"], contents)
+		candidate["cargo"].erase(item_id)
+		candidate["structures"].erase(item_id)
+	candidate["energy_joules"] -= energy
+	return _inventory.prepare_equipment_change(context, "factory-%s" % request_id.sha256_text().substr(0, 32), item_id, create, payload_masses(candidate), blueprint["definition_id"])
 
 
 func _plan(candidate: Dictionary, operation: String, payload: Dictionary) -> ServiceResult:
@@ -381,13 +469,15 @@ func restore_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
 
 func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	var fields: Array = ["schema_version", "catalog_revision", "catalog_fingerprint", "timebase_hz", "last_tick", "state_revision", "deposits", "store", "vessel", "wall_mass_milligrams", "energy_joules", "powered", "job", "receipts"]
-	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 2):
+	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 3):
 		fields.append("cargo")
+	if ControlContractValidation.is_integer(record.get("schema_version"), 3, 3):
+		fields.append("structures")
 	if _catalog.is_empty() or not _fields(record, fields):
 		return _failure("An exact configured production snapshot is required.")
 	if record["catalog_fingerprint"] != _catalog_fingerprint:
 		return _failure("The saved catalog differs; an explicit production migration is required.")
-	if not ControlContractValidation.is_integer(record["schema_version"], 1, 2) or not ControlContractValidation.is_integer(record["catalog_revision"], 1, 1):
+	if not ControlContractValidation.is_integer(record["schema_version"], 1, 3) or not ControlContractValidation.is_integer(record["catalog_revision"], 1, 1):
 		return _failure("Unsupported production/catalog version.")
 	if not ControlContractValidation.is_integer(record["last_tick"], tick, tick) or not ControlContractValidation.is_integer(record["timebase_hz"], Engine.physics_ticks_per_second, Engine.physics_ticks_per_second) or not [60, 72, 90].has(Engine.physics_ticks_per_second):
 		return _failure("Production tick and supported timebase must match the world.")
@@ -400,7 +490,20 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	var normalized: Dictionary = record.duplicate(true)
 	for field in ["schema_version", "catalog_revision", "timebase_hz", "last_tick", "state_revision", "wall_mass_milligrams", "energy_joules"]:
 		normalized[field] = int(record[field])
-	normalized["schema_version"] = 2
+	normalized["schema_version"] = 3
+	var structures: Variant = record.get("structures", {})
+	if typeof(structures) != TYPE_DICTIONARY or structures.size() > 32:
+		return _failure("Structural equipment records must be bounded.")
+	normalized["structures"] = {}
+	var structural_mass: int = 0
+	for id in structures:
+		if not ControlContractValidation.is_id(id):
+			return _failure("Equipment identity is invalid.")
+		var structure: ServiceResult = _blueprints.validate_structure(structures[id])
+		if not structure.is_success:
+			return structure
+		normalized["structures"][id] = structure.value
+		structural_mass += _mass(structure.value["materials"])
 	var saved_cargo: Variant = record.get("cargo", {})
 	if typeof(saved_cargo) != TYPE_DICTIONARY or saved_cargo.size() > 32:
 		return _failure("Cargo component records must be bounded.")
@@ -451,7 +554,7 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 				normalized["job"][field][material] = int(job[field][material])
 	if _mass(normalized["store"]) + _reserved_mass(normalized) > MAX_MASS or _mass(normalized["vessel"]) > VESSEL_CAPACITY or _vessel_pressure(normalized["vessel"]) > MAX_VESSEL_PRESSURE_KPA:
 		return _failure("Reserved output or vessel exceeds capacity.")
-	var total: int = _mass(normalized["deposits"]) + _mass(normalized["store"]) + _mass(normalized["vessel"]) + int(normalized["wall_mass_milligrams"]) + _reserved_mass(normalized) + carried_mass
+	var total: int = _mass(normalized["deposits"]) + _mass(normalized["store"]) + _mass(normalized["vessel"]) + int(normalized["wall_mass_milligrams"]) + _reserved_mass(normalized) + carried_mass + structural_mass
 	if total != _mass(_initial_deposits()):
 		return _failure("Closed fixture material mass must be conserved, including reserved batches.")
 	if typeof(record["receipts"]) != TYPE_ARRAY or record["receipts"].size() > MAX_RECEIPTS:
@@ -566,4 +669,4 @@ static func _failure(message: String) -> ServiceResult:
 func profiling_counters() -> Dictionary:
 	if _state.is_empty():
 		return {}
-	return {"active_batches": 0 if _state["job"].is_empty() else 1, "stored_milligrams": _mass(_state["store"]), "vessel_milligrams": _mass(_state["vessel"]), "energy_joules": _state["energy_joules"], "receipts": _state["receipts"].size()}
+	return {"active_batches": 0 if _state["job"].is_empty() else 1, "fabricated_equipment": _state["structures"].size(), "stored_milligrams": _mass(_state["store"]), "vessel_milligrams": _mass(_state["vessel"]), "energy_joules": _state["energy_joules"], "receipts": _state["receipts"].size()}

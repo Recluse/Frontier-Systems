@@ -24,7 +24,9 @@
         "unload_cargo",
         "materialize_plate",
         "recycle_component",
-        "tool_extract"
+        "tool_extract",
+        "fabricate_equipment",
+        "salvage_equipment"
       ]
     },
     "payload": {
@@ -296,6 +298,56 @@
               "expected_revision": {}
             },
             "unevaluatedProperties": false
+          }
+        }
+      }
+    },
+    {
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "blueprint_id"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "blueprint_id": {
+                "$ref": "#/$defs/id"
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "fabricate_equipment"
+          }
+        }
+      }
+    },
+    {
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "item_id"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "item_id": {
+                "$ref": "#/$defs/id"
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "salvage_equipment"
           }
         }
       }

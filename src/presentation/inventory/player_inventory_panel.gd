@@ -2,7 +2,7 @@ extends VBoxContainer
 class_name PlayerInventoryPanel
 
 ## Authenticated player UI. All equipment/storage/tool effects are server intents.
-const NAMES: Dictionary = {"item.backpack.prototype": "Backpack", "item.pouch.prototype": "Tool pouch", "item.crowbar.prototype": "Crowbar", "item.resource-canister.prototype": "Resource canister", "item.plate.prototype": "Printed plate", "item.extractor.prototype": "Resource extractor"}
+const NAMES: Dictionary = {"item.backpack.prototype": "Backpack", "item.pouch.prototype": "Tool pouch", "item.crowbar.prototype": "Crowbar", "item.resource-canister.prototype": "Resource canister", "item.plate.prototype": "Printed plate", "item.extractor.prototype": "Resource extractor", "item.resource-canister.fabricated": "Fabricated resource canister", "item.extractor.fabricated": "Fabricated resource extractor"}
 var _remote: RemoteWorldRuntime
 var _record: Dictionary = {}
 var _production: Dictionary = {}
@@ -160,6 +160,10 @@ func _inspect() -> void:
 			for material in _production["cargo"][id]:
 				if _production["cargo"][id][material] > 0:
 					_details.text += "\n%s: %.2f kg" % [material, float(_production["cargo"][id][material]) / 1000000.0]
+		if _production.get("structures", {}).has(id):
+			_details.text += "\nRecoverable construction materials:"
+			for material in _production["structures"][id]["materials"]:
+				_details.text += " %s %.2f kg" % [material, float(_production["structures"][id]["materials"][material]) / 1000000.0]
 
 
 func _open_storage(index: int) -> void:

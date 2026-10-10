@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "blueprints": {
+    "equipment.canister": {"name": "Resource canister", "definition_id": "item.resource-canister.fabricated", "definition_revision": 1, "materials": {"iron": 1000000}, "fabrication_energy_joules": 1000, "salvage_energy_joules": 500},
+    "equipment.extractor": {"name": "Resource extractor", "definition_id": "item.extractor.fabricated", "definition_revision": 1, "materials": {"iron": 1500000}, "fabrication_energy_joules": 1500, "salvage_energy_joules": 500}
+  }
+}

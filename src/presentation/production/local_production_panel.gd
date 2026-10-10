@@ -19,6 +19,8 @@ var _configured: bool = false
 var _status: Label
 var _feedback: Label
 var _deposit: OptionButton
+var _blueprint: OptionButton
+var _equipment: OptionButton
 var _recipe: OptionButton
 var _chemical: OptionButton
 var _station: OptionButton
@@ -97,6 +99,20 @@ func configure(world: WorldRuntime) -> ServiceResult:
 	_button("Collect printed plate into inventory", _send.bind("materialize_plate", {}))
 	_components = _picker()
 	_button("Recycle selected carried plate", _selected_action.bind("recycle_component", "item_id", _components))
+	var fabrication_title := _label()
+	fabrication_title.text = "Equipment fabrication · recoverable construction materials"
+	_blueprint = _picker()
+	if observed.is_success:
+		for id in observed.value.get("blueprints", {}):
+			var blueprint: Dictionary = observed.value["blueprints"][id]
+			var requirements: PackedStringArray = []
+			for material in blueprint["materials"]:
+				requirements.append("%.2f kg %s" % [float(blueprint["materials"][material]) / 1000000.0, material])
+			_blueprint.add_item("%s · %s · %d J" % [blueprint["name"], ", ".join(requirements), blueprint["fabrication_energy_joules"]])
+			_blueprint.set_item_metadata(_blueprint.item_count - 1, id)
+	_button("Fabricate selected equipment into inventory", _fabricate_equipment)
+	_equipment = _picker()
+	_button("Salvage selected fabricated equipment and contents", _salvage_equipment)
 	_button("Build 1 kg wall segment", _send.bind("build", {}))
 	_button("Deconstruct one wall segment", _send.bind("deconstruct", {}))
 	_station = _picker()
@@ -120,6 +136,15 @@ func refresh() -> void:
 		return
 	var observed: ServiceResult = _world.production_observation(_context())
 	_guide_label.text = _guide.text()
+	if observed.is_success and _equipment != null:
+		var selected: String = str(_equipment.get_item_metadata(_equipment.selected)) if _equipment.selected >= 0 else ""
+		_equipment.clear()
+		for id in observed.value.get("structures", {}):
+			var structure: Dictionary = observed.value["structures"][id]
+			_equipment.add_item(observed.value["blueprints"][structure["blueprint_id"]]["name"])
+			_equipment.set_item_metadata(_equipment.item_count - 1, id)
+			if selected == id:
+				_equipment.select(_equipment.item_count - 1)
 	_record = observed.value if observed.is_success else {}
 	observation_changed.emit(_record.duplicate(true))
 	_fill_carriers(_record.get("cargo", {}).keys())
@@ -238,6 +263,16 @@ func extract_source(deposit_id: String) -> void:
 func _extract_action() -> void:
 	if _carrier.selected >= 0 and _deposit.selected >= 0:
 		_send("extract", {"carrier_id": _carrier.get_item_text(_carrier.selected), "deposit_id": _deposit.get_item_text(_deposit.selected), "amount_milligrams": int(round(_amount.value * 1000.0))})
+
+
+func _fabricate_equipment() -> void:
+	if _blueprint.selected >= 0:
+		_send("fabricate_equipment", {"blueprint_id": _blueprint.get_item_metadata(_blueprint.selected)})
+
+
+func _salvage_equipment() -> void:
+	if _equipment.selected >= 0:
+		_send("salvage_equipment", {"item_id": _equipment.get_item_metadata(_equipment.selected)})
 
 
 func _fill_carriers(ids: Array) -> void:

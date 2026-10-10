@@ -26,6 +26,8 @@ Frontier Systems is a cooperative, persistent engineering simulation set across 
 
 The cooperative client also provides a [player inventory and tool panel](docs/architecture/player-inventory-ui.md), nested portable storage, equipment/hand controls and a 1920×1080 default window. New worlds seed handheld extractors; existing worlds keep their saved inventory.
 
+The next [equipment fabrication milestone](docs/development/equipment-fabrication-milestone.md) adds blueprint-driven canister/extractor assembly and salvage, with separate construction/contents mass and restart persistence.
+
 ## PHP control plane
 
 Requirements: PHP 8.3+ and Composer 2.

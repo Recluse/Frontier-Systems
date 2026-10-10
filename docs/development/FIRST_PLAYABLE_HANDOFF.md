@@ -54,3 +54,19 @@ PlayerInventoryPanel adds scoped storage browsing, equipment/hand controls, insp
 ## Subsequent controls implementation (2026-10-10)
 
 PlayerInputSettings (PlayerControls autoload) owns named InputMap defaults, bounded local preferences and cursor capture ownership. Left Alt temporarily exposes the cursor; settings and focus loss release navigation. PlayerControlsPanel supports keys/chords, mouse, controller button/axis rebinding, sensitivity and defaults. Cooperative shortcuts and core UI navigation are configurable. Desktop cameras and world selection no longer depend on hard-coded physical keys/buttons. See ../architecture/player-controls.md. Only editor import and script parsing were performed; interactive verification remains pending. OpenXR action-map settings are separate future work.
+
+## Completed equipment fabrication milestone (2026-10-10)
+
+Equipment fabrication/salvage is complete for the bounded cooperative source build: trusted EquipmentBlueprintCatalog, canister/extractor blueprints, atomic factory inventory preparation, production snapshot/observation v3 and separate structural mass. V1/v2 saves migrate without granting items. Manufactured carriers/tools can be nested, transferred, used, checkpointed and salvaged; starter equipment is not salvaged through this path. See equipment-fabrication-milestone.md and ../architecture/equipment-fabrication.md.
+
+The domain test, expanded real two-client acceptance, graphical fabrication/load/backpack inspection route (Forward+ and Compatibility) and six regression suites passed on Windows. Prior UI/controls notes describe earlier verification scope; current evidence additionally covers the manufacturing UI and nesting, not interactive Alt/controller rebinding. Next implement sustained extraction reservations/tool wear, then terrain excavation. Public release, Linux execution evidence, Steam identity and exports remain pending. Commit ec3e320 is the previous baseline; these milestone changes remain uncommitted unless separately requested.
+
+## Modular tool component foundation (2026-10-10)
+
+Owner clarified that all tools need independently reusable, repairable, replaceable and upgradable parts; routine wear should be low for space-tier gear. src/core/tools now supplies ToolComponentCatalog, ToolPartState and ToolAssemblyLedger with material grades, mount interfaces, prerequisite capabilities, retained detached parts, integer/remainder wear, damage and maintenance plans. Default profiles cover extractor, shovel and crowbar; a controller enables automation/scanning only when required functions exist. See ../architecture/modular-tool-components.md and data/tools/catalog.v1.json.
+
+This is an independent domain foundation, not a registered live simulation subsystem. Current tool items and world snapshots are unchanged. Only editor import/script parsing and JSON/diff checks were performed. Next wire an authenticated component owner, physical detached-part inventory and an atomic material-preserving migration of 1.5 kg extractor structure into its frame/head/drive. Do not duplicate aggregate structural mass or allow client repair plans to bypass energy/ownership checks. Then implement sustained extraction with wear applied per completed work cycle, not per tick.
+
+## CI verification request (2026-10-10)
+
+The owner requested committing/pushing the current changes and checking GitHub CI. tool_components_test.gd was added to the Windows/Ubuntu workflow and passes locally; it covers independent part replacement, mounted ownership, capability dependencies, low/fractional wear, damage/maintenance and restore. Earlier import-only notes describe the previous verification scope. Live component integration remains pending.

@@ -106,6 +106,29 @@ func _run() -> void:
 	await _production(clients[winner], winner, "recycle_component", {"item_id": plate})
 	await create_timer(0.25).timeout
 	_check(_observations[winner]["production"]["components"].is_empty() and _observations[winner]["production"]["store"]["iron"] == 1200000, "physical recycling returns conserved iron without duplicating the plate")
+	await _production(clients[winner], winner, "fabricate_equipment", {"blueprint_id": "equipment.canister"})
+	await create_timer(0.25).timeout
+	var fabricated: String = _observations[winner]["production"]["structures"].keys()[0]
+	_check(_observations[winner]["production"]["cargo"].has(fabricated) and not _observations[1 - winner]["production"]["structures"].has(fabricated), "fabricated carrier is usable and its structural record is private")
+	await _production(clients[winner], winner, "load_cargo", {"carrier_id": fabricated, "material": "iron", "amount_milligrams": 100000})
+	await create_timer(0.25).timeout
+	_check((world.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem).payload_mass(fabricated) == 1100000, "fabricated shell and contents are counted exactly once")
+	await _walk_to(clients[1 - winner], 1 - winner, [0, 0, 0])
+	await _reject(clients[1 - winner], 1 - winner, "production", "salvage_equipment", {"item_id": fabricated})
+	await _inventory_transfer(clients[winner], winner, "drop", fabricated)
+	await _inventory_transfer(clients[1 - winner], 1 - winner, "pickup", fabricated)
+	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
+	await _send(clients[1 - winner], "world", "checkpoint", {})
+	var equipment_save: ServiceResult = LocalWorldSaveStore.read_latest(directory)
+	var equipment_restore := WorldRuntime.new()
+	equipment_restore.resource_carriers_enabled = true
+	root.add_child(equipment_restore)
+	_check(equipment_save.is_success and equipment_restore.restore_world_snapshot_json(equipment_save.value["snapshot_json"]).is_success, "disk checkpoint restores transferred loaded fabricated equipment")
+	_check((equipment_restore.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem).payload_mass(fabricated) == 1100000, "restored fabricated equipment retains shell and contents")
+	equipment_restore.free()
+	await _production(clients[1 - winner], 1 - winner, "salvage_equipment", {"item_id": fabricated})
+	await create_timer(0.25).timeout
+	_check(_observations[winner]["production"]["store"]["iron"] == 1200000 and _observations[1 - winner]["production"]["structures"].is_empty(), "new owner salvages shell and contents without material loss")
 	await _production(clients[winner], winner, "process", {"recipe_id": "craft.plate"})
 	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
 	await _send(clients[winner], "world", "checkpoint", {})
@@ -169,6 +192,12 @@ func _production(client: RemoteWorldRuntime, slot: int, operation: String, paylo
 	await _send(client, "production", operation, payload)
 	if operation == "process":
 		await _wait(func() -> bool: return not _observations[slot]["production"]["job"].is_empty(), 1.0)
+
+
+func _inventory_transfer(client: RemoteWorldRuntime, slot: int, operation: String, item: String) -> void:
+	await create_timer(0.25).timeout
+	await _send(client, "inventory", "world", {"operation": operation, "item_id": item, "world_container_id": "world.tray-1", "destination_container_id": _observations[slot]["inventory"]["body_container_id"] if operation == "pickup" else "", "slot_id": "", "expected_revision": _observations[slot]["inventory"]["inventory_revision"]})
+	await create_timer(0.25).timeout
 
 
 func _walk_to(client: RemoteWorldRuntime, slot: int, target: Array) -> void:

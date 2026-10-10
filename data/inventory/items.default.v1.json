@@ -86,5 +86,31 @@
       "tool.extractor"
     ],
     "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.resource-canister.fabricated",
+    "tags": [
+      "item.handheld",
+      "resource.carrier",
+      "equipment.fabricated"
+    ],
+    "mass_milligrams": 0,
+    "storage": null,
+    "volume_millilitres": 2500,
+    "revision": 1
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.extractor.fabricated",
+    "tags": [
+      "item.handheld",
+      "tool.extractor",
+      "equipment.fabricated"
+    ],
+    "mass_milligrams": 0,
+    "storage": null,
+    "volume_millilitres": 1200,
+    "revision": 1
   }
 ]

@@ -83,3 +83,7 @@ New worlds give both crew a backpack and handheld extractor. Existing saves reta
 ## Controls preferences
 
 Hold Left Alt for UI interaction. Releasing it resumes capture if look is still held. Settings exposes gameplay and core UI bindings, mouse sensitivity and reset; preferences persist locally. See [controls contract](../architecture/player-controls.md).
+
+## Fabricate and salvage equipment
+
+Workstation now lists canister/extractor blueprints with required iron and energy. Fabricate into inventory, use/store/share it, then salvage selected owned equipment and its contents at the workstation. See [equipment milestone instructions](equipment-fabrication-milestone.md). Existing saves migrate without resetting deposits or granting manufactured gear.

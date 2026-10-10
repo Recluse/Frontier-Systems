@@ -1,0 +1,48 @@
+{
+  "type": "object",
+  "$id": "urn:frontier-systems:schema:tool-part:v1",
+  "required": [
+    "schema_version",
+    "part_id",
+    "definition_id",
+    "material_id",
+    "integrity_ppm",
+    "wear_remainder"
+  ],
+  "additionalProperties": false,
+  "title": "Independent persistent tool part v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "part_id": {
+      "minLength": 1,
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "wear_remainder": {
+      "type": "integer",
+      "maximum": 999,
+      "minimum": 0
+    },
+    "definition_id": {
+      "minLength": 1,
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "integrity_ppm": {
+      "type": "integer",
+      "maximum": 1000000,
+      "minimum": 0
+    },
+    "material_id": {
+      "minLength": 1,
+      "type": "string",
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "schema_version": {
+      "const": 1
+    }
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "type": "object",
+  "title": "Trusted equipment assembly blueprints v1",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "blueprints"
+  ],
+  "description": "Host-owned definitions only. Runtime requires registered material/item definitions, zero base mass, no inventory child storage and unique output definitions. Structural materials supply physical mass; canister cargo is separate.",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:equipment-blueprints:v1",
+  "$defs": {
+    "blueprint": {
+      "type": "object",
+      "required": [
+        "name",
+        "definition_id",
+        "definition_revision",
+        "materials",
+        "fabrication_energy_joules",
+        "salvage_energy_joules"
+      ],
+      "properties": {
+        "materials": {
+          "type": "object",
+          "maxProperties": 32,
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100000000
+          },
+          "propertyNames": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "\\S"
+          }
+        },
+        "fabrication_energy_joules": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "salvage_energy_joules": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100000
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "definition_revision": {
+          "const": 1
+        },
+        "definition_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "\\S"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "blueprints": {
+      "type": "object",
+      "maxProperties": 32,
+      "minProperties": 1,
+      "additionalProperties": {
+        "$ref": "#/$defs/blueprint"
+      },
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "\\S"
+      }
+    }
+  }
+}

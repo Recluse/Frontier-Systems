@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "materials": {
+    "grade.iron.basic": {"name":"Basic iron", "raw_material_id":"iron", "tier":"industrial", "wear_ppm_per_cycle":100},
+    "grade.iron.space": {"name":"Space-grade iron assembly", "raw_material_id":"iron", "tier":"space", "wear_ppm_per_cycle":1},
+    "grade.ceramic.space": {"name":"Space-grade ceramic", "raw_material_id":"silicate", "tier":"space", "wear_ppm_per_cycle":0}
+  },
+  "components": {
+    "part.frame": {"name":"Tool frame", "mount_interfaces":["mount.frame"], "material_ids":["grade.iron.basic","grade.iron.space"], "mass_milligrams":300000, "wear_scale_permille":0, "operational_above_ppm":50000, "repair_joules_per_permille":1, "functions":{"support.frame":[]}},
+    "part.handle": {"name":"Hand-tool handle", "mount_interfaces":["mount.handle"], "material_ids":["grade.iron.basic","grade.iron.space"], "mass_milligrams":400000, "wear_scale_permille":100, "operational_above_ppm":50000, "repair_joules_per_permille":1, "functions":{"support.handle":[]}},
+    "part.head.multipurpose": {"name":"Multipurpose extraction/shovel head", "mount_interfaces":["mount.head"], "material_ids":["grade.iron.basic","grade.iron.space","grade.ceramic.space"], "mass_milligrams":900000, "wear_scale_permille":1000, "operational_above_ppm":50000, "repair_joules_per_permille":2, "functions":{"terrain.excavate":[],"resource.extract":["power.drive"]}},
+    "part.drive": {"name":"Electric drive", "mount_interfaces":["mount.drive"], "material_ids":["grade.iron.space"], "mass_milligrams":300000, "wear_scale_permille":250, "operational_above_ppm":50000, "repair_joules_per_permille":2, "functions":{"power.drive":["support.frame"]}},
+    "part.controller": {"name":"Automation and scanning controller", "mount_interfaces":["mount.module"], "material_ids":["grade.iron.space"], "mass_milligrams":100000, "wear_scale_permille":0, "operational_above_ppm":50000, "repair_joules_per_permille":3, "functions":{"automation.control":["power.drive"],"environment.scan":["power.drive"]}},
+    "part.lever": {"name":"Prying head", "mount_interfaces":["mount.head"], "material_ids":["grade.iron.basic","grade.iron.space"], "mass_milligrams":800000, "wear_scale_permille":500, "operational_above_ppm":50000, "repair_joules_per_permille":1, "functions":{"mechanical.pry":[]}},
+    "part.lever-shaft": {"name":"Heavy lever shaft", "mount_interfaces":["mount.handle"], "material_ids":["grade.iron.basic","grade.iron.space"], "mass_milligrams":1200000, "wear_scale_permille":100, "operational_above_ppm":50000, "repair_joules_per_permille":1, "functions":{"support.handle":[]}}
+  },
+  "tools": {
+    "tool.extractor": {"name":"Modular resource extractor", "slots":{"frame":{"mount_interfaces":["mount.frame"]},"head":{"mount_interfaces":["mount.head"]},"drive":{"mount_interfaces":["mount.drive"]},"module":{"mount_interfaces":["mount.module"]}}, "actions":{"action.extract":["support.frame","resource.extract"],"action.excavate":["support.frame","terrain.excavate"],"action.extract.automatic":["resource.extract","automation.control"],"action.scan":["environment.scan"]}},
+    "tool.shovel": {"name":"Modular shovel", "slots":{"handle":{"mount_interfaces":["mount.handle"]},"head":{"mount_interfaces":["mount.head"]},"module":{"mount_interfaces":["mount.module"]}}, "actions":{"action.excavate":["support.handle","terrain.excavate"],"action.pry":["support.handle","mechanical.pry"]}},
+    "tool.crowbar": {"name":"Modular crowbar", "slots":{"handle":{"mount_interfaces":["mount.handle"]},"head":{"mount_interfaces":["mount.head"]}}, "actions":{"action.pry":["support.handle","mechanical.pry"],"action.excavate":["support.handle","terrain.excavate"]}}
+  }
+}

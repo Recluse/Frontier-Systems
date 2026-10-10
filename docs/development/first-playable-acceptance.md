@@ -40,3 +40,7 @@ The check drives local CharacterBody physics to the ore source and back, invokes
 The focused inventory_runtime_test, self_inventory_runtime_test, world_inventory_runtime_test, inventory_consciousness_test, control_runtime_recovery_test and health_runtime_test suites passed on Windows during this milestone work. They are regression evidence, not proof of all planned gameplay.
 
 Windows/Ubuntu CI includes the cooperative acceptance check; the remote Linux workflow has not been run locally. No independent human usability study, Quest 3 verification, public TLS deployment, Steam identity flow, stress benchmark or standalone export was completed for this milestone. Detailed movement collision authority remains future work. Checkpoints may lose activity since the last completed save after abrupt termination.
+
+## Subsequent current-build verification
+
+The expanded two-client test now also verifies fabricated canister privacy, loaded transfer, unauthorized salvage, disk checkpoint/restore of shell+contents and salvage by the new owner. It passed on Windows alongside the new equipment domain test and six regressions. The graphical route also passed for fabricated-canister loading/backpack inspection in both desktop renderers. See [equipment milestone evidence](equipment-fabrication-milestone.md). Human/Alt/controller and Linux verification remains pending.
