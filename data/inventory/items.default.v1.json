@@ -282,5 +282,73 @@
     "mass_milligrams": 0,
     "volume_millilitres": 300,
     "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.backpack.fabricated",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "wearable.human.backpack",
+      "storage.portable",
+      "equipment.fabricated"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 20000,
+    "storage": {
+      "max_mass_milligrams": 15000000,
+      "max_volume_millilitres": 18000,
+      "max_items": 16,
+      "accepted_tags": [
+        "item.handheld",
+        "storage.portable"
+      ]
+    }
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.pouch.fabricated",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "storage.portable",
+      "equipment.fabricated"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 2000,
+    "storage": {
+      "max_mass_milligrams": 5000000,
+      "max_volume_millilitres": 1500,
+      "max_items": 4,
+      "accepted_tags": [
+        "item.handheld"
+      ]
+    }
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.crowbar.fabricated",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "tool.crowbar",
+      "equipment.fabricated"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 1000,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.shovel.fabricated",
+    "tags": [
+      "item.handheld",
+      "tool.shovel",
+      "equipment.fabricated"
+    ],
+    "mass_milligrams": 0,
+    "storage": null,
+    "volume_millilitres": 1200,
+    "revision": 1
   }
 ]

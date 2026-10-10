@@ -1,7 +1,65 @@
 {
   "schema_version": 1,
   "blueprints": {
-    "equipment.canister": {"name": "Resource canister", "definition_id": "item.resource-canister.fabricated", "definition_revision": 1, "materials": {"iron": 1000000}, "fabrication_energy_joules": 1000, "salvage_energy_joules": 500},
-    "equipment.extractor": {"name": "Resource extractor", "definition_id": "item.extractor.fabricated", "definition_revision": 1, "materials": {"iron": 1500000}, "fabrication_energy_joules": 1500, "salvage_energy_joules": 500}
+    "equipment.canister": {
+      "name": "Resource canister",
+      "definition_id": "item.resource-canister.fabricated",
+      "definition_revision": 1,
+      "materials": {
+        "iron": 1000000
+      },
+      "fabrication_energy_joules": 1000,
+      "salvage_energy_joules": 500
+    },
+    "equipment.extractor": {
+      "name": "Resource extractor",
+      "definition_id": "item.extractor.fabricated",
+      "definition_revision": 1,
+      "materials": {
+        "iron": 1500000
+      },
+      "fabrication_energy_joules": 1500,
+      "salvage_energy_joules": 500
+    },
+    "equipment.backpack": {
+      "name": "Rigid storage backpack",
+      "definition_id": "item.backpack.fabricated",
+      "definition_revision": 1,
+      "materials": {
+        "iron": 1000000
+      },
+      "fabrication_energy_joules": 1000,
+      "salvage_energy_joules": 500
+    },
+    "equipment.pouch": {
+      "name": "Rigid tool pouch",
+      "definition_id": "item.pouch.fabricated",
+      "definition_revision": 1,
+      "materials": {
+        "iron": 500000
+      },
+      "fabrication_energy_joules": 500,
+      "salvage_energy_joules": 500
+    },
+    "equipment.crowbar": {
+      "name": "Modular crowbar",
+      "definition_id": "item.crowbar.fabricated",
+      "definition_revision": 1,
+      "materials": {
+        "iron": 2000000
+      },
+      "fabrication_energy_joules": 2000,
+      "salvage_energy_joules": 500
+    },
+    "equipment.shovel": {
+      "name": "Modular shovel",
+      "definition_id": "item.shovel.fabricated",
+      "definition_revision": 1,
+      "materials": {
+        "iron": 1300000
+      },
+      "fabrication_energy_joules": 1300,
+      "salvage_energy_joules": 500
+    }
   }
 }

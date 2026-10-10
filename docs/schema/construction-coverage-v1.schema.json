@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:construction-coverage:v1",
+  "title": "Current physical catalog construction coverage v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "fixture_equivalents", "special_factories"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "fixture_equivalents": {
+      "type": "object", "maxProperties": 32,
+      "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 128}
+    },
+    "special_factories": {
+      "const": {
+        "item.plate.prototype": "materialize_plate",
+        "item.tool-part.fabricated": "fabricate_tool_part"
+      }
+    }
+  },
+  "description": "Coverage checks resolve ordinary outputs from equipment and machinery catalogs. Legacy fixture aliases require real constructed equivalents with matching volume, storage and capabilities. Only the two existing special factories are exempt from ordinary blueprint lookup."
+}

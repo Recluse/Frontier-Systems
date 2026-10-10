@@ -61,13 +61,13 @@ func _rebuild() -> void:
 			var item: Dictionary = container["items"][index]
 			var dimensions := Vector3(0.15, 0.15, 0.15)
 			var color := Color("#b4c7d4")
-			if item["definition_id"] == "item.crowbar.prototype":
+			if item["definition_id"] in ["item.crowbar.prototype", "item.crowbar.fabricated"]:
 				dimensions = Vector3(0.4, 0.04, 0.04)
 				color = Color("#bdc8d0")
-			elif item["definition_id"] == "item.backpack.prototype":
+			elif item["definition_id"] in ["item.backpack.prototype", "item.backpack.fabricated"]:
 				dimensions = Vector3(0.25, 0.3, 0.2)
 				color = Color("#6a986b")
-			elif item["definition_id"] == "item.pouch.prototype":
+			elif item["definition_id"] in ["item.pouch.prototype", "item.pouch.fabricated"]:
 				dimensions = Vector3(0.18, 0.12, 0.12)
 				color = Color("#bba064")
 			elif item["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated"]:

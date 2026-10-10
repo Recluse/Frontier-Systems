@@ -2,7 +2,7 @@ extends VBoxContainer
 class_name PlayerInventoryPanel
 
 ## Authenticated player UI. All equipment/storage/tool effects are server intents.
-const NAMES: Dictionary = {"item.backpack.prototype": "Backpack", "item.pouch.prototype": "Tool pouch", "item.crowbar.prototype": "Crowbar", "item.resource-canister.prototype": "Resource canister", "item.plate.prototype": "Printed plate", "item.extractor.prototype": "Resource extractor", "item.resource-canister.fabricated": "Fabricated resource canister", "item.extractor.fabricated": "Fabricated resource extractor"}
+const NAMES: Dictionary = {"item.backpack.fabricated": "Fabricated storage backpack", "item.pouch.fabricated": "Fabricated tool pouch", "item.crowbar.fabricated": "Fabricated crowbar", "item.shovel.fabricated": "Fabricated shovel", "item.backpack.prototype": "Backpack", "item.pouch.prototype": "Tool pouch", "item.crowbar.prototype": "Crowbar", "item.resource-canister.prototype": "Resource canister", "item.plate.prototype": "Printed plate", "item.extractor.prototype": "Resource extractor", "item.resource-canister.fabricated": "Fabricated resource canister", "item.extractor.fabricated": "Fabricated resource extractor"}
 var _remote: RemoteWorldRuntime
 var _record: Dictionary = {}
 var _production: Dictionary = {}

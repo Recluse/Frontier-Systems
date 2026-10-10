@@ -4,6 +4,7 @@ class_name MachineryPanel
 ## Read-only observation controls; every action is an authenticated queued intent.
 var _world: WorldRuntime
 var _record: Dictionary = {}
+var _design_signature: String = ""
 var _machine := OptionButton.new()
 var _part := OptionButton.new()
 var _socket := OptionButton.new()
@@ -22,17 +23,12 @@ func configure(world: WorldRuntime) -> void:
 	_world = world
 	var guide := Label.new()
 	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	guide.text = "Hand-build a frame, controller, power connector and work head from refined iron at the workbench. Fit sockets and canisters. Deploy a solar frame and wire machines directly or through a router. Add an expander for large prints and extra sockets. Removing parts pauses work; restart requires Resume."
+	guide.text = "Hand-build a frame, controller, power connector and work head from refined iron at the workbench. Fit sockets and canisters. Deploy a solar frame and wire machines directly or through a router. Equipment printing needs an expander; hand assembly needs only materials. Expanders also add sockets. Removing parts pauses work; restart requires Resume."
 	add_child(guide)
-	for kind in MachineryWorkshop.KINDS:
-		_kind.add_item("%s (%.2f kg iron)" % [kind, float(MachineryWorkshop.KINDS[kind]) / 1000000.0])
-		_kind.set_item_metadata(_kind.item_count - 1, kind)
-	_kind.add_item("Resource canister (printer + expander, 1 kg iron)")
-	_kind.set_item_metadata(_kind.item_count - 1, "equipment.canister")
-	_kind.add_item("Handheld extractor (printer + expander, 1.5 kg iron)")
-	_kind.set_item_metadata(_kind.item_count - 1, "equipment.extractor")
+	_kind.fit_to_longest_item = false
+	_populate_designs({})
 	add_child(_kind)
-	_button("Hand-build selected part", "machine_craft")
+	_button("Hand-build selected part / equipment", "machine_craft")
 	_label("Machine frame")
 	add_child(_machine)
 	_label("Physical module / canister / cable")
@@ -101,6 +97,7 @@ func configure(world: WorldRuntime) -> void:
 
 func observe(record: Dictionary) -> void:
 	_record = record
+	_populate_designs(record["production"].get("blueprints", {}))
 	var machinery: Dictionary = record["production"]["machinery"]
 	var frames: Dictionary = {}
 	var parts: Dictionary = {}
@@ -110,10 +107,9 @@ func observe(record: Dictionary) -> void:
 		parts[id] = "%s · %s" % [kind, id.right(8)]
 		if kind == "frame": frames[id] = parts[id] + (" deployed" if machinery["placements"].has(id) else " packed")
 		if kind == "socket": sockets[id] = parts[id]
-	for physical in machinery["inventory_items"]:
-		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated", "item.extractor.fabricated", "item.plate.prototype"]: parts[physical["item_id"]] = "%s · %s" % ["extractor" if physical["definition_id"] == "item.extractor.fabricated" else ("plate" if physical["definition_id"] == "item.plate.prototype" else "canister"), physical["item_id"]]
-	for physical in record["inventory"]["items"]:
-		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated", "item.extractor.fabricated", "item.plate.prototype"]: parts[physical["item_id"]] = "%s · %s" % ["extractor" if physical["definition_id"] == "item.extractor.fabricated" else ("plate" if physical["definition_id"] == "item.plate.prototype" else "canister"), physical["item_id"]]
+	for physical in machinery["inventory_items"] + record["inventory"]["items"]:
+		if not parts.has(physical["item_id"]):
+			parts[physical["item_id"]] = "%s · %s" % [PlayerInventoryPanel.NAMES.get(physical["definition_id"], physical["definition_id"]), physical["item_id"]]
 	_fill(_machine, frames)
 	_fill(_other, frames)
 	_fill(_part, parts)
@@ -200,3 +196,22 @@ static func _fill(picker: OptionButton, entries: Dictionary) -> void:
 		picker.add_item(entries[id])
 		picker.set_item_metadata(picker.item_count - 1, id)
 		if id == selected: picker.select(picker.item_count - 1)
+
+
+## Designs come from the scoped server observation, never a client-authored bill.
+func _populate_designs(blueprints: Dictionary) -> void:
+	var signature: String = JSON.stringify(blueprints, "", true)
+	if signature == _design_signature: return
+	_design_signature = signature
+	var selected: String = _selected(_kind)
+	_kind.clear()
+	for kind in MachineryWorkshop.KINDS:
+		_kind.add_item("%s (%.2f kg iron)" % [kind, float(MachineryWorkshop.KINDS[kind]) / 1000000.0])
+		_kind.set_item_metadata(_kind.item_count - 1, kind)
+	for id in blueprints:
+		var bill: PackedStringArray = []
+		for material in blueprints[id]["materials"]: bill.append("%.2f kg %s" % [float(blueprints[id]["materials"][material]) / 1000000.0, material])
+		_kind.add_item("%s (%s)" % [blueprints[id]["name"], ", ".join(bill)])
+		_kind.set_item_metadata(_kind.item_count - 1, id)
+	for index in range(_kind.item_count):
+		if _kind.get_item_metadata(index) == selected: _kind.select(index)

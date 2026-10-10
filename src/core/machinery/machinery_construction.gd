@@ -43,7 +43,7 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 	elif operation in ["machine_craft", "machine_print", "machine_autolathe_make"]:
 		var kind: String = String(payload["kind"])
 		var equipment: ServiceResult = production.machine_blueprint(kind)
-		var is_equipment: bool = operation != "machine_craft" and equipment.is_success
+		var is_equipment: bool = equipment.is_success
 		if (not MachineryWorkshop.KINDS.has(kind) and not is_equipment) or (not is_equipment and workshop["parts"].size() >= 128) or (is_equipment and state["structures"].size() >= 32): return failure("Select a known part; its physical registry must have capacity.")
 		var blueprint: Dictionary = equipment.value if is_equipment else {}
 		var bill: Dictionary = blueprint["materials"].duplicate(true) if is_equipment else {"iron": int(MachineryWorkshop.KINDS[kind])}
@@ -51,8 +51,9 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 		if operation == "machine_craft":
 			# Manual bootstrap construction deliberately has no grid dependency.
 			if not inventory.production_capability(context, true).is_success: return failure("Approach the workbench for manual construction.")
-			if int(state["store"]["iron"]) < int(bill["iron"]): return failure("Hand assembly needs refined iron in the workbench store.")
-			state["store"]["iron"] -= int(bill["iron"])
+			for material in bill:
+				if int(state["store"][material]) < int(bill[material]): return failure("Hand assembly needs all blueprint materials in the workbench store.")
+			for material in bill: state["store"][material] -= int(bill[material])
 		elif operation == "machine_autolathe_make":
 			if not MachineryWorkshop.operational(workshop, owner, machine, "autolathe"): return failure("Deploy a powered autolathe with controller and power connector.")
 			if workshop["jobs"].has(machine): return failure("Finish or cancel the current machine batch first.")

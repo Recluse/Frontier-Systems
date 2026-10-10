@@ -6,7 +6,7 @@
     "schema_version",
     "blueprints"
   ],
-  "description": "Host-owned definitions only. Runtime requires registered material/item definitions, zero base mass, no inventory child storage and unique output definitions. Structural materials supply physical mass; canister cargo is separate.",
+  "description": "Host-owned definitions only. Runtime requires registered material/item definitions, zero base mass and unique output definitions. Structural materials supply shell mass. Trusted portable storage creates a child container through Inventory; empty storage is required for salvage. Canister cargo remains separate.",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:frontier-systems:schema:equipment-blueprints:v1",
   "$defs": {

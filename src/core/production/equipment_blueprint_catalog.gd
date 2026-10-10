@@ -20,8 +20,8 @@ func configure(record: Variant, inventory: InventorySimulationSystem, materials:
 		if typeof(value["name"]) != TYPE_STRING or value["name"].is_empty() or value["name"].length() > 80 or not ControlContractValidation.is_id(value["definition_id"]) or not ControlContractValidation.is_integer(value["definition_revision"], 1, 1) or item_ids.has(value["definition_id"]):
 			return _failure()
 		var definition: ServiceResult = inventory.factory_definition(value["definition_id"])
-		if not definition.is_success or int(definition.value["mass_milligrams"]) != 0 or definition.value["storage"] != null or not definition.value["tags"].has("equipment.fabricated"):
-			return _failure() # Structural mass belongs to production; storage graphs follow later.
+		if not definition.is_success or int(definition.value["mass_milligrams"]) != 0 or not definition.value["tags"].has("equipment.fabricated"):
+			return _failure() # Structural mass belongs to production; Inventory validates child storage.
 		if typeof(value["materials"]) != TYPE_DICTIONARY or value["materials"].is_empty() or value["materials"].size() > 32:
 			return _failure()
 		var normalized: Dictionary = value.duplicate(true)

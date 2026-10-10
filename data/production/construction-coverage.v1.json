@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "fixture_equivalents": {
+    "item.backpack.prototype": "item.backpack.fabricated",
+    "item.pouch.prototype": "item.pouch.fabricated",
+    "item.crowbar.prototype": "item.crowbar.fabricated",
+    "item.extractor.prototype": "item.extractor.fabricated",
+    "item.resource-canister.prototype": "item.resource-canister.fabricated"
+  },
+  "special_factories": {
+    "item.plate.prototype": "materialize_plate",
+    "item.tool-part.fabricated": "fabricate_tool_part"
+  }
+}

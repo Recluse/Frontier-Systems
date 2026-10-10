@@ -5,7 +5,7 @@
 1. Extract and refine iron through the existing portable-canister loop. Hand-build a frame, controller, power connector and **autolathe** module (300 g iron). Fit them in Construction and deploy the frame.
 2. Connect the frame to a solar generator, directly or through a router. Fabrication uses the existing local energy buffer and cable limits.
 3. Manufacture a plate with `craft.plate`, then materialize it as a physical item. Select it in Construction and **Feed selected physical plate / empty part**. A 1 kg plate becomes exactly 1 kg hopper iron. Empty, owned, disconnected machine parts can also be fed for their exact iron bill. This first hopper accepts iron; ore, liquids, gases, tools and occupied containers are rejected.
-4. Select an existing machine-part design and **Autolathe: fabricate selected design**. The output appears in frame storage as an unfitted physical item. Use Remove module / printed part to collect it. Add an expander for the trusted equipment designs: resource canister and component-backed handheld extractor.
+4. Select an existing machine-part design and **Autolathe: fabricate selected design**. The output appears in frame storage as an unfitted physical item. Use Remove module / printed part to collect it. Add an expander for the trusted equipment designs: all trusted equipment designs, including canisters, extractors, crowbars, shovels and portable storage.
 5. Select an owned empty or iron-containing canister, enter grams and **Eject iron** to recover leftover stock. Empty the hopper and nested storage before recycling its frame. Packing retains all stock and contents.
 
 This is independently implemented first-party MIT behavior. No SS13 code or assets were copied.

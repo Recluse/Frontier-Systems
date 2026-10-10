@@ -4,12 +4,28 @@
   "title": "Canonical live tool component owner v1",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_version", "bindings_fingerprint", "last_tick", "ledger"],
+  "required": [
+    "schema_version",
+    "bindings_fingerprint",
+    "last_tick",
+    "ledger"
+  ],
   "properties": {
-    "schema_version": {"const": 1},
-    "bindings_fingerprint": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
-    "last_tick": {"type": "integer", "minimum": 0, "maximum": 9007199254740000},
-    "ledger": {"$ref": "urn:frontier-systems:schema:tool-assembly-ledger:v1"}
+    "schema_version": {
+      "const": 1
+    },
+    "bindings_fingerprint": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "last_tick": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740000
+    },
+    "ledger": {
+      "$ref": "urn:frontier-systems:schema:tool-assembly-ledger:v1"
+    }
   },
-  "description": "Runtime also checks snapshot tick, pinned bindings/catalog, physical inventory associations, mounted ownership and component material mass against production structure. Missing legacy owners migrate existing scalar condition without adding matter."
+  "description": "Runtime also checks snapshot tick, pinned bindings/catalog, physical inventory associations, mounted ownership and component material mass against production structure. Missing legacy owners migrate existing scalar condition without adding matter. Original bindings v1 fingerprints are accepted under the additive v2 catalog; restored records normalize to the current fingerprint. V1 definitions are retained and checked unchanged."
 }

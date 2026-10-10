@@ -7,6 +7,7 @@ var _catalog := ToolComponentCatalog.new()
 var _bindings: Dictionary = {}
 var _part_blueprints: Dictionary = {}
 var _binding_fingerprint: String = ""
+var _legacy_binding_fingerprint: String = ""
 var _ledger: ToolAssemblyLedger
 var _inventory: InventorySimulationSystem
 var _last_tick: int = 0
@@ -31,8 +32,8 @@ func configure(inventory: InventorySimulationSystem) -> ServiceResult:
 		var part: ServiceResult = ToolPartState.create("blueprint-part", blueprint["definition_id"], blueprint["material_id"], _catalog)
 		if not part.is_success: return part
 	_part_blueprints = part_catalog["blueprints"].duplicate(true)
-	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/tools/inventory-bindings.v1.json"))
-	if typeof(data) != TYPE_DICTIONARY or not ToolComponentCatalog.exact(data, ["schema_version", "bindings"]) or not ControlContractValidation.is_integer(data["schema_version"], 1, 1) or typeof(data["bindings"]) != TYPE_DICTIONARY or data["bindings"].size() > 64: return _failure("Invalid trusted inventory/tool bindings.")
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/tools/inventory-bindings.v2.json"))
+	if typeof(data) != TYPE_DICTIONARY or not ToolComponentCatalog.exact(data, ["schema_version", "bindings"]) or not ControlContractValidation.is_integer(data["schema_version"], 2, 2) or typeof(data["bindings"]) != TYPE_DICTIONARY or data["bindings"].size() > 64: return _failure("Invalid trusted inventory/tool bindings.")
 	for id in data["bindings"]:
 		var binding: Variant = data["bindings"][id]
 		if not ControlContractValidation.is_id(id) or typeof(binding) != TYPE_DICTIONARY or not ToolComponentCatalog.exact(binding, ["profile_id", "parts"]) or not ControlContractValidation.is_id(binding["profile_id"]) or not _catalog.definition("tools", binding["profile_id"]).is_success or typeof(binding["parts"]) != TYPE_DICTIONARY or binding["parts"].size() > 16: return _failure("Invalid assembly binding.")
@@ -48,6 +49,10 @@ func configure(inventory: InventorySimulationSystem) -> ServiceResult:
 			defaults["assemblies"][id]["slots"][slot] = "default-" + slot
 		var assembled: ServiceResult = ToolAssemblyLedger.from_record(defaults, _catalog)
 		if not assembled.is_success: return assembled
+	var original: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/tools/inventory-bindings.v1.json"))["bindings"]
+	for id in original:
+		if data["bindings"].get(id) != original[id]: return _failure("Additive bindings must preserve all original tool profiles and components.")
+	_legacy_binding_fingerprint = JSON.stringify(original, "", true, true).sha256_text()
 	_bindings = data["bindings"].duplicate(true)
 	_binding_fingerprint = JSON.stringify(_bindings, "", true, true).sha256_text()
 	_inventory = inventory
@@ -147,7 +152,7 @@ func prepare_inventory(owner: Dictionary, structures: Dictionary, loose_parts: D
 
 func capability(item_id: String, tag: String) -> ServiceResult:
 	if not _ledger.has_assembly(item_id): return ServiceResult.success(false)
-	var actions: Dictionary = {"tool.extractor": "action.extract", "tool.crowbar": "action.pry"}
+	var actions: Dictionary = {"tool.extractor": "action.extract", "tool.crowbar": "action.pry", "tool.shovel": "action.excavate"}
 	var observed: ServiceResult = _ledger.observation(item_id)
 	if not actions.has(tag): return _failure("No component-backed handler is registered for this tool function.")
 	return ServiceResult.success(observed.is_success and observed.value["actions"].get(actions[tag], {}).get("available", false))
@@ -294,7 +299,7 @@ func capture_snapshot() -> ServiceResult:
 
 
 func validate_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
-	if not ToolComponentCatalog.exact(record, ["schema_version", "bindings_fingerprint", "last_tick", "ledger"]) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 1) or record.get("bindings_fingerprint") != _binding_fingerprint or not ControlContractValidation.is_integer(record.get("last_tick"), tick, tick): return _failure("Tool snapshot layout, catalog or tick differs.")
+	if not ToolComponentCatalog.exact(record, ["schema_version", "bindings_fingerprint", "last_tick", "ledger"]) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 1) or record.get("bindings_fingerprint") not in [_binding_fingerprint, _legacy_binding_fingerprint] or not ControlContractValidation.is_integer(record.get("last_tick"), tick, tick): return _failure("Tool snapshot layout, catalog or tick differs.")
 	if typeof(record.get("ledger")) != TYPE_DICTIONARY: return _failure("Tool snapshot requires a ledger object.")
 	var ledger: ServiceResult = ToolAssemblyLedger.from_record(record["ledger"], _catalog)
 	return ServiceResult.success({"schema_version": 1, "bindings_fingerprint": _binding_fingerprint, "last_tick": tick, "ledger": ledger.value.to_record()}) if ledger.is_success else ledger

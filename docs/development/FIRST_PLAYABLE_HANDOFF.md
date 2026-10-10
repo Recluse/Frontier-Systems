@@ -15,6 +15,10 @@ This is a bounded development prototype, not the full long-term game or a Steam 
 - Windows runtime support is mandatory: no ReactPHP child processes, pcntl or POSIX orchestration. PHP packages remain PSR-4 and strict_types=1.
 - First-party code and procedural assets are MIT. No SS13/Civ13 source/assets were imported. Reference authorization does not provide MIT redistribution rights; Baystation source must not be supplied to AI.
 
+## Latest construction slice
+
+[Construction coverage and next adapters](scratch-construction-milestone.md): every current inventory definition has a fabrication route or equivalent, including new backpacks, pouches, crowbars and shovels. All equipment can be hand-assembled near the workbench from its raw bills without printer energy. Trusted storage outputs create real child containers. Tool bindings v2 migrate old snapshot fingerprints. CI includes coverage checks to catch future spawn-only items. World fixtures still need spatial construction adapters.
+
 ## Latest crafting slice
 
 The first solid-stock autolathe is implemented. See [autolathe contracts, playable route and continuation](autolathe-milestone.md). It uses an independently replaceable head, conserved frame hopper, physical plates/empty parts, trusted design fabrication, canister recovery and existing grid/inventory/tool owners. Fabrication is currently a single command transaction; timed queues and additional materials remain later work. Catalog v2 is additive; original workshop fingerprints migrate on restore.
