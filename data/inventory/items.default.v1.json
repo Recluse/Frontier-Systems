@@ -114,9 +114,161 @@
     "revision": 1
   },
   {
-    "schema_version": 1, "revision": 1,
+    "schema_version": 1,
+    "revision": 1,
     "definition_id": "item.tool-part.fabricated",
-    "tags": ["item.handheld", "tool.part"],
-    "mass_milligrams": 0, "volume_millilitres": 1000, "storage": null
+    "tags": [
+      "item.handheld",
+      "tool.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 1000,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.frame",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.frame"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 10000,
+    "storage": {
+      "max_mass_milligrams": 40000000,
+      "max_volume_millilitres": 100000,
+      "max_items": 64,
+      "accepted_tags": [
+        "item.handheld"
+      ]
+    }
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.socket",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": {
+      "max_mass_milligrams": 5000000,
+      "max_volume_millilitres": 3000,
+      "max_items": 1,
+      "accepted_tags": [
+        "resource.carrier"
+      ]
+    }
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.power",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.controller",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.printhead",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.refinery",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.extractor",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.solar",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.router",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.expander",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.cable",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
   }
 ]

@@ -87,3 +87,7 @@ Hold Left Alt for UI interaction. Releasing it resumes capture if look is still 
 ## Fabricate and salvage equipment
 
 Workstation now lists canister/extractor blueprints with required iron and energy. Fabricate into inventory, use/store/share it, then salvage selected owned equipment and its contents at the workstation. See [equipment milestone instructions](equipment-fabrication-milestone.md). Existing saves migrate without resetting deposits or granting manufactured gear.
+
+## Build portable resource machinery
+
+Open the Construction tab to hand-build frames and modules, insert canisters, deploy generators, connect cables/routers, run powered processing and print replacement equipment. See [the construction walkthrough and prototype limits](modular-resource-machinery-milestone.md). Hold the configured UI cursor key (Left Alt by default) to interact. Existing inventory and settings remain in their original tabs.

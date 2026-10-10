@@ -300,3 +300,6 @@ jobs:
       - name: Check authenticated game event ingestion without Discord sends
         shell: pwsh
         run: ./tools/test-event-logging.ps1
+
+      - name: Check modular construction, physical sockets and powered resource machines
+        run: godot --headless --xr-mode off --path . --script res://tests/godot/machinery_runtime_test.gd

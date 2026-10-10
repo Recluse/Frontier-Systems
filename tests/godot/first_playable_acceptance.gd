@@ -106,6 +106,38 @@ func _run() -> void:
 	await _production(clients[winner], winner, "recycle_component", {"item_id": plate})
 	await create_timer(0.25).timeout
 	_check(_observations[winner]["production"]["components"].is_empty() and _observations[winner]["production"]["store"]["iron"] == 1200000, "physical recycling returns conserved iron without duplicating the plate")
+	# Cooperative deployed machinery uses the same remote authority and durable store.
+	var machine_parts: Array[String] = []
+	for kind in ["frame", "controller", "power", "solar"]:
+		await _production(clients[winner], winner, "machine_craft", {"kind": kind})
+		await create_timer(0.25).timeout
+		for id in _observations[winner]["production"]["machinery"]["parts"]:
+			if not machine_parts.has(id): machine_parts.append(id)
+	var shared_machine: String = machine_parts[0]
+	_check(not _observations[1 - winner]["production"]["machinery"]["parts"].has(shared_machine), "packed machines stay private to their owner")
+	await _reject(clients[1 - winner], 1 - winner, "production", "machine_recycle", {"item_id": shared_machine})
+	for part in machine_parts.slice(1):
+		await _production(clients[winner], winner, "machine_fit", {"machine_id": shared_machine, "item_id": part, "socket_id": ""})
+	await _production(clients[winner], winner, "machine_deploy", {"machine_id": shared_machine, "position": [0, 0, 0], "mode": "surface"})
+	await create_timer(0.25).timeout
+	_check(_observations[1 - winner]["production"]["machinery"]["placements"].has(shared_machine), "deployed generator replicates to both crew")
+	await _walk_to(clients[1 - winner], 1 - winner, [0, 0, 0])
+	await _production(clients[1 - winner], 1 - winner, "machine_enable", {"machine_id": shared_machine, "enabled": false})
+	await _production(clients[1 - winner], 1 - winner, "machine_enable", {"machine_id": shared_machine, "enabled": true})
+	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
+	await _send(clients[1 - winner], "world", "checkpoint", {})
+	var machinery_save: ServiceResult = LocalWorldSaveStore.read_latest(directory)
+	var machinery_restore := WorldRuntime.new()
+	machinery_restore.resource_carriers_enabled = true
+	root.add_child(machinery_restore)
+	_check(machinery_save.is_success and machinery_restore.restore_world_snapshot_json(machinery_save.value["snapshot_json"]).is_success, "disk checkpoint restores a cooperative generator assembly")
+	_check((machinery_restore.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem).capture_snapshot().value["machinery"]["placements"].has(shared_machine), "restored generator retains deployed identity")
+	machinery_restore.free()
+	await _production(clients[winner], winner, "machine_pack", {"machine_id": shared_machine})
+	for part in machine_parts.slice(1):
+		await _production(clients[winner], winner, "machine_unfit", {"machine_id": shared_machine, "item_id": part, "socket_id": ""})
+		await _production(clients[winner], winner, "machine_recycle", {"item_id": part})
+	await _production(clients[winner], winner, "machine_recycle", {"item_id": shared_machine})
 	await _production(clients[winner], winner, "fabricate_equipment", {"blueprint_id": "equipment.canister"})
 	await create_timer(0.25).timeout
 	var fabricated: String = _observations[winner]["production"]["structures"].keys()[0]
@@ -201,7 +233,7 @@ func _run() -> void:
 	restarted_host.free()
 	restarted.free()
 	if _failures == 0:
-		print("FIRST PLAYABLE ACCEPTANCE: two authenticated clients, scoped cargo, competing extraction, refinement, physical crafting/recycling, checkpoint and restarted batch passed.")
+		print("FIRST PLAYABLE ACCEPTANCE: two authenticated clients, scoped cargo, competing extraction, refinement, physical crafting/recycling, shared generator control, assembly checkpoint and restarted batch passed.")
 	quit(0 if _failures == 0 else 1)
 
 

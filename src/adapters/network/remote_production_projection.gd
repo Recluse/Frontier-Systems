@@ -8,8 +8,9 @@ const MATERIALS: Array[String] = ["ore.iron", "ice", "regolith", "iron", "tailin
 
 func accept_record(value: Dictionary) -> ServiceResult:
 	var fields := PackedStringArray(["schema_version", "catalog_revision", "catalog_fingerprint", "timebase_hz", "last_tick", "state_revision", "deposits", "store", "vessel", "wall_mass_milligrams", "energy_joules", "powered", "job", "cargo", "components", "recipes", "dispensable", "can_operate", "vessel_pressure_kpa", "extractable_sources"])
+	fields.append("machinery")
 	fields.append_array(PackedStringArray(["structures", "blueprints", "loose_parts", "tool_extraction"]))
-	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 5, 5) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
+	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 6, 6) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
 		return _invalid()
 	for field in ["last_tick", "state_revision", "catalog_revision", "wall_mass_milligrams", "energy_joules"]:
 		if not ControlContractValidation.is_integer(value[field], 0, 9007199254740000):
@@ -62,6 +63,16 @@ func accept_record(value: Dictionary) -> ServiceResult:
 	var pressure: Variant = value["vessel_pressure_kpa"]
 	if (typeof(pressure) != TYPE_INT and typeof(pressure) != TYPE_FLOAT) or not is_finite(float(pressure)) or float(pressure) < 0.0 or float(pressure) > MAX_VESSEL_PRESSURE_KPA:
 		return _invalid()
+	if typeof(value["machinery"]) != TYPE_DICTIONARY: return _invalid()
+	var machinery: Dictionary = value["machinery"].duplicate(true)
+	if typeof(machinery.get("inventory_items")) != TYPE_ARRAY or machinery["inventory_items"].size() > 512 or typeof(machinery.get("cargo")) != TYPE_DICTIONARY or machinery["cargo"].size() > 32: return _invalid()
+	for physical in machinery["inventory_items"]:
+		if typeof(physical) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(physical, PackedStringArray(["item_id", "definition_id", "definition_revision", "condition_permille", "container_id"])) or not ControlContractValidation.is_id(physical["item_id"]) or not ControlContractValidation.is_id(physical["definition_id"]) or not ControlContractValidation.is_id(physical["container_id"]) or not ControlContractValidation.is_integer(physical["definition_revision"], 1, 1) or not ControlContractValidation.is_integer(physical["condition_permille"], 0, 1000): return _invalid()
+	for stock in machinery["cargo"].values():
+		if not _valid_stock(stock, true): return _invalid()
+	machinery.erase("inventory_items")
+	machinery.erase("cargo")
+	if not MachineryWorkshop.validate(machinery): return _invalid()
 	record = value.duplicate(true)
 	return ServiceResult.success()
 

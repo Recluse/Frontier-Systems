@@ -11,7 +11,7 @@ This is a bounded development prototype, not the full long-term game or a Steam 
 - Workspace: `D:\GitHub\Frontier Systems`; integration branch `dev-master`.
 - Godot console: `D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe`.
 - Read `AGENTS.md`, the milestone and adapter contract before editing authority boundaries.
-- Preserve uncommitted work; commit/push only when requested. Inspect Git status before assuming ownership of changes.
+- Preserve uncommitted work; the owner authorizes committing/pushing each completed milestone to origin/dev-master before reporting it. Inspect Git status before assuming ownership of changes.
 - Windows runtime support is mandatory: no ReactPHP child processes, pcntl or POSIX orchestration. PHP packages remain PSR-4 and strict_types=1.
 - First-party code and procedural assets are MIT. No SS13/Civ13 source/assets were imported. Reference authorization does not provide MIT redistribution rights; Baystation source must not be supplied to AI.
 
@@ -95,3 +95,10 @@ Production v5 adds a ToolExtractionWork binding to the fixture's single job slot
 Sustained extraction commit 1fb3108 was pushed; its GitHub CI passed. The next slice adds WorldEventOutbox (opt-in idle HTTP, bounded queue, no canonical mutation) and packages/event-logging (PSR-4, Monolog 3, React promises). DiscordPhpEventBridge attaches to an existing DiscordPHP getLogger/getLoop rather than creating another client/logger. Default policy separates public events/chat, scoped private chat and staff-only LLM traces/command outcomes; native guild text-channel permission checks reject unapproved access. Typed events are consumed before legacy unclassified exporters. Queues, deadlines, retries, retained deduplication and failure counters are bounded; unknown kinds/downgrades/credential fields reject.
 
 See event-logging-milestone.md and ../../packages/event-logging/README.md for setup/API/evidence and honest delivery limits. No real Discord sends were made; configure guild/channel IDs and approved roles/users/private scopes, attach after a complete ready cache and set host URL/token. Larger model traces, durable audit retention and production multi-host authentication need further work. Chat/LLM event hooks are ready but are not proof those gameplay systems are complete. Next return to terrain excavation.
+## Modular resource machinery (2026-10-10)
+
+Production v6 embeds a catalog-pinned MachineryWorkshop record. Physical frames, modules, cables and portable one-canister sockets are backed by conserved iron bills. Hand assembly bootstraps solar generators, printers, refineries, routers and finite-source extractors. Expander modules enable larger prints and additional sockets. Deployed machines run independent canister-fed batches with per-tick energy use, output capacity checks and explicit restart resume. Generator/local buffers and shared cable budgets supply a deterministic bounded grid. The Construction tab queues authenticated intents; settled procedural presentation uses one static body per frame and no cable rigid bodies.
+
+See modular-resource-machinery-milestone.md for construction instructions, owner contracts, version migration, units, tests and remaining placement/engineering limits. The existing workbench remains a bootstrap path. Machinery physical output appears in the frame storage and requires retrieval/fitting; it is not automatically operational. Material provenance and nested cargo mass are counted once. No new raw matter is granted to old saves.
+
+The owner prioritizes this construction/resource loop before terrain excavation and away missions. Next improve placement feedback/collision authority and ship-relative attachment adapters; do not imply arbitrary normals/rotation, rigid-body manipulation, fuel generators or full automation already exist. Multiplayer acceptance includes shared generator control and durable assembly checkpoint recovery.

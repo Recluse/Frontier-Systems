@@ -18,6 +18,8 @@ var _latest: Dictionary = {}
 var _avatars: Dictionary = {}
 var _scroll: ScrollContainer
 var _inventory_panel: PlayerInventoryPanel
+var _machinery_panel: MachineryPanel
+var _machinery_preview: MachineryPreview
 var _tabs: TabContainer
 var _hands_hud: Label
 
@@ -99,6 +101,13 @@ func _start_client() -> void:
 	var settings := PlayerControlsPanel.new()
 	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings_scroll.add_child(settings)
+	var machinery_scroll := ScrollContainer.new()
+	machinery_scroll.name = "Construction"
+	_tabs.add_child(machinery_scroll)
+	_machinery_panel = MachineryPanel.new()
+	_machinery_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	machinery_scroll.add_child(_machinery_panel)
+	_machinery_panel.configure(_remote)
 	_status = Label.new()
 	_status.text = "Connecting to the shared host…"
 	_content.add_child(_status)
@@ -144,6 +153,8 @@ func _start_client() -> void:
 	container.add_child(viewport)
 	_habitat = ProceduralHabitatPreview.new()
 	viewport.add_child(_habitat)
+	_machinery_preview = MachineryPreview.new()
+	_habitat.add_child(_machinery_preview)
 	_habitat.focus_production()
 	_habitat.world_inventory.player_facing_labels = true
 	_habitat.world_inventory.pickup_requested.connect(_pickup_world_item)
@@ -179,6 +190,8 @@ func _start_client() -> void:
 func _on_observation(record: Dictionary) -> void:
 	_latest = record
 	_inventory_panel.observe(record)
+	_machinery_panel.observe(record)
+	_machinery_preview.observe(record["production"])
 	var hand_names: PackedStringArray = []
 	for hand in record["inventory"]["hand_slot_ids"]:
 		var held: String = "Empty"

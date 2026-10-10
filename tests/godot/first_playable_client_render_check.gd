@@ -43,9 +43,14 @@ func _run() -> void:
 		push_error("The graphical collection guide did not finish the physical resource loop.")
 		quit(1)
 		return
+	var machinery_route: bool = OS.get_cmdline_user_args().has("--machinery")
 	var equipment_route: bool = OS.get_cmdline_user_args().has("--equipment-fabrication")
 	var tool_parts_route: bool = OS.get_cmdline_user_args().has("--tool-parts")
-	if tool_parts_route:
+	if machinery_route:
+		if not await _machinery_route(client):
+			quit(1)
+			return
+	elif tool_parts_route:
 		if not await _tool_parts_route(client):
 			quit(1)
 			return
@@ -65,6 +70,7 @@ func _run() -> void:
 	var image: Image = root.get_texture().get_image()
 	var directory: String = "res://reports/equipment-fabrication" if equipment_route else "res://reports/first-playable"
 	if tool_parts_route: directory = "res://reports/tool-parts"
+	if machinery_route: directory = "res://reports/machinery"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
 	var error: Error = image.save_png(directory.path_join("client.png"))
 	print("First playable graphical client completed its seven-step loop using local physics and authenticated guide commands; screenshot result: %d" % error)
@@ -214,4 +220,33 @@ func _guide_action(client: FirstPlayableBootstrap) -> bool:
 	if panel._feedback.text.begins_with("Rejected") or not panel._pending.is_empty() or not panel._guide._requested_recipe.is_empty():
 		push_error("Graphical guide action failed: " + panel._feedback.text)
 		return false
+	return true
+
+
+func _machinery_route(client: FirstPlayableBootstrap) -> bool:
+	client._production_panel._send("process", {"recipe_id": "salvage.plate"})
+	await create_timer(2.0).timeout
+	var panel: MachineryPanel = client._machinery_panel
+	client._tabs.current_tab = 3
+	for kind in ["frame", "controller", "power", "solar"]:
+		panel._kind.select(MachineryWorkshop.KINDS.keys().find(kind))
+		panel._send("machine_craft")
+		await create_timer(0.5).timeout
+		if panel._feedback.text != "Completed":
+			push_error("Construction UI craft: " + panel._feedback.text)
+			return false
+		if kind != "frame":
+			var workshop: Dictionary = client._latest["production"]["machinery"]
+			for index in range(panel._part.item_count):
+				var id: String = String(panel._part.get_item_metadata(index))
+				if workshop["parts"].has(id) and workshop["parts"][id]["kind"] == kind: panel._part.select(index)
+			panel._send("machine_fit")
+			await create_timer(0.5).timeout
+			if panel._feedback.text != "Completed": return false
+	panel._send("machine_deploy")
+	await create_timer(1.0).timeout
+	if panel._feedback.text != "Completed" or client._machinery_preview.get_child_count() == 0:
+		push_error("Construction UI deploy: " + panel._feedback.text)
+		return false
+	print("Construction UI assembled and deployed a powered generator through authenticated controls.")
 	return true

@@ -184,9 +184,11 @@ func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: 
 		if found >= 0:
 			return _failure("That physical component already exists.")
 		var definition: ServiceResult = factory_definition(definition_id)
-		if not definition.is_success or definition.value["storage"] != null:
-			return _failure("The factory requires a registered non-container inventory definition.")
+		if not definition.is_success:
+			return _failure("The factory requires a registered inventory definition.")
 		candidate["ledger"]["items"].append({"item_id": item_id, "definition_id": definition_id, "definition_revision": 1, "condition_permille": 1000, "container_id": body["body_container_id"]})
+		if definition.value["storage"] != null:
+			candidate["ledger"]["containers"].append({"container_id": factory_storage_id(item_id), "owner_item_id": item_id, "capacity": definition.value["storage"].duplicate(true)})
 	else:
 		if found < 0:
 			return _failure("The recyclable component no longer exists.")
@@ -194,6 +196,11 @@ func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: 
 		var ledger: InventoryLedger = InventoryLedger.from_record(candidate["ledger"], _catalog).value
 		if item["definition_id"] != definition_id or int(item["definition_revision"]) != 1 or ledger.root_for_container(item["container_id"]).value != body["body_container_id"]:
 			return _failure("Only owned equipment with the matching trusted definition can be salvaged.")
+		for container in candidate["ledger"]["containers"].duplicate(true):
+			if container["owner_item_id"] != item_id: continue
+			for child in candidate["ledger"]["items"]:
+				if child["container_id"] == container["container_id"]: return _failure("Empty physical storage before recycling its shell.")
+			candidate["ledger"]["containers"].erase(container)
 		candidate["ledger"]["items"].remove_at(found)
 		var bindings: Array = []
 		for binding in body["equipped"]:
@@ -218,6 +225,44 @@ func commit_prepared_owner(record: Dictionary) -> ServiceResult:
 	if validated.is_success:
 		_owner = validated.value
 	return validated
+
+
+static func factory_storage_id(item_id: String) -> String:
+	return "storage-factory-%s" % item_id.sha256_text().substr(0, 24)
+
+
+## Trusted composition owner prepares physical graph and world locations together.
+func prepare_factory_graph(context: AuthenticatedCommandContext, owner: Dictionary, locations: Array, request_id: String, masses: Dictionary) -> ServiceResult:
+	var authorized: ServiceResult = authorize(context, true)
+	if not authorized.is_success or not ControlContractValidation.is_id(request_id) or owner.get("state_revision") != _owner.to_record()["state_revision"]: return _failure("A capable actor and current factory graph are required.")
+	var candidate: Dictionary = owner.duplicate(true)
+	if int(candidate["state_revision"]) >= MAX_EXACT_INTEGER or int(candidate["ledger"]["state_revision"]) >= MAX_EXACT_INTEGER: return _failure("Factory graph revisions are exhausted.")
+	for body in candidate["bodies"]:
+		var equipped: Array = []
+		for binding in body["equipped"]:
+			for item in candidate["ledger"]["items"]:
+				if item["item_id"] == binding["item_id"] and item["container_id"] == body["body_container_id"]: equipped.append(binding)
+		if equipped != body["equipped"]:
+			if int(body["state_revision"]) >= MAX_EXACT_INTEGER: return _failure("Body revisions are exhausted.")
+			body["state_revision"] += 1
+			body["equipped"] = equipped
+	candidate["state_revision"] += 1
+	candidate["ledger"]["state_revision"] += 1
+	candidate["receipts"].append({"request_id": request_id, "fingerprint": JSON.stringify([request_id, authorized.value, candidate["ledger"]], "", true).sha256_text(), "state_revision": candidate["state_revision"]})
+	if candidate["receipts"].size() > SharedInventoryCoordinator.MAX_RECEIPTS: candidate["receipts"].pop_front()
+	var record: Dictionary = capture_snapshot().value
+	record["owner"] = candidate
+	record["world_storage"] = locations.duplicate(true)
+	var valid: ServiceResult = _decode(record, _last_tick, _catalog.with_payload_masses(masses))
+	return ServiceResult.success(record) if valid.is_success else valid
+
+
+func commit_factory_graph(record: Dictionary) -> ServiceResult:
+	var valid: ServiceResult = _decode(record, _last_tick)
+	if valid.is_success:
+		_owner = valid.value["owner"]
+		_world_storage = valid.value["world_storage"]
+	return valid
 
 
 func apply_local(context: AuthenticatedCommandContext, request_id: String, operation: String, payload: Dictionary, tick: int) -> ServiceResult:
@@ -491,7 +536,7 @@ func legacy_empty_snapshot(tick: int) -> Dictionary:
 		"ledger": {"schema_version": 1, "ledger_id": "inventory.prototype", "state_revision": 0, "containers": [], "items": []}, "bodies": [], "receipts": []}, "bodies": [], "jobs": [], "world_storage": []}
 
 
-func _decode(record: Dictionary, tick: int) -> ServiceResult:
+func _decode(record: Dictionary, tick: int, catalog_override: InventoryItemCatalog = null) -> ServiceResult:
 	var fields := PackedStringArray(["schema_version", "last_tick", "owner", "bodies", "jobs"])
 	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 4):
 		fields.append("world_storage")
@@ -499,7 +544,7 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 		fields.append("grips")
 	if not ControlContractValidation.has_exact_fields(record, fields) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 4) or not ControlContractValidation.is_integer(record.get("last_tick"), tick, tick) or typeof(record.get("owner")) != TYPE_DICTIONARY or typeof(record.get("bodies")) != TYPE_ARRAY or record["bodies"].size() > 32 or typeof(record.get("jobs")) != TYPE_ARRAY or record["jobs"].size() > MAX_JOBS:
 		return _failure("An exact bounded inventory-system snapshot at this tick is required.")
-	var parsed_owner: ServiceResult = SharedInventoryCoordinator.from_record(record["owner"], _profiles, _catalog)
+	var parsed_owner: ServiceResult = SharedInventoryCoordinator.from_record(record["owner"], _profiles, _catalog if catalog_override == null else catalog_override)
 	if not parsed_owner.is_success:
 		return parsed_owner
 	var body_ids: Dictionary = {}

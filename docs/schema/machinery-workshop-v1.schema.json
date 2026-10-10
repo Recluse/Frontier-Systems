@@ -1,0 +1,166 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalog_fingerprint",
+    "parts",
+    "mounts",
+    "placements",
+    "links",
+    "jobs"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "catalog_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "parts": {
+      "type": "object",
+      "maxProperties": 128,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "frame",
+              "socket",
+              "power",
+              "controller",
+              "printhead",
+              "refinery",
+              "extractor",
+              "solar",
+              "router",
+              "expander",
+              "cable"
+            ]
+          }
+        }
+      }
+    },
+    "mounts": {
+      "type": "object",
+      "maxProperties": 128,
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "placements": {
+      "type": "object",
+      "maxProperties": 20,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "position",
+          "mode",
+          "enabled",
+          "energy",
+          "generation_remainder"
+        ],
+        "properties": {
+          "position": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "integer",
+              "minimum": -10000000,
+              "maximum": 10000000
+            }
+          },
+          "mode": {
+            "enum": [
+              "freeform",
+              "surface"
+            ]
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "energy": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 20000
+          },
+          "generation_remainder": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 89
+          }
+        }
+      }
+    },
+    "links": {
+      "type": "object",
+      "maxProperties": 24,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "a",
+          "b"
+        ],
+        "properties": {
+          "a": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "b": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        }
+      }
+    },
+    "jobs": {
+      "type": "object",
+      "maxProperties": 20,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "recipe",
+          "progress",
+          "energy_spent",
+          "paused"
+        ],
+        "properties": {
+          "recipe": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "progress": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 36000
+          },
+          "energy_spent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "paused": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:machinery-workshop:v1",
+  "title": "Physical modular machinery workshop v1"
+}

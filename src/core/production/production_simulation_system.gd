@@ -29,7 +29,7 @@ func _init() -> void:
 
 
 func configure(inventory: InventorySimulationSystem, tools: ToolSimulationSystem = null) -> ServiceResult:
-	if not _state.is_empty() or inventory == null:
+	if not _state.is_empty() or inventory == null or MachineryWorkshop.KINDS.is_empty():
 		return _failure("Configure one inventory capability provider.")
 	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/production/catalog.v1.json"))
 	if typeof(raw) != TYPE_DICTIONARY:
@@ -52,18 +52,19 @@ func initial_record(tick: int) -> Dictionary:
 	var powered: Dictionary = {}
 	for station in STATIONS:
 		powered[station] = true
-	return {"schema_version": 5, "loose_parts": {}, "structures": {}, "catalog_revision": 1, "catalog_fingerprint": _catalog_fingerprint, "timebase_hz": Engine.physics_ticks_per_second,
+	return {"schema_version": 6, "machinery": MachineryWorkshop.initial(), "loose_parts": {}, "structures": {}, "catalog_revision": 1, "catalog_fingerprint": _catalog_fingerprint, "timebase_hz": Engine.physics_ticks_per_second,
 		"last_tick": tick, "state_revision": 0, "deposits": _initial_deposits(), "store": _empty_stock(),
 		"vessel": _empty_stock(), "wall_mass_milligrams": 0, "energy_joules": 100000,
 		"powered": powered, "job": {}, "receipts": [], "cargo": {}}
 
 
 func payload_mass(item_id: String) -> int:
-	return _mass(_state.get("loose_parts", {}).get(item_id, {})) + _mass(_state.get("cargo", {}).get(item_id, {})) + _mass(_state.get("structures", {}).get(item_id, {}).get("materials", {}))
+	return (int(MachineryWorkshop.KINDS[_state["machinery"]["parts"][item_id]["kind"]]) if _state.get("machinery", {}).get("parts", {}).has(item_id) else 0) + _mass(_state.get("loose_parts", {}).get(item_id, {})) + _mass(_state.get("cargo", {}).get(item_id, {})) + _mass(_state.get("structures", {}).get(item_id, {}).get("materials", {}))
 
 
 static func payload_masses(state: Dictionary) -> Dictionary:
 	var masses: Dictionary = cargo_masses(state.get("cargo", {}))
+	for id in state.get("machinery", {}).get("parts", {}): masses[id] = int(masses.get(id, 0)) + int(MachineryWorkshop.KINDS[state["machinery"]["parts"][id]["kind"]])
 	for id in state.get("loose_parts", {}): masses[id] = int(masses.get(id, 0)) + _mass(state["loose_parts"][id])
 	for id in state.get("structures", {}):
 		masses[id] = int(masses.get(id, 0)) + _mass(state["structures"][id]["materials"])
@@ -79,6 +80,7 @@ static func cargo_masses(cargo: Dictionary) -> Dictionary:
 
 ## Validate payload/item associations and prospective carried/equipment capacities.
 func validate_inventory_links(record: Dictionary, inventory_record: Dictionary) -> ServiceResult:
+	if not MachineryWorkshop.validate(record.get("machinery", MachineryWorkshop.initial()), inventory_record.get("owner", {})): return _failure("Invalid machinery physical associations.")
 	var cargo: Variant = record.get("cargo", {})
 	if typeof(cargo) != TYPE_DICTIONARY or typeof(inventory_record.get("owner")) != TYPE_DICTIONARY:
 		return _failure("Cargo requires a valid inventory owner record.")
@@ -104,6 +106,8 @@ func validate_inventory_links(record: Dictionary, inventory_record: Dictionary) 
 	var matched_parts: Dictionary = {}
 	for item in validated_owner.value.to_record()["ledger"]["items"]:
 		var definition: ServiceResult = _inventory.factory_definition(item["definition_id"])
+		if String(item["definition_id"]).begins_with("item.machine."):
+			if not record.get("machinery", MachineryWorkshop.initial())["parts"].has(item["item_id"]): return _failure("Physical machinery requires conserved part provenance.")
 		if item["definition_id"] == "item.resource-canister.prototype" and int(item["definition_revision"]) == 1:
 			carriers[item["item_id"]] = true
 		elif item["definition_id"] == "item.plate.prototype" and int(item["definition_revision"]) == 1:
@@ -156,6 +160,7 @@ func authorize(context: AuthenticatedCommandContext, voluntary: bool = true) -> 
 
 
 func authorize_operation(context: AuthenticatedCommandContext, operation: String, payload: Dictionary) -> ServiceResult:
+	if operation.begins_with("machine_"): return _inventory.production_capability(context, true, [])
 	if operation in ["cancel_tool_extract"]: return _inventory.production_capability(context, true, [])
 	if operation == "resume_tool_extract":
 		if not _state["job"].has("extraction"): return _failure("No sustained extraction is reserved.")
@@ -176,6 +181,7 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 	observed.erase("cargo")
 	observed.erase("structures")
 	observed.erase("loose_parts")
+	observed.erase("machinery")
 	observed = observed.duplicate(true)
 	observed["tool_extraction"] = {}
 	if observed["job"].has("extraction"):
@@ -198,6 +204,7 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 		if _state["loose_parts"].has(item["item_id"]): observed["loose_parts"][item["item_id"]] = _state["loose_parts"][item["item_id"]].duplicate(true)
 		if _state["structures"].has(item["item_id"]):
 			observed["structures"][item["item_id"]] = _state["structures"][item["item_id"]].duplicate(true)
+	observed["machinery"] = machinery_observation(context)
 	observed["recipes"] = _catalog["recipes"].keys()
 	observed["dispensable"] = _catalog["dispensable"].duplicate()
 	observed["can_operate"] = authorize(context).is_success
@@ -226,9 +233,15 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 		return _failure("The production revision is stale or exhausted.")
 	var candidate: Dictionary = _state.duplicate(true)
 	var prepared_inventory: Dictionary = {}
+	var prepared_graph: Dictionary = {}
 	var prepared_tools: ToolAssemblyLedger
-	var planned_work: bool = operation in ["start_tool_extract", "resume_tool_extract", "cancel_tool_extract"]
-	if planned_work:
+	var planned_work: bool = operation.begins_with("machine_") or operation in ["start_tool_extract", "resume_tool_extract", "cancel_tool_extract"]
+	if operation.begins_with("machine_"):
+		var machinery_plan: ServiceResult = MachineryConstruction.plan(self, candidate, _inventory, context, request_id, operation, payload)
+		if not machinery_plan.is_success: return machinery_plan
+		if not MachineryWorkshop.validate(candidate["machinery"]): return _failure("Invalid machinery candidate.")
+		prepared_graph = machinery_plan.value
+	elif planned_work:
 		var work: ServiceResult = _prepare_tool_extraction(candidate, context, request_id, operation, payload)
 		if not work.is_success: return work
 	if operation == "cancel" and candidate["job"].has("extraction"): return _failure("Use the owned sustained-extraction cancellation action.")
@@ -293,11 +306,16 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 	candidate["receipts"].append(receipt)
 	if candidate["receipts"].size() > MAX_RECEIPTS:
 		candidate["receipts"].pop_front()
-	var capacity: ServiceResult = _inventory.validate_payload_masses(payload_masses(candidate), prepared_inventory)
+	var capacity: ServiceResult = _inventory.validate_payload_masses(payload_masses(candidate), prepared_inventory if prepared_graph.is_empty() else prepared_graph["owner"])
 	if not capacity.is_success:
 		return capacity
 	var previous: Dictionary = _state
 	_state = candidate
+	if not prepared_graph.is_empty():
+		var graph_commit: ServiceResult = _inventory.commit_factory_graph(prepared_graph)
+		if not graph_commit.is_success:
+			_state = previous
+			return graph_commit
 	if not prepared_inventory.is_empty():
 		var committed: ServiceResult = _inventory.commit_prepared_owner(prepared_inventory)
 		if not committed.is_success:
@@ -609,6 +627,7 @@ func simulate_tick(tick: int, _delta: float) -> void:
 	if _state.is_empty() or tick != int(_state["last_tick"]) + 1 or Engine.physics_ticks_per_second != int(_state["timebase_hz"]):
 		return
 	_state["last_tick"] = tick
+	_simulate_machinery()
 	if _state["job"].has("extraction"):
 		_simulate_tool_extraction(tick)
 		return
@@ -631,6 +650,114 @@ func capture_snapshot() -> ServiceResult:
 	return ServiceResult.success(_state.duplicate(true)) if not _state.is_empty() else _failure("Production is unconfigured.")
 
 
+## Work recipes share the trusted refinery/chemistry recipes and finite deposits.
+func machine_recipe(id: String) -> Dictionary:
+	if _catalog["recipes"].has(id):
+		var recipe: Dictionary = _catalog["recipes"][id].duplicate(true)
+		recipe["capability"] = "printhead" if recipe["station"] == "printer" else "refinery"
+		recipe["deposit"] = ""
+		return recipe
+	if id.begins_with("extract."):
+		var deposit: String = "deposit.%s" % id.trim_prefix("extract.")
+		if _catalog["deposits"].has(deposit):
+			var material: String = _catalog["deposits"][deposit]["material"]
+			return {"inputs": {}, "outputs": {material: 1000000}, "duration_ticks": 60, "energy_joules": 1000, "capability": "extractor", "deposit": deposit}
+	return {}
+
+
+func machine_blueprint(id: String) -> ServiceResult:
+	return _blueprints.get_definition(id)
+
+
+func machinery_observation(context: AuthenticatedCommandContext) -> Dictionary:
+	var observed: Dictionary = _state["machinery"].duplicate(true)
+	var own: ServiceResult = _inventory.own_inventory_observation(context)
+	var owner: Dictionary = _inventory.capture_snapshot().value["owner"]
+	for id in observed["placements"].keys():
+		if not MachineryWorkshop.deployed(observed, owner, id): observed["placements"].erase(id)
+	for id in observed["links"].keys():
+		if not observed["placements"].has(observed["links"][id]["a"]) or not observed["placements"].has(observed["links"][id]["b"]): observed["links"].erase(id)
+	for id in observed["jobs"].keys():
+		if not observed["placements"].has(id): observed["jobs"].erase(id)
+	var visible: Dictionary = {}
+	for physical in own.value["items"]: visible[physical["item_id"]] = true
+	for machine in observed["placements"]:
+		visible[machine] = true
+		for ids in MachineryWorkshop.modules(observed, owner, machine).values():
+			for id in ids: visible[id] = true
+	for id in observed["links"]: visible[id] = true
+	for physical in owner["ledger"]["items"]:
+		for machine in observed["placements"]:
+			if physical["container_id"] == MachineryWorkshop.container(owner, machine): visible[physical["item_id"]] = true
+	for id in observed["parts"].keys():
+		if not visible.has(id): observed["parts"].erase(id)
+	for id in observed["mounts"].keys():
+		if not visible.has(id) or not visible.has(observed["mounts"][id]): observed["mounts"].erase(id)
+	observed["inventory_items"] = []
+	observed["cargo"] = {}
+	var containers: Dictionary = {}
+	for id in visible:
+		var storage: String = MachineryWorkshop.container(owner, id)
+		if not storage.is_empty(): containers[storage] = true
+	for physical in owner["ledger"]["items"]:
+		if visible.has(physical["item_id"]) or containers.has(physical["container_id"]):
+			observed["inventory_items"].append(physical.duplicate(true))
+			if _state["cargo"].has(physical["item_id"]): observed["cargo"][physical["item_id"]] = _state["cargo"][physical["item_id"]].duplicate(true)
+	return observed
+
+
+func _simulate_machinery() -> void:
+	var workshop: Dictionary = _state["machinery"]
+	if workshop["placements"].is_empty() or int(_state["state_revision"]) >= MAX_REVISION: return
+	var owner: Dictionary = _inventory.capture_snapshot().value["owner"]
+	var hz: int = int(_state["timebase_hz"])
+	var budgets: Dictionary = {}
+	for cable in workshop["links"]: budgets[cable] = MachineryWorkshop.CABLE_WATTS / hz
+	var ids: Array = workshop["placements"].keys()
+	ids.sort()
+	for id in ids:
+		if MachineryWorkshop.operational(workshop, owner, id, "solar"):
+			var placement: Dictionary = workshop["placements"][id]
+			placement["generation_remainder"] += MachineryWorkshop.GENERATION_WATTS
+			placement["energy"] = mini(MachineryWorkshop.CAPACITY, int(placement["energy"]) + int(placement["generation_remainder"]) / hz)
+			placement["generation_remainder"] = int(placement["generation_remainder"]) % hz
+	for id in ids:
+		if MachineryWorkshop.operational(workshop, owner, id, "solar") or not MachineryWorkshop.deployed(workshop, owner, id): continue
+		var placement: Dictionary = workshop["placements"][id]
+		if not placement["enabled"] or not MachineryWorkshop.modules(workshop, owner, id).has("controller"): continue
+		var charge: int = mini(MachineryWorkshop.GENERATION_WATTS / hz, MachineryWorkshop.CAPACITY - int(placement["energy"]))
+		if MachineryWorkshop.draw(workshop, owner, id, charge, budgets): placement["energy"] += charge
+	var jobs: Array = workshop["jobs"].keys()
+	jobs.sort()
+	for id in jobs:
+		var job: Dictionary = workshop["jobs"][id]
+		if job["paused"]: continue
+		var recipe: Dictionary = machine_recipe(job["recipe"])
+		if not MachineryWorkshop.operational(workshop, owner, id, recipe["capability"]): continue
+		if not recipe["deposit"].is_empty() and int(_state["deposits"][recipe["deposit"]]) < 1000000: continue
+		var transfer: ServiceResult = MachineryConstruction.transfer_plan(_state, owner, id, recipe["inputs"], recipe["outputs"])
+		if not transfer.is_success: continue
+		var target_energy: int = (int(job["progress"]) + 1) * int(recipe["energy_joules"]) / int(recipe["duration_ticks"])
+		var energy: int = target_energy - int(job["energy_spent"])
+		if int(workshop["placements"][id]["energy"]) < energy: continue
+		var prospective: Dictionary = _state.duplicate(true)
+		prospective["cargo"] = transfer.value
+		var valid: bool = true
+		for stock in transfer.value.values():
+			if not _cargo_valid(stock): valid = false
+		if not valid or not _inventory.validate_payload_masses(payload_masses(prospective)).is_success: continue
+		workshop["placements"][id]["energy"] -= energy
+		job["energy_spent"] = target_energy
+		job["progress"] += 1
+		if int(job["progress"]) == int(recipe["duration_ticks"]):
+			_state["cargo"] = transfer.value
+			if not recipe["deposit"].is_empty(): _state["deposits"][recipe["deposit"]] -= 1000000
+			workshop["jobs"].erase(id)
+			_state["state_revision"] += 1
+			_inventory.refresh_payload_loads()
+			batch_completed.emit(job["recipe"], int(_state["last_tick"]))
+
+
 func validate_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
 	return _decode(record, tick)
 
@@ -639,6 +766,7 @@ func restore_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
 	var decoded: ServiceResult = _decode(record, tick)
 	if decoded.is_success:
 		_state = decoded.value
+		for job in _state["machinery"]["jobs"].values(): job["paused"] = true
 		if _state["job"].has("extraction"):
 			_state["job"]["extraction"]["status"] = "paused"
 			_state["job"]["extraction"]["pause_reason"] = "restart"
@@ -648,16 +776,17 @@ func restore_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
 
 func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	var fields: Array = ["schema_version", "catalog_revision", "catalog_fingerprint", "timebase_hz", "last_tick", "state_revision", "deposits", "store", "vessel", "wall_mass_milligrams", "energy_joules", "powered", "job", "receipts"]
-	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 5):
+	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 6):
 		fields.append("cargo")
-	if ControlContractValidation.is_integer(record.get("schema_version"), 3, 5):
+	if ControlContractValidation.is_integer(record.get("schema_version"), 3, 6):
 		fields.append("structures")
-	if ControlContractValidation.is_integer(record.get("schema_version"), 4, 5): fields.append("loose_parts")
+	if ControlContractValidation.is_integer(record.get("schema_version"), 4, 6): fields.append("loose_parts")
+	if ControlContractValidation.is_integer(record.get("schema_version"), 6, 6): fields.append("machinery")
 	if _catalog.is_empty() or not _fields(record, fields):
 		return _failure("An exact configured production snapshot is required.")
 	if record["catalog_fingerprint"] != _catalog_fingerprint:
 		return _failure("The saved catalog differs; an explicit production migration is required.")
-	if not ControlContractValidation.is_integer(record["schema_version"], 1, 5) or not ControlContractValidation.is_integer(record["catalog_revision"], 1, 1):
+	if not ControlContractValidation.is_integer(record["schema_version"], 1, 6) or not ControlContractValidation.is_integer(record["catalog_revision"], 1, 1):
 		return _failure("Unsupported production/catalog version.")
 	if not ControlContractValidation.is_integer(record["last_tick"], tick, tick) or not ControlContractValidation.is_integer(record["timebase_hz"], Engine.physics_ticks_per_second, Engine.physics_ticks_per_second) or not [60, 72, 90].has(Engine.physics_ticks_per_second):
 		return _failure("Production tick and supported timebase must match the world.")
@@ -672,12 +801,17 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	normalized["loose_parts"] = record.get("loose_parts", {}).duplicate(true)
 	for field in ["schema_version", "catalog_revision", "timebase_hz", "last_tick", "state_revision", "wall_mass_milligrams", "energy_joules"]:
 		normalized[field] = int(record[field])
-	normalized["schema_version"] = 5
+	normalized["schema_version"] = 6
+	normalized["machinery"] = record.get("machinery", MachineryWorkshop.initial()).duplicate(true)
+	if not MachineryWorkshop.validate(normalized["machinery"]): return _failure("Malformed machinery record.")
+	for job in normalized["machinery"]["jobs"].values():
+		var spec: Dictionary = machine_recipe(job["recipe"])
+		if spec.is_empty() or int(job["progress"]) >= int(spec["duration_ticks"]) or int(job["energy_spent"]) != int(job["progress"]) * int(spec["energy_joules"]) / int(spec["duration_ticks"]): return _failure("Invalid machine recipe progress or energy.")
 	var structures: Variant = record.get("structures", {})
 	if typeof(structures) != TYPE_DICTIONARY or structures.size() > 32:
 		return _failure("Structural equipment records must be bounded.")
 	normalized["structures"] = {}
-	var structural_mass: int = 0
+	var structural_mass: int = MachineryWorkshop.mass(normalized["machinery"])
 	if typeof(record.get("loose_parts", {})) != TYPE_DICTIONARY or normalized["loose_parts"].size() > 128: return _failure("Loose parts must be a bounded material map.")
 	for id in normalized["loose_parts"]:
 		if not ControlContractValidation.is_id(id) or not _stock_valid(normalized["loose_parts"][id]): return _failure("Invalid loose part materials.")
@@ -862,4 +996,4 @@ static func _failure(message: String) -> ServiceResult:
 func profiling_counters() -> Dictionary:
 	if _state.is_empty():
 		return {}
-	return {"active_batches": 0 if _state["job"].is_empty() else 1, "fabricated_equipment": _state["structures"].size(), "physical_tool_parts": _state["loose_parts"].size(), "stored_milligrams": _mass(_state["store"]), "vessel_milligrams": _mass(_state["vessel"]), "energy_joules": _state["energy_joules"], "receipts": _state["receipts"].size()}
+	return {"deployed_machines": _state["machinery"]["placements"].size(), "machine_parts": _state["machinery"]["parts"].size(), "grid_cables": _state["machinery"]["links"].size(), "machine_batches": _state["machinery"]["jobs"].size(), "active_batches": 0 if _state["job"].is_empty() else 1, "fabricated_equipment": _state["structures"].size(), "physical_tool_parts": _state["loose_parts"].size(), "stored_milligrams": _mass(_state["store"]), "vessel_milligrams": _mass(_state["vessel"]), "energy_joules": _state["energy_joules"], "receipts": _state["receipts"].size()}
