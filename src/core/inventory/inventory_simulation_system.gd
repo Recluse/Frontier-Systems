@@ -17,6 +17,7 @@ var _outcomes: Array = []
 var _setup: ServiceResult
 var _world_storage: Dictionary = {}
 var _grips: PhysicalGripOwner
+var _health: HealthSimulationSystem
 ## Logical development targets; these are not inventory items or rigid bodies.
 const GRIP_TARGETS: Dictionary = {
 	"fixture.salvage-crate": {"position": [0, 0, 0], "movable": true, "required_force": 300000},
@@ -57,17 +58,26 @@ func configure_defaults() -> ServiceResult:
 	return _setup
 
 
-func authorize(context: AuthenticatedCommandContext) -> ServiceResult:
+func bind_health(health: HealthSimulationSystem) -> ServiceResult:
+	if _health != null or health == null:
+		return _failure("Bind one health capability provider to this inventory runtime.")
+	_health = health
+	return ServiceResult.success()
+
+
+func authorize(context: AuthenticatedCommandContext, require_voluntary_action: bool = false) -> ServiceResult:
 	if _setup == null or not OS.is_debug_build() or context == null or context.origin != AuthenticatedCommandContext.Origin.DEVELOPMENT_LOCAL or not context.has_permission("inventory.development"):
 		return _failure("Inventory fixture commands require local development grants.")
 	for body in _bodies.values():
 		if body["principal_id"] == String(context.principal_id):
+			if require_voluntary_action and not _body_can_act(body["body_id"]):
+				return _failure("This body cannot perform voluntary inventory actions while unconscious or without health state.")
 			return ServiceResult.success(body["body_id"])
 	return _failure("The local principal has no registered inventory fixture body.")
 
 
 func apply_local(context: AuthenticatedCommandContext, request_id: String, operation: String, payload: Dictionary, tick: int) -> ServiceResult:
-	var authorized: ServiceResult = authorize(context)
+	var authorized: ServiceResult = authorize(context, true)
 	if not authorized.is_success or tick != _last_tick + 1:
 		return _failure("Apply authorized inventory commands at the next fixed-tick boundary.")
 	var actor_id: String = authorized.value
@@ -189,11 +199,17 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 func simulate_tick(tick: int, _fixed_delta: float) -> void:
 	_last_tick = tick
 	_release_lost_grip_contacts(tick)
+	for body in _bodies.values():
+		if not _body_can_act(body["body_id"]):
+			_views.revoke_principal(body["principal_id"])
 	_views.advance_tick(tick)
 	for id in _jobs.keys():
 		var entry: Dictionary = _jobs[id]
 		var job: BodyInventoryInteractionJob = entry["job"]
 		var state: Dictionary = job.to_record()
+		if not _body_can_act(state["actor_body_id"]):
+			_finish(id, _failure("The initiating body became incapable of voluntary action."))
+			continue
 		if state["state"] == "paused" or int(state["last_tick"]) == tick:
 			continue
 		var context: Dictionary = _context(state)
@@ -210,7 +226,7 @@ func simulate_tick(tick: int, _fixed_delta: float) -> void:
 
 
 func read_search(context: AuthenticatedCommandContext, view_id: String) -> ServiceResult:
-	var authorized: ServiceResult = authorize(context)
+	var authorized: ServiceResult = authorize(context, true)
 	if not authorized.is_success:
 		return authorized
 	var scoped: ServiceResult = _views.targets_for_principal(view_id, String(context.principal_id))
@@ -554,11 +570,9 @@ func _has_unreserved_hand(body_id: String) -> bool:
 
 func _release_lost_grip_contacts(tick: int) -> void:
 	for session in _grips.to_record()["sessions"]:
-		if session["paused"]:
-			continue
 		for participant in session["participants"]:
 			var body_id: String = participant["body_id"]
-			if InventorySpatialMath.distance_millimetres(_bodies[body_id]["position_millimetres"], GRIP_TARGETS[session["target_id"]]["position"]) > WORLD_REACH_MILLIMETRES:
+			if not _body_can_act(body_id) or (not session["paused"] and InventorySpatialMath.distance_millimetres(_bodies[body_id]["position_millimetres"], GRIP_TARGETS[session["target_id"]]["position"]) > WORLD_REACH_MILLIMETRES):
 				_grips.release({"request_id": "contact-loss-" + JSON.stringify([tick, session["session_id"], body_id]).sha256_text(), "session_id": session["session_id"], "body_id": body_id, "expected_revision": _grips.to_record()["state_revision"]})
 
 
@@ -573,8 +587,12 @@ func _context(state: Dictionary) -> Dictionary:
 func _observation(state: Dictionary, tick: int) -> Dictionary:
 	var actor: Dictionary = _bodies[state["actor_body_id"]]
 	var target: Dictionary = _bodies[state["target_body_id"]]
-	return {"distance_millimetres": InventorySpatialMath.distance_millimetres(actor["position_millimetres"], target["position_millimetres"]), "actor_can_manipulate": _has_unreserved_hand(state["actor_body_id"]), "target_available": true,
-		"target_resisting": int(target["resisted_tick"]) == tick, "target_moved": false, "path_accessible": true}
+	return {"distance_millimetres": InventorySpatialMath.distance_millimetres(actor["position_millimetres"], target["position_millimetres"]), "actor_can_manipulate": _body_can_act(state["actor_body_id"]) and _has_unreserved_hand(state["actor_body_id"]), "target_available": true,
+		"target_resisting": _body_can_act(state["target_body_id"]) and int(target["resisted_tick"]) == tick, "target_moved": false, "path_accessible": true}
+
+
+func _body_can_act(body_id: String) -> bool:
+	return is_instance_valid(_health) and _health.consciousness_allows_actions(body_id)
 
 
 func _item(id: String) -> ServiceResult:

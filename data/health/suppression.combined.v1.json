@@ -1,0 +1,4 @@
+[
+  {"cause_id": "injury.prototype-trauma", "kind": "injury", "suppression_permille": 450},
+  {"cause_id": "exposure.prototype-sedative", "kind": "chemical", "suppression_permille": 350}
+]

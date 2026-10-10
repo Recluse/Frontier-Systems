@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "body_id": "body.human1",
+  "state_revision": 0,
+  "state": "alert",
+  "last_assessed_tick": 0,
+  "transition_tick": 0,
+  "recovery_since_tick": -1,
+  "causes": []
+}

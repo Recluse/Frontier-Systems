@@ -16,6 +16,7 @@ var _simulation_runner: SimulationRunner
 var _local_request_sequence: int = 0
 var _control_setup_result: ServiceResult
 var _inventory_setup_result: ServiceResult
+var _health_setup_result: ServiceResult
 
 
 func _ready() -> void:
@@ -35,11 +36,23 @@ func _ready() -> void:
 	inventory_system.name = "InventorySimulationSystem"
 	_inventory_setup_result = inventory_system.configure_defaults()
 	_simulation_runner.add_child(inventory_system)
+	var health_system := HealthSimulationSystem.new()
+	health_system.name = "HealthSimulationSystem"
+	var body_ids: Array = []
+	if _inventory_setup_result.is_success:
+		for body in inventory_system.capture_snapshot().value["bodies"]:
+			body_ids.append(body["body_id"])
+	_health_setup_result = health_system.configure_bodies(body_ids)
+	if _health_setup_result.is_success:
+		_health_setup_result = inventory_system.bind_health(health_system)
+	_simulation_runner.add_child(health_system)
 	_simulation_runner.external_command_completed.connect(_on_external_command_completed)
 	add_child(_simulation_runner)
 
 
 func start_simulation() -> ServiceResult:
+	if _health_setup_result == null or not _health_setup_result.is_success:
+		return ServiceResult.failure(&"health_setup_failed", "Health body owners must initialize before starting.")
 	if _inventory_setup_result == null or not _inventory_setup_result.is_success:
 		return ServiceResult.failure(&"inventory_setup_failed", "Inventory catalogs and fixtures must initialize before starting.")
 	if _control_setup_result == null or not _control_setup_result.is_success:
@@ -193,6 +206,19 @@ func restore_world_snapshot(snapshot: WorldSnapshot) -> ServiceResult:
 		if inventory == null:
 			return ServiceResult.failure(&"inventory_system_missing", "Legacy migration requires initialized inventory catalogs.")
 		system_records["inventory"] = inventory.legacy_empty_snapshot(normalized.tick_number)
+	if not system_records.has("health"):
+		var body_ids: Array = []
+		var inventory_record: Dictionary = system_records["inventory"]
+		if typeof(inventory_record.get("bodies")) != TYPE_ARRAY:
+			return ServiceResult.failure(&"invalid_health_migration", "Legacy health initialization needs valid inventory body records.")
+		for body in inventory_record["bodies"]:
+			if typeof(body) != TYPE_DICTIONARY or not ControlContractValidation.is_id(body.get("body_id")):
+				return ServiceResult.failure(&"invalid_health_migration", "Legacy health bodies must have stable IDs.")
+			body_ids.append(body["body_id"])
+		var migrated: ServiceResult = HealthSimulationSystem.initial_record(body_ids, normalized.tick_number)
+		if not migrated.is_success:
+			return migrated
+		system_records["health"] = migrated.value
 	var link_validation: ServiceResult = _validate_cross_system_state(system_records, normalized.tick_number)
 	if not link_validation.is_success:
 		return link_validation
@@ -228,4 +254,25 @@ func _validate_cross_system_state(system_records: Dictionary, snapshot_tick_numb
 	var control_record: Variant = system_records["machine_control"]
 	if typeof(control_record) != TYPE_DICTIONARY:
 		return ServiceResult.failure(&"invalid_control_state", "Machine-control snapshots must contain a record object.")
-	return controls.validate_access_links(access_record, control_record)
+	var control_links: ServiceResult = controls.validate_access_links(access_record, control_record)
+	if not control_links.is_success:
+		return control_links
+	var health := get_simulation_system(HealthSimulationSystem.SYSTEM_ID) as HealthSimulationSystem
+	var health_record: Variant = system_records.get("health")
+	var inventory_record: Variant = system_records.get("inventory")
+	if health == null or typeof(health_record) != TYPE_DICTIONARY or typeof(inventory_record) != TYPE_DICTIONARY or typeof(inventory_record.get("bodies")) != TYPE_ARRAY:
+		return ServiceResult.failure(&"invalid_health_links", "Health and inventory body records are required.")
+	var health_validation: ServiceResult = health.validate_snapshot_record(health_record, snapshot_tick_number)
+	if not health_validation.is_success:
+		return health_validation
+	var known_bodies: Dictionary = {}
+	for body in inventory_record["bodies"]:
+		if typeof(body) != TYPE_DICTIONARY or not ControlContractValidation.is_id(body.get("body_id")):
+			return ServiceResult.failure(&"invalid_health_links", "Inventory bodies must have stable identities.")
+		known_bodies[body["body_id"]] = true
+	for entry in health_record["entries"]:
+		if not known_bodies.has(entry["owner"]["state"]["body_id"]):
+			return ServiceResult.failure(&"invalid_health_links", "A health body must reference a registered inventory body.")
+	if health_record["entries"].size() != known_bodies.size():
+		return ServiceResult.failure(&"invalid_health_links", "Every current inventory body requires one health owner.")
+	return ServiceResult.success()

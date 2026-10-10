@@ -186,6 +186,18 @@ jobs:
       - name: Check gas mixtures and prototype breathing policy
         run: godot --headless --path . --script res://tests/godot/gas_mixture_test.gd
 
+      - name: Check consciousness causes and saved recovery policy
+        run: godot --headless --xr-mode off --path . --script res://tests/godot/consciousness_policy_test.gd
+
+      - name: Check atomic consciousness ownership and retry recovery
+        run: godot --headless --xr-mode off --path . --script res://tests/godot/consciousness_owner_test.gd
+
+      - name: Check health scheduling and persistent world recovery
+        run: godot --headless --xr-mode off --path . --script res://tests/godot/health_runtime_test.gd
+
+      - name: Check inventory incapacity and recovery capabilities
+        run: godot --headless --xr-mode off --path . --script res://tests/godot/inventory_consciousness_test.gd
+
       - name: Check hand traversal and cooperative physical interaction policy
         run: godot --headless --path . --script res://tests/godot/physical_interaction_policy_test.gd
 

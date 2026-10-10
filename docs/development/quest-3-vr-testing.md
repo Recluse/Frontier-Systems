@@ -75,6 +75,8 @@ The resource/API design follows Godot's [OpenXR action-map documentation](https:
 
 ## Verification and next stages
 
+The [simulation-rate benchmark matrix](simulation-rate-benchmark-matrix.md) includes 60, 72 and 90 Hz candidates. Headset refresh is a separate variable; the saved gameplay default remains 60 Hz until rate comparisons, physical VR interactions and timebase migration are validated.
+
 Windows headless editor import, action-map generation and `optional_xr_client_test.gd` passed. The focused test covers default-off/explicit/headless policy, action/profile resources, native rig structure, inactive untracked proxies, disabled desktop walker, idempotent scene construction, unchanged 60 Hz ticks and canonical world isolation. Launcher argument checks passed for desktop and VR profiles. Habitat/camera regressions are included in local checks; Windows/Ubuntu CI includes the XR structural script without activating hardware.
 
 Spatial selection checks cover native ray hits, occlusion, held/focus/stale gates and queued pressure rejection. CI includes the focused spatial script. Next validate Quest 3 stereo/tracking/input, aim alignment, comfort controls and frame timing on the user's hardware. Broader tracking lifecycle and common authenticated interaction intents with server-validated poses/reach remain pending. Physical grip, push-off and inventory actions must retain the existing hand, capability, motion-revision and resource contracts. A native Quest export is a separate future deployment target and requires its own runtime/dependency/export validation.

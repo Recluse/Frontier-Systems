@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:consciousness-state:v1",
+  "title": "Consciousness state v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "body_id", "state_revision", "state", "last_assessed_tick", "transition_tick", "recovery_since_tick", "causes"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "body_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "state_revision": {"type": "integer", "minimum": 0, "maximum": 9007199254740990},
+    "state": {"enum": ["alert", "impaired", "unconscious"]},
+    "last_assessed_tick": {"type": "integer", "minimum": 0, "maximum": 9007199254740990},
+    "transition_tick": {"type": "integer", "minimum": 0, "maximum": 9007199254740990},
+    "recovery_since_tick": {"type": "integer", "minimum": -1, "maximum": 9007199254740990},
+    "causes": {"$ref": "consciousness-causes-v1.schema.json"}
+  },
+  "description": "Runtime additionally checks timing order, cause uniqueness and state/recovery consistency with suppression. -1 means no active recovery interval."
+}

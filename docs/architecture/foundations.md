@@ -1,5 +1,17 @@
 # Runtime foundations
 
+[Basic inventory consciousness capabilities](inventory-consciousness-capabilities.md) now reject unconscious actor commands, cancel voluntary work/grips and revoke external search views, while retaining passive-target interaction and recovery. Basic gameplay has priority; away missions and planetary streaming remain future work.
+
+[Seeded away missions](../design/seeded-away-missions.md) are planned disposable planet instances: departing/ending a mission retires its identity and permanently loses all unextracted contents. Atomic exports, crew-aware closure, crash-safe cleanup and bounded memory reclamation are specified; no mission runtime exists yet.
+
+[Procedural planets](../design/procedural-planets-and-memory-budgets.md) are now a documented future requirement with separated generation/residency/persistence providers, peak-byte admission, streamed LOD/collision, durable terrain edits and explicit dormant/deletion rules. No planet streaming runtime is implemented yet.
+
+[Health runtime](health-runtime.md) now registers bounded phased consciousness assessments in world ticks/saves, with trusted queued sources, body-link validation, legacy migration and timebases. [Owner optimizations](../../reports/performance/owner-optimization.md) measured about 12.5×/25× improvements for consciousness/motion commits. Injuries, finite chemistry and action enforcement remain pending.
+
+[Consciousness ownership](consciousness-ownership.md) now commits single-body assessments atomically with current revision/freshness guards, saved recovery state and bounded retry receipts. Runtime health scheduling, trusted injuries/chemicals and capability-transition consequences remain pending.
+
+[Consciousness foundation](consciousness-foundation.md) now implements detached v1 records and pure combined-cause assessment with impairment hysteresis, knockout, sustained recovery and gap reset. Runtime health ownership, finite chemistry and body input enforcement remain pending.
+
 [Consciousness](../design/health-medicine-and-chemistry.md#consciousness-knockout-and-sustained-unconsciousness) is now an explicit planned health feature: injury knockouts, sustained chemical sedation, combined continuing causes and capability-gated recovery. It remains separate from posture, paralysis, death and player identity; no runtime implementation exists yet.
 
 [Physical combat](../design/combat-restraint-and-body-transport.md#physics-driven-combat-and-vr) now explicitly requires authoritative hand/tool collision, impact-derived injury, constrained VR proxies and equivalent desktop input paths. Angular motion, work accounting and physical body integration are prerequisites; tracked presentation alone cannot supply combat authority.

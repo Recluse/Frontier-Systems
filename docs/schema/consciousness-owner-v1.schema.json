@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:consciousness-owner:v1",
+  "title": "Single-body consciousness owner v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "state", "receipts"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "state": {"$ref": "consciousness-state-v1.schema.json"},
+    "receipts": {
+      "type": "array", "maxItems": 64,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["request_id", "fingerprint", "state_revision", "commit_tick", "state", "transitioned"],
+        "properties": {
+          "request_id": {"type": "string", "minLength": 1, "maxLength": 128},
+          "fingerprint": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "state_revision": {"type": "integer", "minimum": 1, "maximum": 9007199254740990},
+          "commit_tick": {"type": "integer", "minimum": 1, "maximum": 9007199254740990},
+          "state": {"enum": ["alert", "impaired", "unconscious"]},
+          "transitioned": {"type": "boolean"}
+        }
+      }
+    }
+  },
+  "description": "Code checks exact retained tail, sequential revisions, unique IDs, increasing ticks, state/transition consistency and optional snapshot tick. SHA-256 fingerprints are retry identifiers, not signatures."
+}

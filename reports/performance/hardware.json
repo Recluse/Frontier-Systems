@@ -1,0 +1,34 @@
+{
+  "cpu": [
+    {
+      "Name": "13th Gen Intel(R) Core(TM) i9-13900KF",
+      "NumberOfCores": 24,
+      "NumberOfLogicalProcessors": 32
+    }
+  ],
+  "ram_bytes": 68424028160,
+  "gpu": [
+    {
+      "Name": "Virtual Desktop Monitor",
+      "DriverVersion": "13.50.53.699"
+    },
+    {
+      "Name": "Meta Virtual Monitor",
+      "DriverVersion": "5.3.57.114"
+    },
+    {
+      "Name": "Parsec Virtual Display Adapter",
+      "DriverVersion": "0.45.0.0"
+    },
+    {
+      "Name": "NVIDIA GeForce RTX 3080 Ti",
+      "DriverVersion": "32.0.16.1714"
+    }
+  ],
+  "os": {
+    "Caption": "Microsoft Windows 11 Pro",
+    "Version": "10.0.22631"
+  },
+  "git_commit": "f830bcba9a132bd55c45207d931d3b52f978a1f7",
+  "working_tree_modified": true
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:consciousness-plan:v1",
+  "title": "Pure consciousness assessment plan v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "before", "after", "suppression_permille", "transitioned", "consciousness_allows_voluntary_actions"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "before": {"$ref": "consciousness-state-v1.schema.json"},
+    "after": {"$ref": "consciousness-state-v1.schema.json"},
+    "suppression_permille": {"type": "integer", "minimum": 0, "maximum": 1000},
+    "transitioned": {"type": "boolean"},
+    "consciousness_allows_voluntary_actions": {"type": "boolean"}
+  },
+  "description": "Derived plan, not an accepted client mutation. Future owner must compare current body identity/revision/tick and validate trusted causes before commit."
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:consciousness-causes:v1",
+  "title": "Trusted consciousness cause observations v1",
+  "type": "array", "maxItems": 16,
+  "description": "Full current cause set supplied by health/exposure owners; code checks unique IDs and sorts by ID. Not client authority.",
+  "items": {
+    "type": "object", "additionalProperties": false,
+    "required": ["cause_id", "kind", "suppression_permille"],
+    "properties": {
+      "cause_id": {"type": "string", "minLength": 1, "maxLength": 128},
+      "kind": {"enum": ["injury", "chemical", "oxygen_delivery", "circulation", "temperature"]},
+      "suppression_permille": {"type": "integer", "minimum": 0, "maximum": 1000}
+    }
+  }
+}

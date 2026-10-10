@@ -1,0 +1,74 @@
+{
+	"adapter": "NVIDIA GeForce RTX 3080 Ti",
+	"draw_calls": 62.0,
+	"driver": "vulkan",
+	"engine": {
+		"build": "official",
+		"hash": "ed1daf0bf001b61586d9930840f2f1394092c079",
+		"hex": 263938,
+		"major": 4,
+		"minor": 7,
+		"patch": 2,
+		"status": "stable",
+		"string": "4.7.2-stable (official)",
+		"timestamp": 0
+	},
+	"frame_interval_usec": {
+		"count": 1801,
+		"maximum": 8823,
+		"mean": 8333.21154913937,
+		"minimum": 7813,
+		"p50": 8332,
+		"p95": 8498,
+		"p99": 8543
+	},
+	"measured_seconds": 15.003499,
+	"memory_static_bytes": 99531165.0,
+	"nodes": 397.0,
+	"objects": 2615.0,
+	"physics_monitor_usec": {
+		"count": 1801,
+		"maximum": 214,
+		"mean": 185.224875069406,
+		"minimum": 160,
+		"p50": 178,
+		"p95": 214,
+		"p99": 214
+	},
+	"primitives": 6948.0,
+	"render_cpu_usec": {
+		"count": 1801,
+		"maximum": 306,
+		"mean": 131.617434758468,
+		"minimum": 76,
+		"p50": 135,
+		"p95": 176,
+		"p99": 192
+	},
+	"render_gpu_usec": {
+		"count": 1801,
+		"maximum": 52,
+		"mean": 49.6640755136036,
+		"minimum": 48,
+		"p50": 50,
+		"p95": 51,
+		"p99": 51
+	},
+	"rendering_method": "mobile",
+	"schema_version": 1,
+	"scope": "Stationary default desktop client, real GPU rendering, debug executable, no combat/VR/populated world. CPU/GPU viewport timings are summed; physics monitor is a periodically updated gauge, not a per-tick trace.",
+	"utc": "2026-10-10T02:03:54",
+	"video_memory_bytes": 58067808.0,
+	"viewports": [
+		{
+			"path": "/root",
+			"size": "(1152.0, 648.0)"
+		},
+		{
+			"path": "/root/FrontierBootstrap/BootstrapStatusView/@Control@2/@Control@4/@HBoxContainer@293/@VBoxContainer@299/@SubViewportContainer@11/@SubViewport@12",
+			"size": "(523.0, 504.0)"
+		}
+	],
+	"vsync": 0,
+	"warmup_seconds": 5
+}

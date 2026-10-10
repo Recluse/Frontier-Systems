@@ -2,6 +2,8 @@
 
 ## Requirement and implementation status
 
+[Procedural planets and memory budgets](procedural-planets-and-memory-budgets.md) extend these requirements to future complete planets. Streaming regenerates immutable baseline terrain while preserving edits, depletion, construction and finite matter accounting; unloading must never recreate mined resources.
+
 All player-interactable physical matter must support deconstruction into recoverable components and ultimately raw materials, with construction paths back to functional objects. This includes asteroids, deposits, space debris, ships, stations, machines, tools and planetary terrain. Dirt is transferable material for terrain modification, crafting and hydroponic substrate. Access, tools, time, energy and environmental conditions determine whether a particular operation can presently be performed.
 
 The current implementation provides trusted material definitions, a bounded revision catalog, homogeneous terrain records and pure excavation/fill plans. Fixtures cover dirt and untreated Martian/lunar regolith. It does **not** yet implement inventory transactions, runtime terrain editing, universal object deconstruction, recipes, fabrication or plant growth. The existing procedural habitat geometry is a client preview, not constructed world matter. Current machine-board spares are development fixtures, not material-backed fabrication.

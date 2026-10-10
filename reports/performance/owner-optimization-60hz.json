@@ -1,0 +1,3513 @@
+{
+	"build": "debug",
+	"cpu": "13th Gen Intel(R) Core(TM) i9-13900KF",
+	"engine": {
+		"build": "official",
+		"hash": "ed1daf0bf001b61586d9930840f2f1394092c079",
+		"hex": 263938,
+		"major": 4,
+		"minor": 7,
+		"patch": 2,
+		"status": "stable",
+		"string": "4.7.2-stable (official)",
+		"timestamp": 0
+	},
+	"memory_static_bytes_end": 69521114.0,
+	"os": "Windows",
+	"physics_ticks_per_second": 60,
+	"rows": [
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 1,
+				"mean": 0.039,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 0,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {},
+			"over_budget_samples": 0,
+			"repeat": 0,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": false,
+				"last_command_usec": 0,
+				"last_commands_processed": 0,
+				"last_profile_usec": 0,
+				"last_tick_usec": 16,
+				"last_total_tick_usec": 16,
+				"max_tick_usec": 206,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 4,
+						"max_usec": 28,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7638
+					},
+					"inventory": {
+						"last_usec": 3,
+						"max_usec": 18,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7145
+					},
+					"machine_control": {
+						"last_usec": 4,
+						"max_usec": 40,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7844
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 142,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 6269
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 207,
+				"mean": 17.217,
+				"minimum": 16,
+				"p50": 17,
+				"p95": 18,
+				"p99": 20
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 1,
+				"mean": 0.084,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 1,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 2048,
+					"maximum": 2,
+					"mean": 0.36572265625,
+					"minimum": 0,
+					"p50": 0,
+					"p95": 1,
+					"p99": 1
+				},
+				"commands_processed": 0,
+				"first_tick": 53,
+				"last_tick": 2100,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 2048,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 36,
+							"mean": 4.42333984375,
+							"minimum": 4,
+							"p50": 4,
+							"p95": 5,
+							"p99": 6
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 13,
+							"mean": 3.85595703125,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 4,
+							"p99": 5
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 78,
+							"mean": 4.5029296875,
+							"minimum": 4,
+							"p50": 4,
+							"p95": 5,
+							"p99": 6
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 31,
+							"mean": 3.3466796875,
+							"minimum": 3,
+							"p50": 3,
+							"p95": 4,
+							"p99": 4
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 2048,
+					"maximum": 113,
+					"mean": 21.7333984375,
+					"minimum": 20,
+					"p50": 21,
+					"p95": 23,
+					"p99": 28
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 0,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 0,
+				"last_commands_processed": 0,
+				"last_profile_usec": 24,
+				"last_tick_usec": 21,
+				"last_total_tick_usec": 45,
+				"max_tick_usec": 113,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 4,
+						"max_usec": 36,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 9342
+					},
+					"inventory": {
+						"last_usec": 4,
+						"max_usec": 13,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 8137
+					},
+					"machine_control": {
+						"last_usec": 4,
+						"max_usec": 78,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 9482
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 31,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7059
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle_history",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 240,
+				"mean": 45.852,
+				"minimum": 41,
+				"p50": 43,
+				"p95": 70,
+				"p99": 100
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 1091,
+				"mean": 514.255,
+				"minimum": 471,
+				"p50": 488,
+				"p95": 775,
+				"p99": 866
+			},
+			"commands_per_tick": 64,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 7867,
+					"mean": 1872.06333333333,
+					"minimum": 1730,
+					"p50": 1785,
+					"p95": 2263,
+					"p99": 3093
+				},
+				"commands_processed": 19200,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 31,
+							"mean": 7.37,
+							"minimum": 5,
+							"p50": 6,
+							"p95": 15,
+							"p99": 20
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 19,
+							"mean": 5.69,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 11,
+							"p99": 15
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 60,
+							"mean": 6.48333333333333,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 12,
+							"p99": 16
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 12,
+							"mean": 4.20666666666667,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 6,
+							"p99": 9
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 7939,
+					"mean": 1904.22,
+					"minimum": 1756,
+					"p50": 1813,
+					"p95": 2313,
+					"p99": 3168
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 0,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 1806,
+				"last_commands_processed": 64,
+				"last_profile_usec": 26,
+				"last_tick_usec": 1839,
+				"last_total_tick_usec": 1865,
+				"max_tick_usec": 7939,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 7,
+						"max_usec": 31,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2211
+					},
+					"inventory": {
+						"last_usec": 7,
+						"max_usec": 19,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1707
+					},
+					"machine_control": {
+						"last_usec": 7,
+						"max_usec": 60,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1945
+					},
+					"pressure": {
+						"last_usec": 4,
+						"max_usec": 12,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1262
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_64",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 7984,
+				"mean": 1958.935,
+				"minimum": 1780,
+				"p50": 1833,
+				"p95": 2669,
+				"p99": 3234
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 2340,
+				"mean": 2005.16,
+				"minimum": 1907,
+				"p50": 1988,
+				"p95": 2141,
+				"p99": 2283
+			},
+			"commands_per_tick": 256,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 10534,
+					"mean": 7225.34666666667,
+					"minimum": 6934,
+					"p50": 7171,
+					"p95": 7530,
+					"p99": 7752
+				},
+				"commands_processed": 76800,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 63,
+							"mean": 12.74,
+							"minimum": 6,
+							"p50": 13,
+							"p95": 18,
+							"p99": 19
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 19,
+							"mean": 8.92,
+							"minimum": 4,
+							"p50": 9,
+							"p95": 12,
+							"p99": 15
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 26,
+							"mean": 9.64333333333333,
+							"minimum": 6,
+							"p50": 10,
+							"p95": 13,
+							"p99": 16
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 13,
+							"mean": 5.48,
+							"minimum": 3,
+							"p50": 5,
+							"p95": 7,
+							"p99": 8
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 10594,
+					"mean": 7275.09,
+					"minimum": 6972,
+					"p50": 7223,
+					"p95": 7589,
+					"p99": 7819
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 0,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 7665,
+				"last_commands_processed": 256,
+				"last_profile_usec": 42,
+				"last_tick_usec": 7734,
+				"last_total_tick_usec": 7776,
+				"max_tick_usec": 10594,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 19,
+						"max_usec": 63,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 3822
+					},
+					"inventory": {
+						"last_usec": 12,
+						"max_usec": 19,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2676
+					},
+					"machine_control": {
+						"last_usec": 14,
+						"max_usec": 26,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2893
+					},
+					"pressure": {
+						"last_usec": 7,
+						"max_usec": 13,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1644
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_256",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 10635,
+				"mean": 7310.245,
+				"minimum": 7002,
+				"p50": 7238,
+				"p95": 7662,
+				"p99": 7863
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"repeat": 0,
+			"scenario": "world_snapshot_json",
+			"snapshot_bytes": 6464,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 1757,
+				"mean": 1396.785,
+				"minimum": 1338,
+				"p50": 1375,
+				"p95": 1532,
+				"p99": 1629
+			},
+			"unit": "one validated snapshot capture and serialization"
+		},
+		{
+			"repeat": 0,
+			"scenario": "consciousness_64_pure_plans",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 2762,
+				"mean": 2118.54,
+				"minimum": 1751,
+				"p50": 1831,
+				"p95": 2669,
+				"p99": 2762
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 0,
+			"scenario": "consciousness_64_owners",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 6589,
+				"mean": 4630.3,
+				"minimum": 3351,
+				"p50": 3695,
+				"p95": 6527,
+				"p99": 6589
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 0,
+			"scenario": "linear_motion_saturated_owner",
+			"timing_usec": {
+				"count": 200,
+				"maximum": 122,
+				"mean": 88.975,
+				"minimum": 87,
+				"p50": 88,
+				"p95": 92,
+				"p99": 97
+			},
+			"unit": "one paired impulse commit with 128 retained receipts"
+		},
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 1,
+				"mean": 0.039,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 0,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {},
+			"over_budget_samples": 0,
+			"repeat": 1,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": false,
+				"last_command_usec": 0,
+				"last_commands_processed": 0,
+				"last_profile_usec": 0,
+				"last_tick_usec": 17,
+				"last_total_tick_usec": 17,
+				"max_tick_usec": 50,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 4,
+						"max_usec": 13,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7743
+					},
+					"inventory": {
+						"last_usec": 3,
+						"max_usec": 9,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7280
+					},
+					"machine_control": {
+						"last_usec": 4,
+						"max_usec": 8,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7866
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 8,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 6271
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 51,
+				"mean": 17.3825,
+				"minimum": 16,
+				"p50": 17,
+				"p95": 19,
+				"p99": 21
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 2,
+				"mean": 0.0735,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 1,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 2048,
+					"maximum": 8,
+					"mean": 0.3779296875,
+					"minimum": 0,
+					"p50": 0,
+					"p95": 1,
+					"p99": 1
+				},
+				"commands_processed": 0,
+				"first_tick": 53,
+				"last_tick": 2100,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 2048,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 39,
+							"mean": 4.46337890625,
+							"minimum": 4,
+							"p50": 4,
+							"p95": 5,
+							"p99": 6
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 27,
+							"mean": 3.9521484375,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 5,
+							"p99": 5
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 121,
+							"mean": 4.60205078125,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 5,
+							"p99": 6
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 46,
+							"mean": 3.43017578125,
+							"minimum": 3,
+							"p50": 3,
+							"p95": 4,
+							"p99": 5
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 2048,
+					"maximum": 158,
+					"mean": 22.1728515625,
+					"minimum": 20,
+					"p50": 22,
+					"p95": 24,
+					"p99": 28
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 1,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 2,
+				"last_commands_processed": 0,
+				"last_profile_usec": 24,
+				"last_tick_usec": 24,
+				"last_total_tick_usec": 48,
+				"max_tick_usec": 158,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 5,
+						"max_usec": 39,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 9368
+					},
+					"inventory": {
+						"last_usec": 4,
+						"max_usec": 27,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 8303
+					},
+					"machine_control": {
+						"last_usec": 5,
+						"max_usec": 121,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 9661
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 46,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7205
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle_history",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 206,
+				"mean": 46.8035,
+				"minimum": 41,
+				"p50": 45,
+				"p95": 55,
+				"p99": 100
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 600,
+				"mean": 492.9,
+				"minimum": 471,
+				"p50": 488,
+				"p95": 522,
+				"p99": 565
+			},
+			"commands_per_tick": 64,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 2282,
+					"mean": 1803.88666666667,
+					"minimum": 1741,
+					"p50": 1779,
+					"p95": 1921,
+					"p99": 2102
+				},
+				"commands_processed": 19200,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 14,
+							"mean": 6.27333333333333,
+							"minimum": 5,
+							"p50": 6,
+							"p95": 11,
+							"p99": 13
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 10,
+							"mean": 5.03333333333333,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 8,
+							"p99": 9
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 11,
+							"mean": 5.63,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 9,
+							"p99": 10
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 9,
+							"mean": 3.90666666666667,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 5,
+							"p99": 6
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 2334,
+					"mean": 1832.37,
+					"minimum": 1765,
+					"p50": 1805,
+					"p95": 1968,
+					"p99": 2151
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 1,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 1777,
+				"last_commands_processed": 64,
+				"last_profile_usec": 23,
+				"last_tick_usec": 1803,
+				"last_total_tick_usec": 1826,
+				"max_tick_usec": 2334,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 5,
+						"max_usec": 14,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1882
+					},
+					"inventory": {
+						"last_usec": 5,
+						"max_usec": 10,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1510
+					},
+					"machine_control": {
+						"last_usec": 6,
+						"max_usec": 11,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1689
+					},
+					"pressure": {
+						"last_usec": 4,
+						"max_usec": 9,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1172
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_64",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 2379,
+				"mean": 1849.225,
+				"minimum": 1799,
+				"p50": 1826,
+				"p95": 1998,
+				"p99": 2165
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 4071,
+				"mean": 2029.51,
+				"minimum": 1901,
+				"p50": 1988,
+				"p95": 2211,
+				"p99": 2506
+			},
+			"commands_per_tick": 256,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 11830,
+					"mean": 7288.68666666667,
+					"minimum": 6988,
+					"p50": 7188,
+					"p95": 7703,
+					"p99": 9259
+				},
+				"commands_processed": 76800,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 57,
+							"mean": 12.5666666666667,
+							"minimum": 6,
+							"p50": 13,
+							"p95": 18,
+							"p99": 25
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 19,
+							"mean": 8.69,
+							"minimum": 5,
+							"p50": 9,
+							"p95": 12,
+							"p99": 13
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 26,
+							"mean": 9.51666666666667,
+							"minimum": 5,
+							"p50": 10,
+							"p95": 13,
+							"p99": 17
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 49,
+							"mean": 5.64,
+							"minimum": 3,
+							"p50": 5,
+							"p95": 7,
+							"p99": 11
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 11961,
+					"mean": 7337.67,
+					"minimum": 7019,
+					"p50": 7236,
+					"p95": 7769,
+					"p99": 9333
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 1,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 7377,
+				"last_commands_processed": 256,
+				"last_profile_usec": 36,
+				"last_tick_usec": 7428,
+				"last_total_tick_usec": 7464,
+				"max_tick_usec": 11961,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 12,
+						"max_usec": 57,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 3770
+					},
+					"inventory": {
+						"last_usec": 10,
+						"max_usec": 19,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2607
+					},
+					"machine_control": {
+						"last_usec": 9,
+						"max_usec": 26,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2855
+					},
+					"pressure": {
+						"last_usec": 6,
+						"max_usec": 49,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1692
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_256",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 12035,
+				"mean": 7423.57,
+				"minimum": 7047,
+				"p50": 7287,
+				"p95": 8048,
+				"p99": 10763
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"repeat": 1,
+			"scenario": "world_snapshot_json",
+			"snapshot_bytes": 6464,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 1674,
+				"mean": 1382.9,
+				"minimum": 1335,
+				"p50": 1366,
+				"p95": 1505,
+				"p99": 1558
+			},
+			"unit": "one validated snapshot capture and serialization"
+		},
+		{
+			"repeat": 1,
+			"scenario": "consciousness_64_pure_plans",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 2663,
+				"mean": 2087.64,
+				"minimum": 1756,
+				"p50": 1807,
+				"p95": 2590,
+				"p99": 2663
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 1,
+			"scenario": "consciousness_64_owners",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 5947,
+				"mean": 4411.28,
+				"minimum": 3302,
+				"p50": 3546,
+				"p95": 5934,
+				"p99": 5947
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 1,
+			"scenario": "linear_motion_saturated_owner",
+			"timing_usec": {
+				"count": 200,
+				"maximum": 97,
+				"mean": 90.48,
+				"minimum": 88,
+				"p50": 90,
+				"p95": 93,
+				"p99": 95
+			},
+			"unit": "one paired impulse commit with 128 retained receipts"
+		},
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 1,
+				"mean": 0.043,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 0,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {},
+			"over_budget_samples": 0,
+			"repeat": 2,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": false,
+				"last_command_usec": 1,
+				"last_commands_processed": 0,
+				"last_profile_usec": 0,
+				"last_tick_usec": 18,
+				"last_total_tick_usec": 18,
+				"max_tick_usec": 51,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 5,
+						"max_usec": 33,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7531
+					},
+					"inventory": {
+						"last_usec": 3,
+						"max_usec": 9,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 6996
+					},
+					"machine_control": {
+						"last_usec": 3,
+						"max_usec": 9,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7604
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 7,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 6025
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 52,
+				"mean": 16.7265,
+				"minimum": 16,
+				"p50": 17,
+				"p95": 17,
+				"p99": 19
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 1,
+				"mean": 0.07,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 1,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 2048,
+					"maximum": 2,
+					"mean": 0.38232421875,
+					"minimum": 0,
+					"p50": 0,
+					"p95": 1,
+					"p99": 1
+				},
+				"commands_processed": 0,
+				"first_tick": 53,
+				"last_tick": 2100,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 2048,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 86,
+							"mean": 4.421875,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 5,
+							"p99": 6
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 33,
+							"mean": 3.900390625,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 4,
+							"p99": 5
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 63,
+							"mean": 4.55224609375,
+							"minimum": 4,
+							"p50": 4,
+							"p95": 5,
+							"p99": 6
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 112,
+							"mean": 3.36572265625,
+							"minimum": 3,
+							"p50": 3,
+							"p95": 4,
+							"p99": 4
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 2048,
+					"maximum": 168,
+					"mean": 21.8720703125,
+					"minimum": 20,
+					"p50": 21,
+					"p95": 23,
+					"p99": 27
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 2,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 1,
+				"last_commands_processed": 0,
+				"last_profile_usec": 23,
+				"last_tick_usec": 22,
+				"last_total_tick_usec": 45,
+				"max_tick_usec": 168,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 4,
+						"max_usec": 86,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 9290
+					},
+					"inventory": {
+						"last_usec": 4,
+						"max_usec": 33,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 8188
+					},
+					"machine_control": {
+						"last_usec": 4,
+						"max_usec": 63,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 9580
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 112,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7067
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle_history",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 216,
+				"mean": 45.9445,
+				"minimum": 41,
+				"p50": 44,
+				"p95": 53,
+				"p99": 94
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 629,
+				"mean": 499.61,
+				"minimum": 475,
+				"p50": 494,
+				"p95": 539,
+				"p99": 578
+			},
+			"commands_per_tick": 64,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 2172,
+					"mean": 1807.22666666667,
+					"minimum": 1741,
+					"p50": 1784,
+					"p95": 1971,
+					"p99": 2127
+				},
+				"commands_processed": 19200,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 19,
+							"mean": 6.74666666666667,
+							"minimum": 5,
+							"p50": 6,
+							"p95": 12,
+							"p99": 15
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 13,
+							"mean": 5.39,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 9,
+							"p99": 11
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 16,
+							"mean": 5.95,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 10,
+							"p99": 11
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 8,
+							"mean": 4.04666666666667,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 5,
+							"p99": 6
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 2218,
+					"mean": 1837.27666666667,
+					"minimum": 1765,
+					"p50": 1812,
+					"p95": 2020,
+					"p99": 2166
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 2,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 1782,
+				"last_commands_processed": 64,
+				"last_profile_usec": 24,
+				"last_tick_usec": 1810,
+				"last_total_tick_usec": 1834,
+				"max_tick_usec": 2218,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 6,
+						"max_usec": 19,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2024
+					},
+					"inventory": {
+						"last_usec": 5,
+						"max_usec": 13,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1617
+					},
+					"machine_control": {
+						"last_usec": 6,
+						"max_usec": 16,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1785
+					},
+					"pressure": {
+						"last_usec": 4,
+						"max_usec": 8,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1214
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_64",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 2254,
+				"mean": 1865.79,
+				"minimum": 1793,
+				"p50": 1840,
+				"p95": 2059,
+				"p99": 2200
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 2322,
+				"mean": 2006.395,
+				"minimum": 1905,
+				"p50": 1991,
+				"p95": 2143,
+				"p99": 2232
+			},
+			"commands_per_tick": 256,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 8135,
+					"mean": 7257.68,
+					"minimum": 6943,
+					"p50": 7204,
+					"p95": 7715,
+					"p99": 7933
+				},
+				"commands_processed": 76800,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 125,
+							"mean": 12.6233333333333,
+							"minimum": 6,
+							"p50": 12,
+							"p95": 18,
+							"p99": 23
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 14,
+							"mean": 8.43,
+							"minimum": 5,
+							"p50": 8,
+							"p95": 12,
+							"p99": 13
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 17,
+							"mean": 9.30666666666667,
+							"minimum": 5,
+							"p50": 9,
+							"p95": 13,
+							"p99": 15
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 43,
+							"mean": 5.49333333333333,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 7,
+							"p99": 8
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 8203,
+					"mean": 7306.14666666667,
+					"minimum": 6973,
+					"p50": 7253,
+					"p95": 7783,
+					"p99": 8000
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 2,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 7466,
+				"last_commands_processed": 256,
+				"last_profile_usec": 39,
+				"last_tick_usec": 7526,
+				"last_total_tick_usec": 7565,
+				"max_tick_usec": 8203,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 15,
+						"max_usec": 125,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 3787
+					},
+					"inventory": {
+						"last_usec": 11,
+						"max_usec": 14,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2529
+					},
+					"machine_control": {
+						"last_usec": 12,
+						"max_usec": 17,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2792
+					},
+					"pressure": {
+						"last_usec": 7,
+						"max_usec": 43,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1648
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_256",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 8247,
+				"mean": 7362.29,
+				"minimum": 7000,
+				"p50": 7317,
+				"p95": 7831,
+				"p99": 8043
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"repeat": 2,
+			"scenario": "world_snapshot_json",
+			"snapshot_bytes": 6464,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 1661,
+				"mean": 1381.59,
+				"minimum": 1327,
+				"p50": 1362,
+				"p95": 1506,
+				"p99": 1639
+			},
+			"unit": "one validated snapshot capture and serialization"
+		},
+		{
+			"repeat": 2,
+			"scenario": "consciousness_64_pure_plans",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 6502,
+				"mean": 3212.86,
+				"minimum": 1754,
+				"p50": 2713,
+				"p95": 5743,
+				"p99": 6502
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 2,
+			"scenario": "consciousness_64_owners",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 6180,
+				"mean": 4451.44,
+				"minimum": 3338,
+				"p50": 3561,
+				"p95": 6092,
+				"p99": 6180
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 2,
+			"scenario": "linear_motion_saturated_owner",
+			"timing_usec": {
+				"count": 200,
+				"maximum": 200,
+				"mean": 92.635,
+				"minimum": 88,
+				"p50": 91,
+				"p95": 97,
+				"p99": 119
+			},
+			"unit": "one paired impulse commit with 128 retained receipts"
+		},
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 1,
+				"mean": 0.043,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 0,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {},
+			"over_budget_samples": 0,
+			"repeat": 3,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": false,
+				"last_command_usec": 0,
+				"last_commands_processed": 0,
+				"last_profile_usec": 0,
+				"last_tick_usec": 16,
+				"last_total_tick_usec": 16,
+				"max_tick_usec": 350,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 4,
+						"max_usec": 18,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7760
+					},
+					"inventory": {
+						"last_usec": 4,
+						"max_usec": 135,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7428
+					},
+					"machine_control": {
+						"last_usec": 4,
+						"max_usec": 161,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 8171
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 105,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 6437
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 152,
+				"mean": 17.5725,
+				"minimum": 16,
+				"p50": 17,
+				"p95": 19,
+				"p99": 21
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 1,
+				"mean": 0.0785,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 1,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 2048,
+					"maximum": 1,
+					"mean": 0.36279296875,
+					"minimum": 0,
+					"p50": 0,
+					"p95": 1,
+					"p99": 1
+				},
+				"commands_processed": 0,
+				"first_tick": 53,
+				"last_tick": 2100,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 2048,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 11,
+							"mean": 4.26220703125,
+							"minimum": 4,
+							"p50": 4,
+							"p95": 5,
+							"p99": 5
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 30,
+							"mean": 3.78515625,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 4,
+							"p99": 5
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 15,
+							"mean": 4.37255859375,
+							"minimum": 4,
+							"p50": 4,
+							"p95": 5,
+							"p99": 5
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 11,
+							"mean": 3.25537109375,
+							"minimum": 2,
+							"p50": 3,
+							"p95": 4,
+							"p99": 4
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 2048,
+					"maximum": 79,
+					"mean": 21.193359375,
+					"minimum": 19,
+					"p50": 21,
+					"p95": 22,
+					"p99": 25
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 3,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 0,
+				"last_commands_processed": 0,
+				"last_profile_usec": 22,
+				"last_tick_usec": 21,
+				"last_total_tick_usec": 43,
+				"max_tick_usec": 79,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 4,
+						"max_usec": 11,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 8967
+					},
+					"inventory": {
+						"last_usec": 4,
+						"max_usec": 42,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7998
+					},
+					"machine_control": {
+						"last_usec": 5,
+						"max_usec": 15,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 9191
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 11,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 6842
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle_history",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 120,
+				"mean": 44.4645,
+				"minimum": 41,
+				"p50": 43,
+				"p95": 48,
+				"p99": 75
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 599,
+				"mean": 503.765,
+				"minimum": 472,
+				"p50": 499,
+				"p95": 546,
+				"p99": 585
+			},
+			"commands_per_tick": 64,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 2165,
+					"mean": 1805.46666666667,
+					"minimum": 1736,
+					"p50": 1782,
+					"p95": 1934,
+					"p99": 2053
+				},
+				"commands_processed": 19200,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 18,
+							"mean": 6.50333333333333,
+							"minimum": 4,
+							"p50": 6,
+							"p95": 11,
+							"p99": 13
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 46,
+							"mean": 5.38,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 8,
+							"p99": 10
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 12,
+							"mean": 5.81333333333333,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 9,
+							"p99": 10
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 7,
+							"mean": 3.97333333333333,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 5,
+							"p99": 6
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 2212,
+					"mean": 1834.65333333333,
+					"minimum": 1760,
+					"p50": 1810,
+					"p95": 1980,
+					"p99": 2107
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 3,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 1852,
+				"last_commands_processed": 64,
+				"last_profile_usec": 31,
+				"last_tick_usec": 1893,
+				"last_total_tick_usec": 1924,
+				"max_tick_usec": 2212,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 9,
+						"max_usec": 18,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1951
+					},
+					"inventory": {
+						"last_usec": 7,
+						"max_usec": 46,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1614
+					},
+					"machine_control": {
+						"last_usec": 8,
+						"max_usec": 12,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1744
+					},
+					"pressure": {
+						"last_usec": 4,
+						"max_usec": 7,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1192
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_64",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 2248,
+				"mean": 1880.68,
+				"minimum": 1792,
+				"p50": 1864,
+				"p95": 2064,
+				"p99": 2173
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 4107,
+				"mean": 2064.23,
+				"minimum": 1917,
+				"p50": 2008,
+				"p95": 2337,
+				"p99": 2704
+			},
+			"commands_per_tick": 256,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 10976,
+					"mean": 7349.92,
+					"minimum": 6973,
+					"p50": 7218,
+					"p95": 8107,
+					"p99": 9641
+				},
+				"commands_processed": 76800,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 58,
+							"mean": 13.29,
+							"minimum": 6,
+							"p50": 13,
+							"p95": 20,
+							"p99": 25
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 19,
+							"mean": 9.12,
+							"minimum": 5,
+							"p50": 9,
+							"p95": 13,
+							"p99": 14
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 28,
+							"mean": 9.95666666666667,
+							"minimum": 6,
+							"p50": 10,
+							"p95": 14,
+							"p99": 17
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 16,
+							"mean": 5.70333333333333,
+							"minimum": 4,
+							"p50": 6,
+							"p95": 8,
+							"p99": 9
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 11046,
+					"mean": 7401.56666666667,
+					"minimum": 7003,
+					"p50": 7263,
+					"p95": 8182,
+					"p99": 9709
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 3,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 7093,
+				"last_commands_processed": 256,
+				"last_profile_usec": 29,
+				"last_tick_usec": 7130,
+				"last_total_tick_usec": 7159,
+				"max_tick_usec": 11046,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 9,
+						"max_usec": 58,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 3987
+					},
+					"inventory": {
+						"last_usec": 6,
+						"max_usec": 19,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2736
+					},
+					"machine_control": {
+						"last_usec": 7,
+						"max_usec": 28,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2987
+					},
+					"pressure": {
+						"last_usec": 5,
+						"max_usec": 16,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1711
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_256",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 11122,
+				"mean": 7505.715,
+				"minimum": 7052,
+				"p50": 7309,
+				"p95": 8522,
+				"p99": 9813
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"repeat": 3,
+			"scenario": "world_snapshot_json",
+			"snapshot_bytes": 6464,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 1618,
+				"mean": 1372.64,
+				"minimum": 1335,
+				"p50": 1358,
+				"p95": 1469,
+				"p99": 1537
+			},
+			"unit": "one validated snapshot capture and serialization"
+		},
+		{
+			"repeat": 3,
+			"scenario": "consciousness_64_pure_plans",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 3123,
+				"mean": 2153.12,
+				"minimum": 1770,
+				"p50": 1877,
+				"p95": 2716,
+				"p99": 3123
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 3,
+			"scenario": "consciousness_64_owners",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 6178,
+				"mean": 4448.64,
+				"minimum": 3329,
+				"p50": 3591,
+				"p95": 5992,
+				"p99": 6178
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 3,
+			"scenario": "linear_motion_saturated_owner",
+			"timing_usec": {
+				"count": 200,
+				"maximum": 119,
+				"mean": 89.635,
+				"minimum": 87,
+				"p50": 89,
+				"p95": 92,
+				"p99": 101
+			},
+			"unit": "one paired impulse commit with 128 retained receipts"
+		},
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 39,
+				"mean": 0.054,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 0,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {},
+			"over_budget_samples": 0,
+			"repeat": 4,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": false,
+				"last_command_usec": 0,
+				"last_commands_processed": 0,
+				"last_profile_usec": 0,
+				"last_tick_usec": 16,
+				"last_total_tick_usec": 16,
+				"max_tick_usec": 103,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 4,
+						"max_usec": 40,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7608
+					},
+					"inventory": {
+						"last_usec": 4,
+						"max_usec": 31,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7019
+					},
+					"machine_control": {
+						"last_usec": 4,
+						"max_usec": 15,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7631
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 47,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 6111
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 114,
+				"mean": 16.8735,
+				"minimum": 16,
+				"p50": 17,
+				"p95": 17,
+				"p99": 18
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 2000,
+				"maximum": 1,
+				"mean": 0.062,
+				"minimum": 0,
+				"p50": 0,
+				"p95": 1,
+				"p99": 1
+			},
+			"commands_per_tick": 0,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 2048,
+					"maximum": 8,
+					"mean": 0.3544921875,
+					"minimum": 0,
+					"p50": 0,
+					"p95": 1,
+					"p99": 1
+				},
+				"commands_processed": 0,
+				"first_tick": 53,
+				"last_tick": 2100,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 2048,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 13,
+							"mean": 4.27099609375,
+							"minimum": 4,
+							"p50": 4,
+							"p95": 5,
+							"p99": 5
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 11,
+							"mean": 3.80322265625,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 4,
+							"p99": 5
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 16,
+							"mean": 4.39501953125,
+							"minimum": 4,
+							"p50": 4,
+							"p95": 5,
+							"p99": 5
+						}
+					},
+					{
+						"last_observed_tick": 2100,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 2048,
+							"maximum": 21,
+							"mean": 3.23876953125,
+							"minimum": 3,
+							"p50": 3,
+							"p95": 4,
+							"p99": 4
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 2048,
+					"maximum": 58,
+					"mean": 21.19873046875,
+					"minimum": 20,
+					"p50": 21,
+					"p95": 22,
+					"p99": 25
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 4,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 0,
+				"last_commands_processed": 0,
+				"last_profile_usec": 22,
+				"last_tick_usec": 22,
+				"last_total_tick_usec": 44,
+				"max_tick_usec": 58,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 4,
+						"max_usec": 13,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 8975
+					},
+					"inventory": {
+						"last_usec": 3,
+						"max_usec": 11,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 7993
+					},
+					"machine_control": {
+						"last_usec": 4,
+						"max_usec": 16,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 9225
+					},
+					"pressure": {
+						"last_usec": 3,
+						"max_usec": 21,
+						"over_budget_ticks": 0,
+						"ticks": 2100,
+						"total_usec": 6801
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 2100
+			},
+			"scenario": "idle_history",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 2000,
+				"maximum": 216,
+				"mean": 44.469,
+				"minimum": 41,
+				"p50": 43,
+				"p95": 48,
+				"p99": 74
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 745,
+				"mean": 497.95,
+				"minimum": 473,
+				"p50": 493,
+				"p95": 534,
+				"p99": 566
+			},
+			"commands_per_tick": 64,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 2111,
+					"mean": 1794.43,
+					"minimum": 1724,
+					"p50": 1779,
+					"p95": 1918,
+					"p99": 2005
+				},
+				"commands_processed": 19200,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 14,
+							"mean": 6.54,
+							"minimum": 4,
+							"p50": 6,
+							"p95": 11,
+							"p99": 14
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 14,
+							"mean": 5.29333333333333,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 8,
+							"p99": 10
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 11,
+							"mean": 5.83,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 9,
+							"p99": 10
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 7,
+							"mean": 3.92,
+							"minimum": 3,
+							"p50": 4,
+							"p95": 5,
+							"p99": 6
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 2153,
+					"mean": 1823.79,
+					"minimum": 1748,
+					"p50": 1807,
+					"p95": 1957,
+					"p99": 2056
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 4,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 2005,
+				"last_commands_processed": 64,
+				"last_profile_usec": 34,
+				"last_tick_usec": 2056,
+				"last_total_tick_usec": 2090,
+				"max_tick_usec": 2153,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 13,
+						"max_usec": 14,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1962
+					},
+					"inventory": {
+						"last_usec": 10,
+						"max_usec": 14,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1588
+					},
+					"machine_control": {
+						"last_usec": 9,
+						"max_usec": 11,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1749
+					},
+					"pressure": {
+						"last_usec": 6,
+						"max_usec": 7,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1176
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_64",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 2148,
+				"mean": 1854.27,
+				"minimum": 1783,
+				"p50": 1840,
+				"p95": 1991,
+				"p99": 2048
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"command_setup_usec": {
+				"count": 200,
+				"maximum": 2549,
+				"mean": 2001.08,
+				"minimum": 1915,
+				"p50": 1984,
+				"p95": 2124,
+				"p99": 2233
+			},
+			"commands_per_tick": 256,
+			"internal_report": {
+				"command_timing_usec": {
+					"count": 300,
+					"maximum": 8716,
+					"mean": 7274.01,
+					"minimum": 6988,
+					"p50": 7208,
+					"p95": 7741,
+					"p99": 7897
+				},
+				"commands_processed": 76800,
+				"first_tick": 1,
+				"last_tick": 300,
+				"omitted_system_observations": 0,
+				"over_budget_samples": 0,
+				"queue_peak": 0,
+				"sample_count": 300,
+				"schema_version": 1,
+				"systems": [
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"devices": 1
+						},
+						"system_id": "access_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 36,
+							"mean": 12.59,
+							"minimum": 6,
+							"p50": 13,
+							"p95": 19,
+							"p99": 20
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"bodies": 2,
+							"grip_participants": 0,
+							"grip_paused_sessions": 0,
+							"grip_reserved_hands": 0,
+							"grip_retained_receipts": 0,
+							"grip_sessions": 0,
+							"jobs": 0,
+							"search_views": 0
+						},
+						"system_id": "inventory",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 69,
+							"mean": 9.17666666666667,
+							"minimum": 5,
+							"p50": 9,
+							"p95": 13,
+							"p99": 15
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"board_job_active": 0,
+							"board_work_ticks": 0,
+							"delivered": 0,
+							"dropped": 0,
+							"installed_modules": 2,
+							"last_delivery_attempts": 0,
+							"oldest_pending_age_ticks": 0,
+							"peak_pending": 0,
+							"pending_deliveries": 0,
+							"rejected": 0,
+							"salvage_parts": 1,
+							"spare_boards": 1,
+							"wires": 1
+						},
+						"system_id": "machine_control",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 26,
+							"mean": 9.62666666666667,
+							"minimum": 6,
+							"p50": 10,
+							"p95": 13,
+							"p99": 15
+						}
+					},
+					{
+						"last_observed_tick": 300,
+						"latest_counters": {
+							"airlocks": 1,
+							"sensors": 3,
+							"total_transferred_moles": 0.0,
+							"volumes": 3
+						},
+						"system_id": "pressure",
+						"timing_usec": {
+							"count": 300,
+							"maximum": 16,
+							"mean": 5.56666666666667,
+							"minimum": 4,
+							"p50": 5,
+							"p95": 7,
+							"p99": 9
+						}
+					}
+				],
+				"tick_timing_usec": {
+					"count": 300,
+					"maximum": 8852,
+					"mean": 7323.73,
+					"minimum": 7017,
+					"p50": 7256,
+					"p95": 7814,
+					"p99": 7969
+				}
+			},
+			"over_budget_samples": 0,
+			"repeat": 4,
+			"runner_diagnostics": {
+				"dropped_external_commands": 0,
+				"history_enabled": true,
+				"last_command_usec": 7222,
+				"last_commands_processed": 256,
+				"last_profile_usec": 27,
+				"last_tick_usec": 7253,
+				"last_total_tick_usec": 7280,
+				"max_tick_usec": 8852,
+				"over_budget_ticks": 0,
+				"queued_external_commands": 0,
+				"rejected_external_commands": 0,
+				"schema_version": 1,
+				"simulation_running": true,
+				"systems": {
+					"access_control": {
+						"last_usec": 7,
+						"max_usec": 36,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 3777
+					},
+					"inventory": {
+						"last_usec": 6,
+						"max_usec": 69,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2753
+					},
+					"machine_control": {
+						"last_usec": 7,
+						"max_usec": 26,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 2888
+					},
+					"pressure": {
+						"last_usec": 5,
+						"max_usec": 16,
+						"over_budget_ticks": 0,
+						"ticks": 300,
+						"total_usec": 1670
+					}
+				},
+				"tick_budget_usec": 16667,
+				"tick_number": 300
+			},
+			"scenario": "commands_256",
+			"tick_budget_usec": 16667,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 8926,
+				"mean": 7325.975,
+				"minimum": 7056,
+				"p50": 7263,
+				"p95": 7758,
+				"p99": 7968
+			},
+			"unit": "one tick including history observer"
+		},
+		{
+			"repeat": 4,
+			"scenario": "world_snapshot_json",
+			"snapshot_bytes": 6464,
+			"timing_usec": {
+				"count": 200,
+				"maximum": 1648,
+				"mean": 1374.46,
+				"minimum": 1331,
+				"p50": 1360,
+				"p95": 1471,
+				"p99": 1578
+			},
+			"unit": "one validated snapshot capture and serialization"
+		},
+		{
+			"repeat": 4,
+			"scenario": "consciousness_64_pure_plans",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 2865,
+				"mean": 2100.04,
+				"minimum": 1743,
+				"p50": 1800,
+				"p95": 2589,
+				"p99": 2865
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 4,
+			"scenario": "consciousness_64_owners",
+			"timing_usec": {
+				"count": 50,
+				"maximum": 6501,
+				"mean": 4520.32,
+				"minimum": 3327,
+				"p50": 3759,
+				"p95": 6169,
+				"p99": 6501
+			},
+			"unit": "batch of 64 assessments; owner history saturated after warmup; pure plans use uncommitted alert inputs"
+		},
+		{
+			"repeat": 4,
+			"scenario": "linear_motion_saturated_owner",
+			"timing_usec": {
+				"count": 200,
+				"maximum": 453,
+				"mean": 93.72,
+				"minimum": 88,
+				"p50": 91,
+				"p95": 97,
+				"p99": 143
+			},
+			"unit": "one paired impulse commit with 128 retained receipts"
+		}
+	],
+	"schema_version": 1,
+	"scope": "Headless synthetic CPU microbenchmarks. Manual ticks run faster than real time. No GPU, networking, external services or population capacity claim.",
+	"utc": "2026-10-10T02:16:41"
+}

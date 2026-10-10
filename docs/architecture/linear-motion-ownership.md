@@ -1,5 +1,7 @@
 # Atomic linear motion ownership
 
+Normal commits now reuse validated private historical records and update disposable body/receipt indexes, retaining full creation/load validation. See the [measured optimization](../../reports/performance/owner-optimization.md). Atomic paired plans and detached public records remain unchanged.
+
 ## Domain responsibility
 
 `LinearMotionOwner` is the sole domain owner of up to 64 registered `LinearMotionState` records and a bounded paired-impulse history. It creates its initial registry from trusted motion records, such as the existing push-off fixture. It is a `RefCounted` domain component, not a registered `SimulationSystem` or a player transport endpoint. No body/assembly registration, retirement, mass changes, frame changes, gravity updates or position integration occur after creation in this version.

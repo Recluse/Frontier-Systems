@@ -6,6 +6,8 @@ class_name LinearMotionOwner
 const MAX_STATES: int = 64
 const MAX_RECEIPTS: int = 128
 var _record: Dictionary = {}
+var _receipts_by_id: Dictionary = {}
+var _state_indices: Dictionary = {}
 var _rejections: int = 0
 var _retry_acknowledgements: int = 0
 
@@ -43,12 +45,12 @@ func push_off(request: Dictionary, contact: Dictionary, observed_tick: int, comm
 			return _reject("Expected revisions must be exact bounded counters.")
 	var impulse: Array = [int(request["impulse_micro_ns"][0]), int(request["impulse_micro_ns"][1]), int(request["impulse_micro_ns"][2])]
 	var fingerprint: String = JSON.stringify([_record["owner_id"], request["request_id"], request["actor_body_id"], request["target_body_id"], int(request["expected_owner_revision"]), int(request["expected_actor_revision"]), int(request["expected_target_revision"]), impulse]).sha256_text()
-	for receipt in _record["receipts"]:
-		if receipt["request_id"] == request["request_id"]:
-			if receipt["fingerprint"] != fingerprint:
-				return _reject("This retained request ID identifies different impulse intent.")
-			_retry_acknowledgements = mini(_retry_acknowledgements + 1, LinearMotionState.MAX_EXACT_INTEGER)
-			return ServiceResult.success(receipt.duplicate(true))
+	if _receipts_by_id.has(request["request_id"]):
+		var retained: Dictionary = _receipts_by_id[request["request_id"]]
+		if retained["fingerprint"] != fingerprint:
+			return _reject("This retained request ID identifies different impulse intent.")
+		_retry_acknowledgements = mini(_retry_acknowledgements + 1, LinearMotionState.MAX_EXACT_INTEGER)
+		return ServiceResult.success(retained.duplicate(true))
 	var actor_index: int = _state_index(request["actor_body_id"])
 	var target_index: int = _state_index(request["target_body_id"])
 	if actor_index < 0 or target_index < 0 or actor_index == target_index:
@@ -62,19 +64,23 @@ func push_off(request: Dictionary, contact: Dictionary, observed_tick: int, comm
 	var planned: ServiceResult = PushOffImpulsePlanner.plan(actor, target, contact, impulse)
 	if not planned.is_success:
 		return _reject(planned.message)
-	var candidate: Dictionary = to_record()
+	# Historical private states/receipts already passed full load validation.
+	var candidate: Dictionary = _record.duplicate()
+	candidate["states"] = _record["states"].duplicate()
+	candidate["receipts"] = _record["receipts"].duplicate()
 	candidate["states"][actor_index] = planned.value["actor_after"]
 	candidate["states"][target_index] = planned.value["target_after"]
 	candidate["state_revision"] = int(_record["state_revision"]) + 1
 	candidate["last_commit_tick"] = commit_tick
 	var receipt := {"request_id": request["request_id"], "fingerprint": fingerprint, "actor_body_id": request["actor_body_id"], "target_body_id": request["target_body_id"], "result_owner_revision": candidate["state_revision"], "actor_revision": planned.value["actor_after"]["state_revision"], "target_revision": planned.value["target_after"]["state_revision"], "commit_tick": commit_tick}
 	candidate["receipts"].append(receipt)
+	var evicted_id: String = ""
 	if candidate["receipts"].size() > MAX_RECEIPTS:
-		candidate["receipts"].pop_front()
-	var checked: ServiceResult = from_record(candidate, commit_tick)
-	if not checked.is_success:
-		return _reject(checked.message)
-	_record = checked.value.to_record()
+		evicted_id = candidate["receipts"].pop_front()["request_id"]
+	_record = candidate
+	if not evicted_id.is_empty():
+		_receipts_by_id.erase(evicted_id)
+	_receipts_by_id[receipt["request_id"]] = receipt
 	return ServiceResult.success(receipt.duplicate(true))
 
 
@@ -140,14 +146,15 @@ static func from_record(record: Dictionary, snapshot_tick: int = -1) -> ServiceR
 		return _failure("The latest retained receipt must match the owner's committed revision and tick.")
 	var owner := LinearMotionOwner.new()
 	owner._record = normalized
+	for index in range(normalized["states"].size()):
+		owner._state_indices[normalized["states"][index]["body_id"]] = index
+	for receipt in normalized["receipts"]:
+		owner._receipts_by_id[receipt["request_id"]] = receipt
 	return ServiceResult.success(owner)
 
 
 func _state_index(body_id: String) -> int:
-	for index in range(_record["states"].size()):
-		if _record["states"][index]["body_id"] == body_id:
-			return index
-	return -1
+	return int(_state_indices.get(body_id, -1))
 
 
 func _reject(message: String) -> ServiceResult:

@@ -11,7 +11,7 @@ func validate(simulation_context: Node) -> ServiceResult:
 	var inventory := world.get_simulation_system(InventorySimulationSystem.SYSTEM_ID) as InventorySimulationSystem
 	if inventory == null:
 		return ServiceResult.failure(&"inventory_unavailable", "The inventory runtime is unavailable.")
-	return inventory.authorize(authenticated_context)
+	return inventory.authorize(authenticated_context, true)
 
 
 func apply(simulation_context: Node) -> ServiceResult:
