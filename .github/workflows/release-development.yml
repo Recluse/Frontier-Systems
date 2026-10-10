@@ -1,0 +1,92 @@
+name: Prepare development release
+
+on:
+  workflow_dispatch:
+    inputs:
+      ci_run_id:
+        description: Successful CI run for a dev-master push (artifacts expire after three days)
+        required: true
+        type: string
+      tag:
+        description: New version tag, for example v0.1.0-dev.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: development-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Verify and prepare draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: development-release
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Verify the selected CI run and new tag
+        id: source
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          RUN_ID: ${{ inputs.ci_run_id }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if ($env:RUN_ID -notmatch '^[0-9]+$' -or $env:RELEASE_TAG -notmatch '^v[0-9]+\.[0-9]+\.[0-9]+(?:-[A-Za-z0-9.-]+)?$') { throw 'Invalid run ID or release tag.' }
+          $run = gh api "repos/$env:REPOSITORY/actions/runs/$env:RUN_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read CI run.' }
+          $workflow = gh api "repos/$env:REPOSITORY/actions/workflows/$($run.workflow_id)" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read workflow metadata.' }
+          if ($workflow.path -ne '.github/workflows/ci.yml' -or $run.conclusion -ne 'success' -or $run.status -ne 'completed' -or $run.head_branch -ne 'dev-master' -or $run.event -notin @('push', 'workflow_dispatch') -or $run.head_repository.full_name -ne $env:REPOSITORY) { throw 'Select a completed successful trusted dev-master CI run.' }
+          if ($run.head_sha -notmatch '^[0-9a-f]{40}$') { throw 'Invalid source commit.' }
+          "sha=$($run.head_sha)" >> $env:GITHUB_OUTPUT
+
+      - name: Download verified game archives from that exact run
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.ci_run_id }}
+          pattern: game-*-${{ steps.source.outputs.sha }}
+          merge-multiple: true
+          path: release-artifacts
+
+      - name: Validate both archives and prepare a draft prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          REVISION: ${{ steps.source.outputs.sha }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          CI_RUN_ID: ${{ inputs.ci_run_id }}
+        run: |
+          $files = @()
+          foreach ($platform in @('windows', 'linux')) {
+            $name = "frontier-systems-$platform-$env:REVISION.zip"
+            $archive = Join-Path 'release-artifacts' $name
+            $checksum = "$archive.sha256"
+            if (-not (Test-Path -LiteralPath $archive) -or -not (Test-Path -LiteralPath $checksum)) { throw "Missing $platform archive/checksum." }
+            $record = (Get-Content -LiteralPath $checksum -Raw).Trim()
+            if ($record -notmatch '^([0-9a-f]{64})  (.+)$' -or $Matches[2] -ne $name) { throw 'Malformed checksum record.' }
+            $expected = $Matches[1]
+            if ((Get-FileHash -Algorithm SHA256 -LiteralPath $archive).Hash.ToLowerInvariant() -ne $expected) { throw "Checksum mismatch: $platform" }
+            $zip = [IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $archive))
+            try {
+              $entry = $zip.GetEntry('build-manifest.json')
+              if ($null -eq $entry -or $entry.Length -gt 1048576) { throw 'Missing or oversized manifest.' }
+              $reader = [IO.StreamReader]::new($entry.Open())
+              try { $manifest = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
+              if ($manifest.revision -ne $env:REVISION -or $manifest.platform -ne $platform -or $manifest.smoke_test -ne 'cooperative host startup') { throw 'Manifest does not match verified source/platform.' }
+            } finally { $zip.Dispose() }
+            $files += @($archive, $checksum)
+          }
+          $notes = "Unsigned cooperative development prototype from $env:REVISION. CI: https://github.com/$env:REPOSITORY/actions/runs/$env:CI_RUN_ID`n`nRetain bundled licenses and notices; follow QUICKSTART.md. Steam distribution, signing, graphical/VR acceptance and public hosting remain separate requirements."
+          [IO.File]::WriteAllText('release-notes.md', $notes)
+          gh release create $env:RELEASE_TAG --repo $env:REPOSITORY --target $env:REVISION --draft --prerelease --title "Frontier Systems $env:RELEASE_TAG" --notes-file release-notes.md @files
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed; existing releases are not overwritten.' }

@@ -5,6 +5,7 @@ on:
     branches:
       - dev-master
   push:
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -18,6 +19,7 @@ jobs:
   php-quality:
     name: PHP quality (PHP ${{ matrix.php-version }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -33,12 +35,12 @@ jobs:
         working-directory: services/control-plane
     steps:
       - name: Check out source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Set up PHP and Composer
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@d52fc211a0436f8839a587b3b5b8efddab4744ea # v2
         with:
           php-version: ${{ matrix.php-version }}
           tools: composer:v2
@@ -46,6 +48,18 @@ jobs:
 
       - name: Validate Composer metadata
         run: composer validate --strict
+
+      - name: Locate Composer download cache
+        id: composer-cache
+        shell: pwsh
+        run: '"path=$(composer config --global cache-files-dir)" >> $env:GITHUB_OUTPUT'
+
+      - name: Cache Composer downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.composer-cache.outputs.path }}
+          key: composer-${{ runner.os }}-${{ matrix.php-version }}-${{ hashFiles('services/control-plane/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-${{ matrix.php-version }}-
 
       - name: Install locked dependencies
         if: runner.os != 'Windows'
@@ -68,10 +82,16 @@ jobs:
         run: composer cs-check
 
       - name: Run PHP unit suite
-        run: composer unit
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force ../../var/ci/php | Out-Null
+          php vendor/phpunit/phpunit/phpunit --testdox --log-junit ../../var/ci/php/control-plane.xml
+          if ($LASTEXITCODE -ne 0) { throw 'Control-plane tests failed.' }
+          php vendor/phpunit/phpunit/phpunit --bootstrap ../../packages/event-logging/tests/bootstrap.php ../../packages/event-logging/tests --log-junit ../../var/ci/php/event-logging.xml
+          if ($LASTEXITCODE -ne 0) { throw 'Event logging tests failed.' }
 
       - name: Check optional Twitch adapters without live credentials
-        run: php vendor/phpunit/phpunit/phpunit --bootstrap ../../packages/twitch/tests/bootstrap.php ../../packages/twitch/tests
+        run: php vendor/phpunit/phpunit/phpunit --bootstrap ../../packages/twitch/tests/bootstrap.php ../../packages/twitch/tests --log-junit ../../var/ci/php/twitch.xml
 
       - name: Audit locked dependencies
         if: matrix.php-version == '8.5' && matrix.os == 'ubuntu-latest'
@@ -84,207 +104,115 @@ jobs:
         run: composer docs
 
       - name: Build production PHAR
-        if: matrix.os == 'windows-latest'
+        if: matrix.php-version == '8.3'
         run: composer phar
 
-  profiling-package:
-    name: Profiling package metadata (${{ matrix.package }}, ${{ matrix.os }})
+      - name: Upload PHP test reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: php-tests-${{ matrix.os }}-${{ matrix.php-version }}
+          path: var/ci/php/
+          retention-days: 3
+          if-no-files-found: warn
+
+      - name: Upload production control-plane PHAR
+        if: success() && matrix.php-version == '8.3'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: control-plane-${{ matrix.os }}
+          path: services/control-plane/bin/build/control-plane.phar
+          retention-days: 3
+          if-no-files-found: error
+
+      - name: Upload generated PHP API documentation
+        if: success() && matrix.php-version == '8.5'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: php-api-docs
+          path: docs/generated/php-api/
+          retention-days: 3
+          if-no-files-found: error
+
+  php-packages:
+    name: PHP package contracts (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        package: [profiling, profiling-http, twitch, server-status, event-logging]
-    defaults:
-      run:
-        working-directory: packages/${{ matrix.package }}
     steps:
       - name: Check out source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Set up PHP and Composer
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@d52fc211a0436f8839a587b3b5b8efddab4744ea # v2
         with:
           php-version: '8.3'
           tools: composer:v2
           coverage: none
-      - name: Validate package metadata
-        run: composer validate --strict
-      - name: Resolve package production requirements
-        run: composer install --no-dev --prefer-dist --no-interaction --no-progress
-      - name: Enforce package PSR-4 mappings
-        run: composer dump-autoload --optimize --strict-psr --strict-ambiguous
+      - name: Locate Composer download cache
+        id: composer-cache
+        shell: pwsh
+        run: '"path=$(composer config --global cache-files-dir)" >> $env:GITHUB_OUTPUT'
+      - name: Cache Composer downloads
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ${{ steps.composer-cache.outputs.path }}
+          key: composer-packages-${{ runner.os }}-${{ hashFiles('packages/**/composer.json') }}
+          restore-keys: composer-packages-${{ runner.os }}-
+      - name: Validate every package and PSR-4 map
+        shell: pwsh
+        run: |
+          $packages = Get-ChildItem packages -Directory | Where-Object { Test-Path (Join-Path $_.FullName 'composer.json') }
+          if (@($packages).Count -eq 0) { throw 'No Composer packages discovered.' }
+          foreach ($package in $packages) {
+            composer --working-dir=$($package.FullName) validate --strict
+            if ($LASTEXITCODE -ne 0) { throw "Invalid metadata: $($package.Name)" }
+            composer --working-dir=$($package.FullName) install --no-dev --prefer-dist --no-interaction --no-progress
+            if ($LASTEXITCODE -ne 0) { throw "Cannot resolve production dependencies: $($package.Name)" }
+            composer --working-dir=$($package.FullName) dump-autoload --optimize --strict-psr --strict-ambiguous
+            if ($LASTEXITCODE -ne 0) { throw "Invalid PSR-4 mapping: $($package.Name)" }
+          }
 
   godot-import:
     name: Godot project import (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
     steps:
       - name: Check out source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Set up Godot 4.7.2
-        uses: chickensoft-games/setup-godot@v2
+        uses: chickensoft-games/setup-godot@ac93246ea68518a384c1c280a496e5989341f2f6 # v2
         with:
           version: 4.7.2
           use-dotnet: false
           include-templates: false
 
-      - name: Import and parse the project headlessly
-        run: godot --headless --editor --path . --import --quit
+      - name: Discover and run bounded headless checks
+        shell: pwsh
+        run: ./tools/ci/run-godot-checks.ps1
 
-      - name: Start the client-independent runtime headlessly
-        run: godot --headless --path . --quit-after 2
-
-      - name: Check cooperative first playable and durable restart continuation
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/first_playable_acceptance.gd
-
-      - name: Check equipment blueprint fabrication and conserved salvage
-        run: godot --headless --path . --script res://tests/godot/equipment_fabrication_test.gd
-
-      - name: Check standalone tool parts and modular assembly plans
-        run: godot --headless --path . --script res://tests/godot/tool_components_test.gd
-
-      - name: Check live tool wear, paid maintenance and snapshot migration
-        run: godot --headless --path . --script res://tests/godot/tool_runtime_test.gd
-
-      - name: Check physical tool part upgrades, replacement and conserved recycling
-        run: godot --headless --path . --script res://tests/godot/tool_parts_runtime_test.gd
-
-      - name: Check sustained extraction reservations and interruption/restart recovery
-        run: godot --headless --path . --script res://tests/godot/sustained_extraction_test.gd
-
-      - name: Check machine module import and compatibility contracts
-        run: godot --headless --path . --script res://tests/godot/machine_module_contracts_test.gd
-
-      - name: Check terrain material conservation and contracts
-        run: godot --headless --path . --script res://tests/godot/terrain_material_contracts_test.gd
-
-      - name: Check body inventory equipment profiles
-        run: godot --headless --path . --script res://tests/godot/inventory_equipment_profile_test.gd
-
-      - name: Check inventory ownership and nested container limits
-        run: godot --headless --path . --script res://tests/godot/inventory_ledger_test.gd
-
-      - name: Check body equipment and active-hand transactions
-        run: godot --headless --path . --script res://tests/godot/body_inventory_state_test.gd
-
-      - name: Check other-body inventory interaction policy
-        run: godot --headless --path . --script res://tests/godot/body_inventory_interaction_policy_test.gd
-
-      - name: Check timed inventory interaction jobs and recovery
-        run: godot --headless --path . --script res://tests/godot/body_inventory_interaction_job_test.gd
-
-      - name: Check shared inventory transactions and completion receipts
-        run: godot --headless --path . --script res://tests/godot/shared_inventory_coordinator_test.gd
-
-      - name: Check scoped inventory searches and revocation
-        run: godot --headless --path . --script res://tests/godot/inventory_search_views_test.gd
-
-      - name: Check inventory fixed-tick commands and world recovery
-        run: godot --headless --path . --script res://tests/godot/inventory_runtime_test.gd
-
-      - name: Check local inventory panel and scoped actions
-        run: godot --headless --path . --script res://tests/godot/local_inventory_panel_test.gd
-
-      - name: Check self inventory commands and equipment recovery
-        run: godot --headless --path . --script res://tests/godot/self_inventory_runtime_test.gd
-
-      - name: Check world inventory pickup/drop and migration
-        run: godot --headless --path . --script res://tests/godot/world_inventory_runtime_test.gd
-
-      - name: Check procedural world inventory preview and selection
-        run: godot --headless --path . --script res://tests/godot/world_inventory_preview_test.gd
-
-      - name: Check inventory 3D reach and spatial recovery
-        run: godot --headless --path . --script res://tests/godot/inventory_spatial_test.gd
-
-      - name: Check opt-in local capsule inventory bridge
-        run: godot --headless --path . --script res://tests/godot/local_inventory_body_adapter_test.gd
-
-      - name: Check gravity generator and EVA locomotion policy
-        run: godot --headless --path . --script res://tests/godot/locomotion_environment_policy_test.gd
-
-      - name: Check gas mixtures and prototype breathing policy
-        run: godot --headless --path . --script res://tests/godot/gas_mixture_test.gd
-
-      - name: Check consciousness causes and saved recovery policy
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/consciousness_policy_test.gd
-
-      - name: Check atomic consciousness ownership and retry recovery
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/consciousness_owner_test.gd
-
-      - name: Check health scheduling and persistent world recovery
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/health_runtime_test.gd
-
-      - name: Check inventory incapacity and recovery capabilities
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/inventory_consciousness_test.gd
-
-      - name: Check localized injuries and health snapshot migration
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/body_injury_runtime_test.gd
-
-      - name: Check scoped local health display and lifecycle
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/local_health_panel_test.gd
-
-      - name: Check hand traversal and cooperative physical interaction policy
-        run: godot --headless --path . --script res://tests/godot/physical_interaction_policy_test.gd
-
-      - name: Check physical grip reservations and paused recovery
-        run: godot --headless --path . --script res://tests/godot/physical_grip_owner_test.gd
-
-      - name: Check queued inventory grip arbitration and world recovery
-        run: godot --headless --path . --script res://tests/godot/inventory_grip_runtime_test.gd
-
-      - name: Check local grip controls and presentation isolation
-        run: godot --headless --path . --script res://tests/godot/local_grip_panel_test.gd
-
-      - name: Check conservative push-off momentum and contact limits
-        run: godot --headless --path . --script res://tests/godot/push_off_impulse_test.gd
-
-      - name: Check atomic linear motion and retry recovery
-        run: godot --headless --path . --script res://tests/godot/linear_motion_owner_test.gd
-
-      - name: Check optional XR resources and client isolation without hardware
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/optional_xr_client_test.gd
-
-      - name: Check XR comfort gates and local preferences without hardware
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/xr_comfort_test.gd
-
-      - name: Check spatial XR selection and queued airlock authority without hardware
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/xr_spatial_controls_test.gd
-
-      - name: Check manual door operation and degraded equipment
-        run: godot --headless --path . --script res://tests/godot/manual_airlock_operation_test.gd
-
-      - name: Check circuit and board-work snapshot recovery
-        run: godot --headless --path . --script res://tests/godot/control_runtime_recovery_test.gd
-
-      - name: Check alarm indicator and procedural audio
-        run: godot --headless --audio-driver Dummy --path . --script res://tests/godot/alarm_presentation_test.gd
-
-      - name: Check overlay themes and client isolation
-        run: godot --headless --path . --script res://tests/godot/overlay_theme_test.gd
-
-      - name: Check overlay layouts and registered panels
-        run: godot --headless --path . --script res://tests/godot/overlay_layout_test.gd
-
-      - name: Check HUD section customization and preference recovery
-        run: godot --headless --path . --script res://tests/godot/overlay_section_test.gd
-
-      - name: Check procedural habitat and camera presentation
-        run: godot --headless --audio-driver Dummy --path . --script res://tests/godot/habitat_preview_test.gd
-
-      - name: Check local character collisions and camera modes
-        run: godot --headless --audio-driver Dummy --path . --script res://tests/godot/local_character_navigation_test.gd
+      - name: Upload Godot diagnostics and JUnit report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: godot-tests-${{ matrix.os }}
+          path: var/ci/godot/
+          retention-days: 3
+          if-no-files-found: warn
 
       - name: Set up PHP for local telemetry integration
-        uses: shivammathur/setup-php@v2
+        uses: shivammathur/setup-php@d52fc211a0436f8839a587b3b5b8efddab4744ea # v2
         with:
           php-version: '8.3'
           tools: composer:v2
@@ -301,5 +229,66 @@ jobs:
         shell: pwsh
         run: ./tools/test-event-logging.ps1
 
-      - name: Check modular construction, physical sockets and powered resource machines
-        run: godot --headless --xr-mode off --path . --script res://tests/godot/machinery_runtime_test.gd
+  game-export:
+    name: Development export (${{ matrix.platform }})
+    needs: [php-quality, php-packages, godot-import]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: windows
+          - os: ubuntu-latest
+            platform: linux
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Set up pinned Godot with export templates
+        uses: chickensoft-games/setup-godot@ac93246ea68518a384c1c280a496e5989341f2f6 # v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+      - name: Export, start the packaged host and create checksummed archive
+        shell: pwsh
+        run: ./tools/ci/build-development-export.ps1 -Platform '${{ matrix.platform }}' -Revision '${{ github.sha }}'
+      - name: Upload export diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: export-diagnostics-${{ matrix.platform }}
+          path: var/ci/exports/*.log
+          retention-days: 3
+          if-no-files-found: warn
+      - name: Upload verified development build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: game-${{ matrix.platform }}-${{ github.sha }}
+          path: |
+            var/ci/exports/*.zip
+            var/ci/exports/*.sha256
+          retention-days: 3
+          if-no-files-found: error
+          compression-level: 0
+
+  required:
+    name: CI required
+    if: always()
+    needs: [php-quality, php-packages, godot-import, game-export]
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Require every quality and build gate
+        shell: pwsh
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          $jobs = $env:RESULTS | ConvertFrom-Json
+          foreach ($job in $jobs.PSObject.Properties) {
+            if ($job.Value.result -ne 'success') { throw "Required gate $($job.Name) ended as $($job.Value.result)." }
+          }
+          'All quality, integration and exported-host checks passed.' >> $env:GITHUB_STEP_SUMMARY

@@ -102,3 +102,7 @@ Production v6 embeds a catalog-pinned MachineryWorkshop record. Physical frames,
 See modular-resource-machinery-milestone.md for construction instructions, owner contracts, version migration, units, tests and remaining placement/engineering limits. The existing workbench remains a bootstrap path. Machinery physical output appears in the frame storage and requires retrieval/fitting; it is not automatically operational. Material provenance and nested cargo mass are counted once. No new raw matter is granted to old saves.
 
 The owner prioritizes this construction/resource loop before terrain excavation and away missions. Next improve placement feedback/collision authority and ship-relative attachment adapters; do not imply arbitrary normals/rotation, rigid-body manipulation, fuel generators or full automation already exist. Multiplayer acceptance includes shared generator control and durable assembly checkpoint recovery.
+
+## CI/CD maintenance
+
+See ci-cd.md for the discovered/timeout-bounded headless suite, all-package Composer metadata checks, pinned Actions, reports/artifact retention, aggregate CI required gate, Windows/Linux development exports and manual promotion of exact verified artifacts into a draft prerelease. Export feature tags start the cooperative scene. Branch protection and environment reviewer rules are repository settings; workflow code does not configure those settings. Do not claim exported-host smoke checks establish graphical/Steam/VR acceptance.
