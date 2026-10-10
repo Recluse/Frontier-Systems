@@ -3,7 +3,6 @@
   "description": "Versioned world snapshot and command request contracts for Frontier Systems services.",
   "type": "library",
   "license": "MIT",
-  "version": "0.1.x-dev",
   "require": {
     "php": "^8.3",
     "react/promise": "^3.0"

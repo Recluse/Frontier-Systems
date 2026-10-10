@@ -42,9 +42,11 @@ function Invoke-BuildProcess([string]$Program, [string[]]$Arguments, [string]$Na
         if (-not $started) { throw 'Process did not start.' }
         $stdout = $process.StandardOutput.ReadToEndAsync()
         $stderr = $process.StandardError.ReadToEndAsync()
-        if (-not $process.WaitForExit($Deadline * 1000)) { $process.Kill($true); $process.WaitForExit(); throw "$Name exceeded its deadline." }
+        $timedOut = -not $process.WaitForExit($Deadline * 1000)
+        if ($timedOut) { $process.Kill($true); $process.WaitForExit() }
         $log = $stdout.GetAwaiter().GetResult() + $stderr.GetAwaiter().GetResult()
         [IO.File]::WriteAllText((Join-Path $output "$Platform-$Name.log"), $log)
+        if ($timedOut) { throw "$Name exceeded its deadline; see $Platform-$Name.log." }
         if ($process.ExitCode -ne 0 -or $log -match '(?m)SCRIPT ERROR|(?:^|\s)ERROR:') { throw "$Name failed; see $Platform-$Name.log." }
         if ($Smoke -and -not $log.Contains('First playable host listening on loopback port')) { throw 'Export did not start the cooperative host entrypoint.' }
         Write-Host "PASS $Name"

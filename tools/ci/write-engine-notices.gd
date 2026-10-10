@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Retain the exact engine template's bundled software license/copyright notices.
+## Retain the pinned export engine's bundled software license/copyright notices.
 func _initialize() -> void:
 	var target: String = "res://var/ci/engine-notices.txt"
 	DirAccess.make_dir_recursive_absolute("res://var/ci")
