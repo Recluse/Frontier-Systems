@@ -70,3 +70,7 @@ This is an independent domain foundation, not a registered live simulation subsy
 ## CI verification request (2026-10-10)
 
 The owner requested committing/pushing the current changes and checking GitHub CI. tool_components_test.gd was added to the Windows/Ubuntu workflow and passes locally; it covers independent part replacement, mounted ownership, capability dependencies, low/fractional wear, damage/maintenance and restore. Earlier import-only notes describe the previous verification scope. Live component integration remains pending.
+
+## GitHub publication and CI harness fixes (2026-10-10)
+
+The gameplay and component changes were committed and pushed to origin/dev-master (equipment/components commit 4659c4d; earlier cooperative baseline ec3e320). Subsequent CI fixes select scalar executable paths, wait for Windows GUI Godot processes, assert oversized HTTP header rejection before transmitting a body, and initialize missing Godot class metadata for standalone profiling checks. The optional phpDocumentor PHAR distributor is disabled during Windows dependency installation because its GPG import fails there; signed documentation generation remains enabled on Linux, while Windows formatting/unit/PHAR checks remain enabled. Local full Godot workflow scripts, PHP formatting/unit/PHAR and profiling integration (including missing class cache and GUI executable) passed. See the GitHub CI workflow for current remote evidence. The modular tool domain remains separate from live inventory integration.
