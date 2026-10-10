@@ -1,0 +1,76 @@
+{
+  "$id": "urn:frontier-systems:schema:tool-extraction-work:v1",
+  "properties": {
+    "deposit_id": {
+      "minLength": 1,
+      "maxLength": 128,
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "remaining_cycles": {
+      "maximum": 10,
+      "type": "integer",
+      "minimum": 1
+    },
+    "completed_cycles": {
+      "maximum": 9,
+      "type": "integer",
+      "minimum": 0
+    },
+    "carrier_id": {
+      "minLength": 1,
+      "maxLength": 128,
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "pause_reason": {
+      "enum": [
+        "",
+        "capability",
+        "carrier",
+        "power",
+        "energy",
+        "capacity",
+        "restart"
+      ]
+    },
+    "request_id": {
+      "minLength": 1,
+      "maxLength": 128,
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "tool_id": {
+      "minLength": 1,
+      "maxLength": 128,
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "principal_id": {
+      "minLength": 1,
+      "maxLength": 128,
+      "type": "string",
+      "pattern": "\\S"
+    },
+    "status": {
+      "enum": [
+        "running",
+        "paused"
+      ]
+    }
+  },
+  "type": "object",
+  "required": [
+    "request_id",
+    "principal_id",
+    "tool_id",
+    "carrier_id",
+    "deposit_id",
+    "remaining_cycles",
+    "completed_cycles",
+    "status",
+    "pause_reason"
+  ],
+  "additionalProperties": false,
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

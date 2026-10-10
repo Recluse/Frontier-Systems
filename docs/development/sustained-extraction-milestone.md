@@ -1,0 +1,13 @@
+# Sustained tool extraction
+
+Implemented for the cooperative source prototype. In Inventory, equip a working extractor in your active hand, carry a canister, approach the source, choose 1–10 cycles and start sustained extraction. Each cycle produces 1 kg after 60 physics ticks (one second at the default 60 Hz). The canister still holds at most 2 kg; longer runs pause when full so you can transport/unload it and return.
+
+Production owns one bounded work reservation in this fixture, sharing its existing single job slot with workstation processing. Acceptance removes the requested mass from the source into the reserved input/output record; it does not debit energy or wear. Each completed cycle atomically moves 1 kg into the bound physical carrier, charges 250 J, applies one tool wear cycle and decreases the remaining reservation. Failed capacity/capability checks cannot consume material, energy or wear. Countdowns do not advance command revisions; outputs and pauses do.
+
+Changed active tool/hand, lost reach, consciousness/manipulator loss, missing/transferred carrier, power/energy loss or unavailable component capability pause the work. Restore always pauses with `restart`, preserving countdown, binding and remaining matter. Re-establish requirements and explicitly resume. Only the initiating principal can resume/cancel; cancellation releases unprocessed matter to its original source. Retained start-command retries cannot reserve twice. Completed cargo remains physical inventory owned by its current carrier holder.
+
+ToolExtractionWork provides the bounded persisted binding contract. Production snapshot/observation v5 keeps the existing v1–v4 migration paths. Snapshot jobs include the binding; network job summaries omit it and expose `tool_extraction` only to its owner. Restored prototype principals are resolved through the existing fixed-invite development adapter, never client-supplied grants. Broader account/session rebinding, independent machine job queues and operator/admin cancellation remain future work.
+
+Windows evidence: editor parsing, sustained_extraction_test.gd (reserve/retry, completed-cycle output/wear, carrier capacity, idle pause, scoped view, hand/power interruption, explicit resume/cancel and restart), existing equipment fabrication and physical-part tests passed. CI runs the new check on Windows/Ubuntu. This does not claim interactive controller/VR verification, exported-release performance or a retuned 72/90 Hz recipe timebase.
+
+Next: privacy-aware event logging through the DiscordPHP Monolog instance. Terrain excavation remains after the environmental extraction/equipment loop.

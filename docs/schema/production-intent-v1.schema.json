@@ -31,7 +31,10 @@
         "detach_tool_part",
         "fit_tool_part",
         "fabricate_tool_part",
-        "recycle_tool_part"
+        "recycle_tool_part",
+        "start_tool_extract",
+        "resume_tool_extract",
+        "cancel_tool_extract"
       ]
     },
     "payload": {
@@ -526,6 +529,81 @@
         "properties": {
           "operation": {
             "const": "recycle_tool_part"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "start_tool_extract"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "deposit_id",
+              "carrier_id",
+              "cycles"
+            ],
+            "properties": {
+              "deposit_id": {
+                "$ref": "#/$defs/id"
+              },
+              "cycles": {
+                "maximum": 10,
+                "type": "integer",
+                "minimum": 1
+              },
+              "carrier_id": {
+                "$ref": "#/$defs/id"
+              },
+              "expected_revision": {}
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "resume_tool_extract"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [],
+            "properties": {
+              "expected_revision": {}
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "cancel_tool_extract"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [],
+            "properties": {
+              "expected_revision": {}
+            },
+            "unevaluatedProperties": false
           }
         }
       }

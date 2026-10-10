@@ -3,6 +3,7 @@ class_name ProductionSimulationSystem
 
 ## Volatile local notification after an output commit; not a durable receipt.
 signal batch_completed(recipe_id: String, tick_number: int)
+signal extraction_cycle_completed(request_id: String, completed_cycles: int, tick_number: int)
 
 ## Sole owner of finite fixture deposits, bulk storage, vessel and reserved batches.
 const SYSTEM_ID: StringName = &"production"
@@ -51,7 +52,7 @@ func initial_record(tick: int) -> Dictionary:
 	var powered: Dictionary = {}
 	for station in STATIONS:
 		powered[station] = true
-	return {"schema_version": 4, "loose_parts": {}, "structures": {}, "catalog_revision": 1, "catalog_fingerprint": _catalog_fingerprint, "timebase_hz": Engine.physics_ticks_per_second,
+	return {"schema_version": 5, "loose_parts": {}, "structures": {}, "catalog_revision": 1, "catalog_fingerprint": _catalog_fingerprint, "timebase_hz": Engine.physics_ticks_per_second,
 		"last_tick": tick, "state_revision": 0, "deposits": _initial_deposits(), "store": _empty_stock(),
 		"vessel": _empty_stock(), "wall_mass_milligrams": 0, "energy_joules": 100000,
 		"powered": powered, "job": {}, "receipts": [], "cargo": {}}
@@ -155,7 +156,11 @@ func authorize(context: AuthenticatedCommandContext, voluntary: bool = true) -> 
 
 
 func authorize_operation(context: AuthenticatedCommandContext, operation: String, payload: Dictionary) -> ServiceResult:
-	if operation not in ["extract", "tool_extract"]:
+	if operation in ["cancel_tool_extract"]: return _inventory.production_capability(context, true, [])
+	if operation == "resume_tool_extract":
+		if not _state["job"].has("extraction"): return _failure("No sustained extraction is reserved.")
+		return _inventory.production_capability(context, true, SOURCE_POSITIONS[_state["job"]["deposit_id"]])
+	if operation not in ["extract", "tool_extract", "start_tool_extract"]:
 		return authorize(context)
 	if _inventory == null or not SOURCE_POSITIONS.has(payload.get("deposit_id")):
 		return _failure("Select a registered environmental extraction source.")
@@ -172,6 +177,10 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 	observed.erase("structures")
 	observed.erase("loose_parts")
 	observed = observed.duplicate(true)
+	observed["tool_extraction"] = {}
+	if observed["job"].has("extraction"):
+		if observed["job"]["extraction"]["principal_id"] == String(context.principal_id): observed["tool_extraction"] = observed["job"]["extraction"].duplicate(true)
+		observed["job"].erase("extraction")
 	observed["cargo"] = {}
 	var carriers: ServiceResult = _inventory.owned_resource_carriers(context)
 	if not carriers.is_success:
@@ -218,6 +227,11 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 	var candidate: Dictionary = _state.duplicate(true)
 	var prepared_inventory: Dictionary = {}
 	var prepared_tools: ToolAssemblyLedger
+	var planned_work: bool = operation in ["start_tool_extract", "resume_tool_extract", "cancel_tool_extract"]
+	if planned_work:
+		var work: ServiceResult = _prepare_tool_extraction(candidate, context, request_id, operation, payload)
+		if not work.is_success: return work
+	if operation == "cancel" and candidate["job"].has("extraction"): return _failure("Use the owned sustained-extraction cancellation action.")
 	if operation in ["fabricate_tool_part", "recycle_tool_part", "detach_tool_part", "fit_tool_part"]:
 		var parts: ServiceResult = _prepare_tool_parts(candidate, context, request_id, operation, payload)
 		if not parts.is_success: return parts
@@ -262,7 +276,7 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 		var carriers: ServiceResult = _inventory.owned_resource_carriers(context)
 		if not carriers.is_success or not carriers.value.has(payload.get("carrier_id")):
 			return _failure("Only a carrier in your own inventory may be filled or emptied.")
-	var applied: ServiceResult = ServiceResult.success() if not prepared_inventory.is_empty() or prepared_tools != null else _plan(candidate, "extract" if operation == "tool_extract" else operation, payload)
+	var applied: ServiceResult = ServiceResult.success() if planned_work or not prepared_inventory.is_empty() or prepared_tools != null else _plan(candidate, "extract" if operation == "tool_extract" else operation, payload)
 	if not applied.is_success:
 		return applied
 	if operation == "tool_extract" and _tools != null:
@@ -332,6 +346,88 @@ func _prepare_tool_parts(candidate: Dictionary, context: AuthenticatedCommandCon
 	record["ledger"] = plan["ledger"].to_record()
 	var links: ServiceResult = _tools.validate_inventory_links(record, owner, candidate["structures"], candidate["loose_parts"])
 	return ServiceResult.success({"owner": owner, "ledger": plan["ledger"]}) if links.is_success else links
+
+
+func _prepare_tool_extraction(candidate: Dictionary, context: AuthenticatedCommandContext, request_id: String, operation: String, payload: Dictionary) -> ServiceResult:
+	if operation != "start_tool_extract":
+		if not _fields(payload, ["expected_revision"]) or not candidate["job"].has("extraction") or candidate["job"]["extraction"]["principal_id"] != String(context.principal_id): return _failure("Only the initiating crew member can resume or cancel this work.")
+		if operation == "cancel_tool_extract":
+			candidate["deposits"][candidate["job"]["deposit_id"]] += _mass(candidate["job"]["inputs"])
+			candidate["job"] = {}
+		else:
+			if candidate["job"]["extraction"]["status"] != "paused" or _tool_extraction_reason(candidate["job"]["extraction"], context) != "": return _failure("Restore the bound tool, carrier, reach, power and capabilities before resuming.")
+			candidate["job"]["extraction"]["status"] = "running"
+			candidate["job"]["extraction"]["pause_reason"] = ""
+		return ServiceResult.success()
+	if _tools == null or not _fields(payload, ["expected_revision", "deposit_id", "carrier_id", "cycles"]) or not SOURCE_POSITIONS.has(payload.get("deposit_id")) or not ControlContractValidation.is_id(payload.get("carrier_id")) or not ControlContractValidation.is_integer(payload.get("cycles"), 1, ToolExtractionWork.MAX_CYCLES) or not candidate["job"].is_empty() or int(candidate["state_revision"]) > MAX_REVISION - 100: return _failure("Reserve 1–10 extraction cycles with exact source/carrier identities while production is idle.")
+	var active: ServiceResult = _inventory.active_tool(context, "tool.extractor")
+	if not active.is_success: return active
+	var binding: Dictionary = {"request_id": request_id, "principal_id": String(context.principal_id), "tool_id": active.value, "carrier_id": payload["carrier_id"], "deposit_id": payload["deposit_id"], "remaining_cycles": int(payload["cycles"]), "completed_cycles": 0, "status": "running", "pause_reason": ""}
+	if _tool_extraction_reason(binding, context) != "": return _failure("The bound tool, carrier, power and energy must be available.")
+	var mass: int = int(payload["cycles"]) * ToolExtractionWork.CYCLE_MASS
+	if int(candidate["deposits"][payload["deposit_id"]]) < mass: return _failure("The source cannot satisfy this reservation.")
+	var material: String = _catalog["deposits"][payload["deposit_id"]]["material"]
+	candidate["deposits"][payload["deposit_id"]] -= mass
+	candidate["job"] = {"recipe_id": "", "deposit_id": payload["deposit_id"], "station": "drill", "inputs": {material: mass}, "outputs": {material: mass}, "remaining_ticks": ToolExtractionWork.CYCLE_TICKS, "extraction": binding}
+	return ServiceResult.success()
+
+
+func _tool_extraction_reason(binding: Dictionary, context: AuthenticatedCommandContext) -> String:
+	if not _inventory.production_capability(context, true, SOURCE_POSITIONS[binding["deposit_id"]]).is_success: return "capability"
+	var active: ServiceResult = _inventory.active_tool(context, "tool.extractor")
+	if not active.is_success or active.value != binding["tool_id"]: return "capability"
+	var carriers: ServiceResult = _inventory.owned_resource_carriers(context)
+	if not carriers.is_success or not carriers.value.has(binding["carrier_id"]): return "carrier"
+	if not _state["powered"]["drill"]: return "power"
+	if int(_state["energy_joules"]) < 250: return "energy"
+	return ""
+
+
+func _simulate_tool_extraction(tick: int) -> void:
+	if int(_state["state_revision"]) >= MAX_REVISION: return
+	var binding: Dictionary = _state["job"]["extraction"]
+	if binding["status"] != "running": return
+	var world := get_parent().get_parent() as WorldRuntime
+	var context: AuthenticatedCommandContext = ToolExtractionWork.context(binding, world.world_id, world.region_id)
+	var reason: String = _tool_extraction_reason(binding, context)
+	if reason != "":
+		_pause_tool_extraction(reason)
+		return
+	if _state["job"]["remaining_ticks"] > 1:
+		_state["job"]["remaining_ticks"] -= 1
+		return
+	var candidate: Dictionary = _state.duplicate(true)
+	# Temporarily expose exactly one reserved cycle to the shared atomic extraction planner.
+	candidate["deposits"][binding["deposit_id"]] += ToolExtractionWork.CYCLE_MASS
+	var applied: ServiceResult = _plan(candidate, "extract", {"expected_revision": candidate["state_revision"], "deposit_id": binding["deposit_id"], "carrier_id": binding["carrier_id"], "amount_milligrams": ToolExtractionWork.CYCLE_MASS})
+	var usage: ServiceResult = _tools.prepare_usage(binding["tool_id"])
+	if not applied.is_success or not _inventory.validate_payload_masses(payload_masses(candidate)).is_success:
+		_pause_tool_extraction("capacity")
+		return
+	if not usage.is_success:
+		_pause_tool_extraction("capability")
+		return
+	var material: String = _catalog["deposits"][binding["deposit_id"]]["material"]
+	var completed: int = int(binding["completed_cycles"]) + 1
+	if int(binding["remaining_cycles"]) == 1:
+		candidate["job"] = {}
+	else:
+		candidate["job"]["extraction"]["remaining_cycles"] -= 1
+		candidate["job"]["extraction"]["completed_cycles"] = completed
+		candidate["job"]["inputs"][material] -= ToolExtractionWork.CYCLE_MASS
+		candidate["job"]["outputs"][material] -= ToolExtractionWork.CYCLE_MASS
+		candidate["job"]["remaining_ticks"] = ToolExtractionWork.CYCLE_TICKS
+	candidate["state_revision"] += 1
+	_state = candidate
+	_tools.commit_prepared(usage.value)
+	_inventory.refresh_payload_loads()
+	extraction_cycle_completed.emit(binding["request_id"], completed, tick)
+
+
+func _pause_tool_extraction(reason: String) -> void:
+	_state["job"]["extraction"]["status"] = "paused"
+	_state["job"]["extraction"]["pause_reason"] = reason
+	_state["state_revision"] += 1
 
 
 ## Atomic bounded equipment assembly/disassembly; contents are returned intact.
@@ -513,6 +609,9 @@ func simulate_tick(tick: int, _delta: float) -> void:
 	if _state.is_empty() or tick != int(_state["last_tick"]) + 1 or Engine.physics_ticks_per_second != int(_state["timebase_hz"]):
 		return
 	_state["last_tick"] = tick
+	if _state["job"].has("extraction"):
+		_simulate_tool_extraction(tick)
+		return
 	if _state["job"].is_empty() or not _state["powered"][_state["job"]["station"]]:
 		return
 	if int(_state["state_revision"]) >= MAX_REVISION:
@@ -540,22 +639,25 @@ func restore_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
 	var decoded: ServiceResult = _decode(record, tick)
 	if decoded.is_success:
 		_state = decoded.value
+		if _state["job"].has("extraction"):
+			_state["job"]["extraction"]["status"] = "paused"
+			_state["job"]["extraction"]["pause_reason"] = "restart"
 		_inventory.refresh_payload_loads()
 	return decoded
 
 
 func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	var fields: Array = ["schema_version", "catalog_revision", "catalog_fingerprint", "timebase_hz", "last_tick", "state_revision", "deposits", "store", "vessel", "wall_mass_milligrams", "energy_joules", "powered", "job", "receipts"]
-	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 4):
+	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 5):
 		fields.append("cargo")
-	if ControlContractValidation.is_integer(record.get("schema_version"), 3, 4):
+	if ControlContractValidation.is_integer(record.get("schema_version"), 3, 5):
 		fields.append("structures")
-	if ControlContractValidation.is_integer(record.get("schema_version"), 4, 4): fields.append("loose_parts")
+	if ControlContractValidation.is_integer(record.get("schema_version"), 4, 5): fields.append("loose_parts")
 	if _catalog.is_empty() or not _fields(record, fields):
 		return _failure("An exact configured production snapshot is required.")
 	if record["catalog_fingerprint"] != _catalog_fingerprint:
 		return _failure("The saved catalog differs; an explicit production migration is required.")
-	if not ControlContractValidation.is_integer(record["schema_version"], 1, 4) or not ControlContractValidation.is_integer(record["catalog_revision"], 1, 1):
+	if not ControlContractValidation.is_integer(record["schema_version"], 1, 5) or not ControlContractValidation.is_integer(record["catalog_revision"], 1, 1):
 		return _failure("Unsupported production/catalog version.")
 	if not ControlContractValidation.is_integer(record["last_tick"], tick, tick) or not ControlContractValidation.is_integer(record["timebase_hz"], Engine.physics_ticks_per_second, Engine.physics_ticks_per_second) or not [60, 72, 90].has(Engine.physics_ticks_per_second):
 		return _failure("Production tick and supported timebase must match the world.")
@@ -570,7 +672,7 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	normalized["loose_parts"] = record.get("loose_parts", {}).duplicate(true)
 	for field in ["schema_version", "catalog_revision", "timebase_hz", "last_tick", "state_revision", "wall_mass_milligrams", "energy_joules"]:
 		normalized[field] = int(record[field])
-	normalized["schema_version"] = 4
+	normalized["schema_version"] = 5
 	var structures: Variant = record.get("structures", {})
 	if typeof(structures) != TYPE_DICTIONARY or structures.size() > 32:
 		return _failure("Structural equipment records must be bounded.")
@@ -622,12 +724,17 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 		return _failure("The reserved batch must be an object.")
 	if not record["job"].is_empty():
 		var job: Dictionary = record["job"]
-		if not _fields(job, ["recipe_id", "deposit_id", "station", "inputs", "outputs", "remaining_ticks"]) or not _stock_valid(job["inputs"]) or not _stock_valid(job["outputs"]):
+		var job_fields: Array = ["recipe_id", "deposit_id", "station", "inputs", "outputs", "remaining_ticks"]
+		if job.has("extraction"):
+			job_fields.append("extraction")
+			if int(record["schema_version"]) < 5 or not ToolExtractionWork.valid(job["extraction"]) or job["extraction"]["deposit_id"] != job["deposit_id"]: return _failure("Invalid sustained extraction binding.")
+		if not _fields(job, job_fields) or not _stock_valid(job["inputs"]) or not _stock_valid(job["outputs"]):
 			return _failure("A bounded reserved batch is required.")
 		var expected: Dictionary
 		if typeof(job["deposit_id"]) == TYPE_STRING and _catalog["deposits"].has(job["deposit_id"]) and job["recipe_id"] == "":
 			var material: String = _catalog["deposits"][job["deposit_id"]]["material"]
-			expected = {"station": "drill", "inputs": {material: 1000000}, "outputs": {material: 1000000}, "duration_ticks": 60}
+			var mass: int = int(job["extraction"]["remaining_cycles"]) * ToolExtractionWork.CYCLE_MASS if job.has("extraction") else 1000000
+			expected = {"station": "drill", "inputs": {material: mass}, "outputs": {material: mass}, "duration_ticks": 60}
 		elif job["deposit_id"] == "" and typeof(job["recipe_id"]) == TYPE_STRING and _catalog["recipes"].has(job["recipe_id"]):
 			expected = _catalog["recipes"][job["recipe_id"]]
 		else:

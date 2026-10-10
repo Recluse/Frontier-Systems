@@ -157,6 +157,9 @@ jobs:
       - name: Check physical tool part upgrades, replacement and conserved recycling
         run: godot --headless --path . --script res://tests/godot/tool_parts_runtime_test.gd
 
+      - name: Check sustained extraction reservations and interruption/restart recovery
+        run: godot --headless --path . --script res://tests/godot/sustained_extraction_test.gd
+
       - name: Check machine module import and compatibility contracts
         run: godot --headless --path . --script res://tests/godot/machine_module_contracts_test.gd
 

@@ -8,8 +8,8 @@ const MATERIALS: Array[String] = ["ore.iron", "ice", "regolith", "iron", "tailin
 
 func accept_record(value: Dictionary) -> ServiceResult:
 	var fields := PackedStringArray(["schema_version", "catalog_revision", "catalog_fingerprint", "timebase_hz", "last_tick", "state_revision", "deposits", "store", "vessel", "wall_mass_milligrams", "energy_joules", "powered", "job", "cargo", "components", "recipes", "dispensable", "can_operate", "vessel_pressure_kpa", "extractable_sources"])
-	fields.append_array(PackedStringArray(["structures", "blueprints", "loose_parts"]))
-	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 4, 4) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
+	fields.append_array(PackedStringArray(["structures", "blueprints", "loose_parts", "tool_extraction"]))
+	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 5, 5) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
 		return _invalid()
 	for field in ["last_tick", "state_revision", "catalog_revision", "wall_mass_milligrams", "energy_joules"]:
 		if not ControlContractValidation.is_integer(value[field], 0, 9007199254740000):
@@ -58,6 +58,7 @@ func accept_record(value: Dictionary) -> ServiceResult:
 		var job: Dictionary = value["job"]
 		if not ControlContractValidation.has_exact_fields(job, PackedStringArray(["recipe_id", "deposit_id", "station", "inputs", "outputs", "remaining_ticks"])) or not STATIONS.has(job["station"]) or not _valid_stock(job["inputs"]) or not _valid_stock(job["outputs"]) or not ControlContractValidation.is_integer(job["remaining_ticks"], 1, 36000) or typeof(job["recipe_id"]) != TYPE_STRING or typeof(job["deposit_id"]) != TYPE_STRING:
 			return _invalid()
+	if typeof(value["tool_extraction"]) != TYPE_DICTIONARY or (not value["tool_extraction"].is_empty() and not ToolExtractionWork.valid(value["tool_extraction"])): return _invalid()
 	var pressure: Variant = value["vessel_pressure_kpa"]
 	if (typeof(pressure) != TYPE_INT and typeof(pressure) != TYPE_FLOAT) or not is_finite(float(pressure)) or float(pressure) < 0.0 or float(pressure) > MAX_VESSEL_PRESSURE_KPA:
 		return _invalid()

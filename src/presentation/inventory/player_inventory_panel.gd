@@ -26,6 +26,8 @@ var _tool_parts := OptionButton.new()
 var _tool_mounts := OptionButton.new()
 var _loose_parts := OptionButton.new()
 var _part_blueprints := OptionButton.new()
+var _work_cycles := SpinBox.new()
+var _work_status := Label.new()
 
 
 func configure(remote: RemoteWorldRuntime) -> void:
@@ -72,6 +74,16 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_deposit)
 	add_child(_carrier)
 	_button(self, "Extract 1 kg using active tool", _use_tool)
+	_work_cycles.min_value = 1
+	_work_cycles.max_value = 10
+	_work_cycles.value = 2
+	_work_cycles.suffix = " cycles of 1 kg"
+	add_child(_work_cycles)
+	_work_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_work_status)
+	_button(self, "Start sustained extraction", _sustained_action.bind("start_tool_extract"))
+	_button(self, "Resume reserved extraction", _sustained_action.bind("resume_tool_extract"))
+	_button(self, "Cancel and release remaining source reservation", _sustained_action.bind("cancel_tool_extract"))
 	_label("Tool component maintenance · select a tool above, then a component")
 	add_child(_tool_parts)
 	_button(self, "Maintain selected component at workstation", _repair_component)
@@ -102,6 +114,10 @@ func observe(frame: Dictionary) -> void:
 	_production = frame["production"]
 	_nearby = frame["world_items"]
 	_tools = frame.get("tools", {})
+	var work: Dictionary = _production.get("tool_extraction", {})
+	_work_status.text = "No sustained extraction reserved by you."
+	if not work.is_empty():
+		_work_status.text = "Extraction %s · %d completed, %d reserved · %s" % [work["status"], work["completed_cycles"], work["remaining_cycles"], work["pause_reason"]]
 	var loose_ids: Array = []
 	for part in _tools.get("loose_parts", []): loose_ids.append(part["part_id"])
 	_fill_picker(_loose_parts, loose_ids)
@@ -282,6 +298,15 @@ func _repair_component() -> void:
 		_result.text = "Select a tool and component first."
 		return
 	_submit("repair_tool_component", {"part_id": _tool_parts.get_item_metadata(_tool_parts.selected), "amount_ppm": 1000000, "expected_revision": _production["state_revision"], "expected_tool_revision": _tools["state_revision"]}, true)
+
+
+func _sustained_action(operation: String) -> void:
+	if _production.is_empty(): return
+	var payload: Dictionary = {"expected_revision": _production["state_revision"]}
+	if operation == "start_tool_extract":
+		if _carrier.selected < 0: return
+		payload.merge({"deposit_id": _deposit.get_item_metadata(_deposit.selected), "carrier_id": _carrier.get_item_metadata(_carrier.selected), "cycles": int(_work_cycles.value)})
+	_submit(operation, payload, true)
 
 
 func _part_action(operation: String) -> void:
