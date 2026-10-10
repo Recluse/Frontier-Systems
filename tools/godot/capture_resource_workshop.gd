@@ -23,16 +23,25 @@ func finish() -> void:
 	for id in workshop["mounts"]:
 		if workshop["mounts"][id] == printer and workshop["parts"][id]["kind"] == "socket": socket = id
 	move([0, 0, 0])
+	var printer_cable: String = craft("cable")
 	command("load_cargo", {"carrier_id": "resource-canister-2", "material": "iron", "amount_milligrams": 400000})
 	command("machine_insert", {"machine_id": printer, "item_id": "resource-canister-2", "socket_id": socket})
 	command("machine_unfit", {"machine_id": refinery_frame, "item_id": refinery_head, "socket_id": ""})
+	command("machine_pack", {"machine_id": printer})
+	move([-2000, 0, 0])
+	command("machine_deploy", {"machine_id": printer, "position": [-2000, 0, 0], "mode": "surface"})
+	var generator: String = ""
+	for id in workshop["mounts"]:
+		if workshop["parts"][id]["kind"] == "solar": generator = workshop["mounts"][id]
+	command("machine_wire", {"machine_id": generator, "other_id": printer, "item_id": printer_cable})
 	move([-6000, 0, -1000])
 	fit(processing_frame, refinery_head)
 	command("machine_run", {"machine_id": processing_frame, "recipe": "refine.ice"})
 	step(60)
 	check(production.capture_snapshot().value["cargo"]["resource-canister-1"]["water"] == 1000000, "powered extracted ice becomes water in the attached canister")
-	# The printer retains its previously grid-charged buffer; moving generators does not mint energy.
-	move([0, 0, 0])
+	# Wait for the actual generator to charge the redeployed printer's local buffer.
+	step(1800)
+	move([-2000, 0, 0])
 	var host := FirstPlayableHost.new()
 	root.add_child(host)
 	var key: String = "workshop-capture-player-one-0000000000"
