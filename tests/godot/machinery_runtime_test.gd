@@ -33,7 +33,8 @@ func run() -> void:
 		command("unload_cargo", {"carrier_id": "resource-canister-1", "material": "ore.iron", "amount_milligrams": 1000000})
 		command("process", {"recipe_id": "refine.iron"})
 		step(120)
-	var generator: String = assemble("solar", [0, 0, 1000])
+	# Network JSON coordinates arrive as integral floats; normalize before adopting.
+	var generator: String = assemble("solar", [0.0, 0.0, 1000.0])
 	var printer: String = assemble("printhead", [0, 0, 0])
 	var socket: String = craft("socket")
 	fit(printer, socket)

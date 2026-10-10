@@ -43,3 +43,5 @@ Next extend graphical placement feedback and collision authority, add a visual g
 ### Local evidence
 
 On Windows with Godot 4.7.2: all 48 workflow Godot scripts passed; the subsequently expanded two-client acceptance passed again; the graphical `--machinery` route assembled/deployed a generator and saved `reports/machinery/client.png`; and the final machine integration test passed including expansion gating and printing/salvaging a manufactured canister. Screenshot inspection confirmed the Construction tab and procedural settled equipment. Remote Linux/Windows CI must be checked on the pushed revision. No external Discord messages were sent.
+
+The initial remote CI run caught integral JSON floats differing from normalized inventory coordinate arrays during checkpoint validation. Deployment now normalizes positions and cross-owner pose equality uses exact integer spatial distance. A float-coordinate regression and the two-client checkpoint acceptance both passed after the correction.

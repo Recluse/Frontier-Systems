@@ -112,7 +112,7 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 		owner["ledger"]["containers"].append({"container_id": root, "owner_item_id": "", "capacity": {"max_mass_milligrams": 100000000, "max_volume_millilitres": 200000, "max_items": 1, "accepted_tags": ["machine.frame"]}})
 		MachineryWorkshop.item(owner, machine)["container_id"] = root
 		snapshot["world_storage"].append({"container_id": root, "position_millimetres": payload["position"].duplicate(), "accessible": true})
-		workshop["placements"][machine] = {"position": payload["position"].duplicate(), "mode": payload["mode"], "enabled": true, "energy": 0, "generation_remainder": 0}
+		workshop["placements"][machine] = {"position": InventorySpatialMath.normalized(payload["position"]), "mode": payload["mode"], "enabled": true, "energy": 0, "generation_remainder": 0}
 		changed = true
 	elif operation == "machine_pack":
 		if not workshop["placements"].has(machine): return failure("This machine is already packed.")

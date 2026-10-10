@@ -84,7 +84,7 @@ func validate_inventory_links(record: Dictionary, inventory_record: Dictionary) 
 	for machine in record.get("machinery", MachineryWorkshop.initial())["placements"]:
 		var matched_location: bool = false
 		for location in inventory_record.get("world_storage", []):
-			if location["container_id"] == MachineryWorkshop.root_id(machine) and location["position_millimetres"] == record["machinery"]["placements"][machine]["position"]: matched_location = true
+			if location["container_id"] == MachineryWorkshop.root_id(machine) and InventorySpatialMath.distance_millimetres(location["position_millimetres"], record["machinery"]["placements"][machine]["position"]) == 0: matched_location = true
 		if not matched_location: return _failure("Deployed machinery requires its matching authoritative world location.")
 	var cargo: Variant = record.get("cargo", {})
 	if typeof(cargo) != TYPE_DICTIONARY or typeof(inventory_record.get("owner")) != TYPE_DICTIONARY:
