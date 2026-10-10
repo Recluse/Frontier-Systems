@@ -148,6 +148,10 @@ func run() -> void:
 	step(180)
 	check(production.capture_snapshot().value["cargo"]["resource-canister-1"]["ice"] == 1000000 and production.capture_snapshot().value["deposits"]["deposit.ice"] == 4000000, "grid powered extractor fills socket canister from finite source")
 	check(production.validate_snapshot_record(production.capture_snapshot().value, runner.tick_number).is_success, "complete loop conserves finite fixture mass")
+	var damaged_owner: Dictionary = inventory.capture_snapshot().value["owner"]
+	MachineryWorkshop.item(damaged_owner, extractor)["condition_permille"] = 0
+	var workshop: Dictionary = production.capture_snapshot().value["machinery"]
+	check(MachineryWorkshop.deployed(workshop, damaged_owner, extractor) and not MachineryWorkshop.operational(workshop, damaged_owner, extractor, "extractor"), "broken frames remain deployed and salvageable while their powered functions stop")
 	var projection := RemoteProductionProjection.new()
 	check(projection.accept_record(production.observation(context).value).is_success, "client accepts bounded machinery view")
 	projection.free()

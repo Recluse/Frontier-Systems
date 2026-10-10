@@ -59,11 +59,12 @@ static func carriers(state: Dictionary, owner: Dictionary, id: String) -> Array:
 
 static func deployed(state: Dictionary, owner: Dictionary, id: String) -> bool:
 	var physical: Dictionary = item(owner, id)
-	return state["placements"].has(id) and not physical.is_empty() and physical["container_id"] == root_id(id) and int(physical["condition_permille"]) > 0
+	return state["placements"].has(id) and not physical.is_empty() and physical["container_id"] == root_id(id)
 
 
 static func operational(state: Dictionary, owner: Dictionary, id: String, capability: String) -> bool:
 	if not deployed(state, owner, id) or not state["placements"][id]["enabled"]: return false
+	if int(item(owner, id)["condition_permille"]) == 0: return false
 	var fitted: Dictionary = modules(state, owner, id)
 	if not KINDS.has(capability): return false
 	if not _requirements.has(capability):
