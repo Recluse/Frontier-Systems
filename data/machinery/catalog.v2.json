@@ -1,0 +1,17 @@
+{
+  "schema_version": 2,
+  "parts": {
+    "frame": 500000,
+    "socket": 100000,
+    "power": 100000,
+    "controller": 100000,
+    "printhead": 300000,
+    "refinery": 300000,
+    "extractor": 200000,
+    "solar": 300000,
+    "router": 100000,
+    "expander": 200000,
+    "cable": 50000,
+    "autolathe": 300000
+  }
+}

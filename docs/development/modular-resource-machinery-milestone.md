@@ -65,3 +65,7 @@ The capture uses the real finite fixture and authenticated command path, not moc
 The bounded source prototype now covers the Take On Mars style resource workshop loop: extraction → portable handling → refining/chemistry → physical equipment/component printing → hand assembly/expansion → powered operation → salvage/recycling. Terrain excavation, fuel-generation engineering, continuous print animation, arbitrary surface/ship-relative placement, live rigid-body manipulation and production distribution remain later milestones.
 
 Local Windows verification for this extension: 52 discovered checks passed, including cooperative restart acceptance, portable chemistry and static presentation regressions. The graphical capture completed without failures and the saved screenshot was inspected. CI on the pushed revision remains the Windows/Linux export and integration gate.
+
+## Solid-stock crafting extension
+
+The [first autolathe slice](autolathe-milestone.md) adds a replaceable head and persistent 2 kg iron hopper. It consumes physical plates and empty parts, outputs trusted parts/equipment into frame storage, and recovers leftover iron into portable canisters using the existing grid and conserved inventory contracts.

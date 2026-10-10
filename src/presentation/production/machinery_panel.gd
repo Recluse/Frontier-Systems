@@ -10,6 +10,7 @@ var _socket := OptionButton.new()
 var _other := OptionButton.new()
 var _kind := OptionButton.new()
 var _recipe := OptionButton.new()
+var _eject_amount := SpinBox.new()
 var _mode := OptionButton.new()
 var _axes: Array[SpinBox] = []
 var _status := Label.new()
@@ -75,6 +76,15 @@ func configure(world: WorldRuntime) -> void:
 	_button("Resume batch after restart", "machine_resume")
 	_button("Cancel batch (inputs stay in canisters)", "machine_cancel")
 	_button("Print selected part into machine storage", "machine_print")
+	_label("Autolathe: fit an autolathe head, power and controller. Feed owned plates or empty parts into its 2 kg solid hopper.")
+	_button("Feed selected physical plate / empty part", "machine_autolathe_feed")
+	_button("Autolathe: fabricate selected design", "machine_autolathe_make")
+	_eject_amount.min_value = 1
+	_eject_amount.max_value = 2000
+	_eject_amount.value = 100
+	_eject_amount.suffix = " g iron"
+	add_child(_eject_amount)
+	_button("Eject iron into selected owned canister", "machine_autolathe_eject")
 	_button("Recycle empty owned part into workbench iron", "machine_recycle")
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -101,9 +111,9 @@ func observe(record: Dictionary) -> void:
 		if kind == "frame": frames[id] = parts[id] + (" deployed" if machinery["placements"].has(id) else " packed")
 		if kind == "socket": sockets[id] = parts[id]
 	for physical in machinery["inventory_items"]:
-		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated", "item.extractor.fabricated"]: parts[physical["item_id"]] = "%s · %s" % ["extractor" if physical["definition_id"] == "item.extractor.fabricated" else "canister", physical["item_id"]]
+		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated", "item.extractor.fabricated", "item.plate.prototype"]: parts[physical["item_id"]] = "%s · %s" % ["extractor" if physical["definition_id"] == "item.extractor.fabricated" else ("plate" if physical["definition_id"] == "item.plate.prototype" else "canister"), physical["item_id"]]
 	for physical in record["inventory"]["items"]:
-		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated", "item.extractor.fabricated"]: parts[physical["item_id"]] = "%s · %s" % ["extractor" if physical["definition_id"] == "item.extractor.fabricated" else "canister", physical["item_id"]]
+		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated", "item.extractor.fabricated", "item.plate.prototype"]: parts[physical["item_id"]] = "%s · %s" % ["extractor" if physical["definition_id"] == "item.extractor.fabricated" else ("plate" if physical["definition_id"] == "item.plate.prototype" else "canister"), physical["item_id"]]
 	_fill(_machine, frames)
 	_fill(_other, frames)
 	_fill(_part, parts)
@@ -133,8 +143,8 @@ func _send(action: String) -> void:
 	var payload: Dictionary = {"expected_revision": _record["production"]["state_revision"]}
 	if action not in ["machine_craft", "machine_recycle"]: payload["machine_id"] = _selected(_machine)
 	match action:
-		"machine_craft", "machine_print": payload["kind"] = _selected(_kind)
-		"machine_recycle": payload["item_id"] = _selected(_part)
+		"machine_craft", "machine_print", "machine_autolathe_make": payload["kind"] = _selected(_kind)
+		"machine_recycle", "machine_autolathe_feed": payload["item_id"] = _selected(_part)
 		"machine_fit", "machine_unfit", "machine_insert", "machine_remove":
 			payload["item_id"] = _selected(_part)
 			payload["socket_id"] = _selected(_socket)
@@ -143,6 +153,7 @@ func _send(action: String) -> void:
 			payload["mode"] = "surface" if _mode.selected == 0 else "freeform"
 		"machine_wire": payload.merge({"item_id": _selected(_part), "other_id": _selected(_other)})
 		"machine_unwire": payload["item_id"] = _selected(_part)
+		"machine_autolathe_eject": payload.merge({"item_id": _selected(_part), "amount_milligrams": roundi(_eject_amount.value * 1000)})
 		"machine_run": payload["recipe"] = _selected(_recipe)
 		"enable", "disable":
 			operation = "machine_enable"
@@ -174,6 +185,7 @@ func _button(title: String, action: String) -> void:
 func _label(title: String) -> void:
 	var label := Label.new()
 	label.text = title
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(label)
 
 

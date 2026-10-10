@@ -503,5 +503,5 @@
       "type": "string"
     }
   },
-  "description": "V6 adds conserved physical machinery, portable canister sockets, grid buffers/cables/routers and independent powered machine batches. Legacy workbench and tool extraction retain their bounded shared job slot. Machinery batches pause safely after restart."
+  "description": "V6 adds conserved physical machinery, portable canister sockets, grid buffers/cables/routers and independent powered machine batches. Legacy workbench and tool extraction retain their bounded shared job slot. Machinery batches pause safely after restart. Cargo also owns bounded iron-only solid hoppers keyed by physical machine frame IDs; hopper mass counts once as frame payload. Catalog v2 adds autolathe without changing the record shape."
 }

@@ -22,7 +22,9 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 		"machine_wire": allowed.append_array(["machine_id", "other_id", "item_id"])
 		"machine_unwire": allowed.append_array(["machine_id", "item_id"])
 		"machine_run": allowed.append_array(["machine_id", "recipe"])
-		"machine_print": allowed.append_array(["machine_id", "kind"])
+		"machine_print", "machine_autolathe_make": allowed.append_array(["machine_id", "kind"])
+		"machine_autolathe_feed": allowed.append_array(["machine_id", "item_id"])
+		"machine_autolathe_eject": allowed.append_array(["machine_id", "item_id", "amount_milligrams"])
 		_: return failure("Unknown machinery action.")
 	if not ControlContractValidation.has_exact_fields(payload, PackedStringArray(allowed)): return failure("An exact construction intent is required.")
 	var machine: String = String(payload.get("machine_id", ""))
@@ -34,10 +36,14 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 			if not reachable.is_success: return reachable
 	var id: String = String(payload.get("item_id", ""))
 	var changed: bool = false
-	if operation in ["machine_craft", "machine_print"]:
+	if operation in ["machine_autolathe_feed", "machine_autolathe_eject"]:
+		var transfer: ServiceResult = SolidMaterialHopper.plan(state, owner, workshop, own_ids, machine, id, operation, payload)
+		if not transfer.is_success: return transfer
+		changed = operation == "machine_autolathe_feed"
+	elif operation in ["machine_craft", "machine_print", "machine_autolathe_make"]:
 		var kind: String = String(payload["kind"])
 		var equipment: ServiceResult = production.machine_blueprint(kind)
-		var is_equipment: bool = operation == "machine_print" and equipment.is_success
+		var is_equipment: bool = operation != "machine_craft" and equipment.is_success
 		if (not MachineryWorkshop.KINDS.has(kind) and not is_equipment) or (not is_equipment and workshop["parts"].size() >= 128) or (is_equipment and state["structures"].size() >= 32): return failure("Select a known part; its physical registry must have capacity.")
 		var blueprint: Dictionary = equipment.value if is_equipment else {}
 		var bill: Dictionary = blueprint["materials"].duplicate(true) if is_equipment else {"iron": int(MachineryWorkshop.KINDS[kind])}
@@ -47,6 +53,14 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 			if not inventory.production_capability(context, true).is_success: return failure("Approach the workbench for manual construction.")
 			if int(state["store"]["iron"]) < int(bill["iron"]): return failure("Hand assembly needs refined iron in the workbench store.")
 			state["store"]["iron"] -= int(bill["iron"])
+		elif operation == "machine_autolathe_make":
+			if not MachineryWorkshop.operational(workshop, owner, machine, "autolathe"): return failure("Deploy a powered autolathe with controller and power connector.")
+			if workshop["jobs"].has(machine): return failure("Finish or cancel the current machine batch first.")
+			if is_equipment and not MachineryWorkshop.modules(workshop, owner, machine).has("expander"): return failure("Equipment designs require an expansion module.")
+			var debit: ServiceResult = SolidMaterialHopper.consume(state, machine, bill)
+			if not debit.is_success: return debit
+			if int(workshop["placements"][machine]["energy"]) < print_energy: return failure("The autolathe buffer needs more grid energy.")
+			workshop["placements"][machine]["energy"] -= print_energy
 		else:
 			if not MachineryWorkshop.operational(workshop, owner, machine, "printhead"): return failure("Fit a controller, power connector and printhead, then deploy the printer.")
 			if (is_equipment or kind in ["frame", "printhead", "refinery", "solar"]) and not MachineryWorkshop.modules(workshop, owner, machine).has("expander"): return failure("Large prints require an installed expansion module.")
@@ -69,6 +83,10 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 		var storage: String = MachineryWorkshop.container(owner, id)
 		for child in owner["ledger"]["items"]:
 			if child["container_id"] == storage: return failure("Remove all nested parts and canisters before recycling.")
+		if state["cargo"].has(id):
+			for amount in state["cargo"][id].values():
+				if int(amount) > 0: return failure("Empty the material hopper before recycling its frame.")
+			state["cargo"].erase(id)
 		state["store"]["iron"] += int(MachineryWorkshop.KINDS[workshop["parts"][id]["kind"]])
 		workshop["mounts"].erase(id)
 		workshop["parts"].erase(id)

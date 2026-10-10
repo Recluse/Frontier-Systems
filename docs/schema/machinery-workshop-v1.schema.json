@@ -40,7 +40,8 @@
               "solar",
               "router",
               "expander",
-              "cable"
+              "cable",
+              "autolathe"
             ]
           }
         }
@@ -162,5 +163,6 @@
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "urn:frontier-systems:schema:machinery-workshop:v1",
-  "title": "Physical modular machinery workshop v1"
+  "title": "Physical modular machinery workshop v1",
+  "description": "Workshop record shape v1, additive catalog v2. Legacy v1 fingerprint accepted only for original kinds; restore normalizes to v2 with unchanged original bills."
 }

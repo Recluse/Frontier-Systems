@@ -113,7 +113,10 @@ func validate_inventory_links(record: Dictionary, inventory_record: Dictionary) 
 		var definition: ServiceResult = _inventory.factory_definition(item["definition_id"])
 		if String(item["definition_id"]).begins_with("item.machine."):
 			if not record.get("machinery", MachineryWorkshop.initial())["parts"].has(item["item_id"]): return _failure("Physical machinery requires conserved part provenance.")
-		if item["definition_id"] == "item.resource-canister.prototype" and int(item["definition_revision"]) == 1:
+		if item["definition_id"] == "item.machine.frame":
+			if cargo.has(item["item_id"]) and _mass(cargo[item["item_id"]]) != int(cargo[item["item_id"]]["iron"]): return _failure("Machine hoppers accept only refined iron.")
+			carriers[item["item_id"]] = true
+		elif item["definition_id"] == "item.resource-canister.prototype" and int(item["definition_revision"]) == 1:
 			carriers[item["item_id"]] = true
 		elif item["definition_id"] == "item.plate.prototype" and int(item["definition_revision"]) == 1:
 			if not cargo.has(item["item_id"]) or int(cargo[item["item_id"]]["plate"]) != 1000000 or _mass(cargo[item["item_id"]]) != 1000000:
@@ -817,6 +820,7 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	normalized["schema_version"] = 6
 	normalized["machinery"] = record.get("machinery", MachineryWorkshop.initial()).duplicate(true)
 	if not MachineryWorkshop.validate(normalized["machinery"]): return _failure("Malformed machinery record.")
+	normalized["machinery"]["catalog_fingerprint"] = MachineryWorkshop.initial()["catalog_fingerprint"]
 	for job in normalized["machinery"]["jobs"].values():
 		var spec: Dictionary = machine_recipe(job["recipe"])
 		if spec.is_empty() or int(job["progress"]) >= int(spec["duration_ticks"]) or int(job["energy_spent"]) != int(job["progress"]) * int(spec["energy_joules"]) / int(spec["duration_ticks"]): return _failure("Invalid machine recipe progress or energy.")
@@ -1009,4 +1013,7 @@ static func _failure(message: String) -> ServiceResult:
 func profiling_counters() -> Dictionary:
 	if _state.is_empty():
 		return {}
-	return {"deployed_machines": _state["machinery"]["placements"].size(), "machine_parts": _state["machinery"]["parts"].size(), "grid_cables": _state["machinery"]["links"].size(), "machine_batches": _state["machinery"]["jobs"].size(), "active_batches": 0 if _state["job"].is_empty() else 1, "fabricated_equipment": _state["structures"].size(), "physical_tool_parts": _state["loose_parts"].size(), "stored_milligrams": _mass(_state["store"]), "vessel_milligrams": _mass(_state["vessel"]), "energy_joules": _state["energy_joules"], "receipts": _state["receipts"].size()}
+	var hopper_mass: int = 0
+	for id in _state["cargo"]:
+		if _state["machinery"]["parts"].get(id, {}).get("kind") == "frame": hopper_mass += _mass(_state["cargo"][id])
+	return {"hopper_milligrams": hopper_mass, "deployed_machines": _state["machinery"]["placements"].size(), "machine_parts": _state["machinery"]["parts"].size(), "grid_cables": _state["machinery"]["links"].size(), "machine_batches": _state["machinery"]["jobs"].size(), "active_batches": 0 if _state["job"].is_empty() else 1, "fabricated_equipment": _state["structures"].size(), "physical_tool_parts": _state["loose_parts"].size(), "stored_milligrams": _mass(_state["store"]), "vessel_milligrams": _mass(_state["vessel"]), "energy_joules": _state["energy_joules"], "receipts": _state["receipts"].size()}

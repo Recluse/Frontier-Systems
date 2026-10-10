@@ -7,7 +7,7 @@ signal machine_selected(machine_id: String)
 var _signature: String = ""
 var _labels: Dictionary = {}
 var _socket_labels: Dictionary = {}
-const ROLES: Dictionary = {"solar": "SOLAR GENERATOR", "printhead": "3D PRINTER", "refinery": "REFINERY", "extractor": "RESOURCE EXTRACTOR", "router": "POWER ROUTER"}
+const ROLES: Dictionary = {"autolathe": "AUTOLATHE","solar": "SOLAR GENERATOR", "printhead": "3D PRINTER", "refinery": "REFINERY", "extractor": "RESOURCE EXTRACTOR", "router": "POWER ROUTER"}
 
 
 func observe(record: Dictionary) -> void:
@@ -51,6 +51,9 @@ func observe(record: Dictionary) -> void:
 			for x in [-0.35, 0.35]: _box(body, Vector3(0.06, 0.6, 0.06), Color(0.4, 0.5, 0.6), Vector3(x, 0.75, 0))
 			_box(body, Vector3(0.8, 0.06, 0.08), Color(0.6, 0.7, 0.8), Vector3(0, 1.05, 0))
 			_box(body, Vector3(0.16, 0.2, 0.15), Color(0.95, 0.55, 0.15), Vector3(0, 0.92, 0))
+		if fitted.has("autolathe"):
+			_box(body, Vector3(0.65, 0.25, 0.5), Color(0.6, 0.65, 0.7), Vector3(0, 0.48, 0))
+			_cylinder(body, Vector3(-0.2, 0.7, 0), Color(0.85, 0.55, 0.1), 0.12, 0.18)
 		if fitted.has("refinery"):
 			for x in [-0.2, 0.2]: _cylinder(body, Vector3(x, 0.6, 0), Color(0.5, 0.65, 0.68), 0.15, 0.45)
 		if fitted.has("extractor"):
@@ -87,7 +90,7 @@ func observe(record: Dictionary) -> void:
 				socket_index += 1
 		var title := Label3D.new()
 		var outputs: int = 0
-		if fitted.has("printhead"):
+		if fitted.has("printhead") or fitted.has("autolathe"):
 			for physical in workshop["inventory_items"]:
 				if physical["container_id"] == InventorySimulationSystem.factory_storage_id(id) and not workshop["mounts"].has(physical["item_id"]) and not workshop["links"].has(physical["item_id"]):
 					_box(body, Vector3(0.14, 0.12, 0.14), Color(0.9, 0.6, 0.2), Vector3(-0.2 + outputs * 0.18, 0.55, 0.15))
@@ -122,6 +125,8 @@ func _update_labels(workshop: Dictionary) -> void:
 		var state: String = "READY" if workshop["placements"][id]["enabled"] else "ISOLATED"
 		if workshop["jobs"].has(id): state = "%s · %d ticks" % [workshop["jobs"][id]["recipe"], workshop["jobs"][id]["progress"]]
 		_labels[id]["label"].text = "%s\n%s · %d J" % ["\n".join(roles) if not roles.is_empty() else "MACHINE FRAME", state, workshop["placements"][id]["energy"]]
+		if _labels[id]["fitted"].has("autolathe"):
+			_labels[id]["label"].text += "\nHOPPER %.3f kg IRON" % (float(workshop["cargo"].get(id, {}).get("iron", 0)) / 1000000.0)
 		if int(_labels[id]["outputs"]) > 0: _labels[id]["label"].text += "\n%d PRINTED OUTPUT" % _labels[id]["outputs"]
 	for carrier in _socket_labels:
 		var lines: PackedStringArray = []

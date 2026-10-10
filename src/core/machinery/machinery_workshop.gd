@@ -4,6 +4,7 @@ class_name MachineryWorkshop
 ## Composition and grid policy. Production owns this record and its conserved matter.
 ## Inventory owns physical parentage; removing a fitted part removes its capability.
 static var KINDS: Dictionary = _load_catalog()
+static var LEGACY_KINDS: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/machinery/catalog.v1.json"))["parts"]
 static var _requirements: Dictionary = {}
 const CAPACITY: int = 20000
 const GENERATION_WATTS: int = 1000
@@ -83,11 +84,13 @@ static func mass(state: Dictionary) -> int:
 
 static func validate(value: Variant, owner: Dictionary = {}) -> bool:
 	if typeof(value) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(value, PackedStringArray(["schema_version", "catalog_fingerprint", "parts", "mounts", "placements", "links", "jobs"])) or not ControlContractValidation.is_integer(value["schema_version"], 1, 1): return false
-	if value["catalog_fingerprint"] != JSON.stringify(KINDS, "", true).sha256_text(): return false
+	var legacy: bool = value["catalog_fingerprint"] == JSON.stringify(LEGACY_KINDS, "", true).sha256_text()
+	if not legacy and value["catalog_fingerprint"] != JSON.stringify(KINDS, "", true).sha256_text(): return false
 	for field in ["parts", "mounts", "placements", "links", "jobs"]:
 		if typeof(value[field]) != TYPE_DICTIONARY or value[field].size() > (128 if field in ["parts", "mounts"] else (24 if field == "links" else 20)): return false
 	for id in value["parts"]:
 		var part: Variant = value["parts"][id]
+		if legacy and typeof(part) == TYPE_DICTIONARY and not LEGACY_KINDS.has(part.get("kind")): return false
 		if not ControlContractValidation.is_id(id) or typeof(part) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(part, PackedStringArray(["kind"])) or not KINDS.has(part.get("kind")): return false
 		if not owner.is_empty():
 			var physical: Dictionary = item(owner, id)
@@ -144,8 +147,11 @@ static func draw(state: Dictionary, owner: Dictionary, target: String, joules: i
 
 
 static func _load_catalog() -> Dictionary:
-	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/machinery/catalog.v1.json"))
-	if typeof(raw) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(raw, PackedStringArray(["schema_version", "parts"])) or raw["schema_version"] != 1 or typeof(raw["parts"]) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(raw["parts"], PackedStringArray(["frame", "socket", "power", "controller", "printhead", "refinery", "extractor", "solar", "router", "expander", "cable"])): return {}
+	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/machinery/catalog.v2.json"))
+	if typeof(raw) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(raw, PackedStringArray(["schema_version", "parts"])) or raw["schema_version"] != 2 or typeof(raw["parts"]) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(raw["parts"], PackedStringArray(["frame", "socket", "power", "controller", "printhead", "refinery", "extractor", "solar", "router", "expander", "cable", "autolathe"])): return {}
+	var original: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/machinery/catalog.v1.json"))["parts"]
+	for kind in original:
+		if raw["parts"].get(kind) != original[kind]: return {}
 	for amount in raw["parts"].values():
 		if not ControlContractValidation.is_integer(amount, 1, 2000000): return {}
 	return raw["parts"].duplicate(true)

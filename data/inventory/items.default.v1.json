@@ -270,5 +270,17 @@
     "mass_milligrams": 0,
     "volume_millilitres": 300,
     "storage": null
+  },
+  {
+    "schema_version": 1,
+    "definition_id": "item.machine.autolathe",
+    "revision": 1,
+    "tags": [
+      "item.handheld",
+      "machine.part"
+    ],
+    "mass_milligrams": 0,
+    "volume_millilitres": 300,
+    "storage": null
   }
 ]
