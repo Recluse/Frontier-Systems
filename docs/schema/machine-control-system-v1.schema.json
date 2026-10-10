@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:machine-control-system:v1",
+  "title": "Prototype authoritative machine controls",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "host_id", "circuit"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "host_id": { "const": "habitat_airlock" },
+    "circuit": { "$ref": "urn:frontier-systems:schema:machine-control-circuit:v1" }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:command-intent:v1",
+  "title": "Frontier Systems Command Intent v1",
+  "description": "Untrusted client request envelope. It intentionally contains no actor identity, credentials, roles, or resulting world state.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["protocol_version", "request_id", "world_id", "region_id", "command_type", "payload"],
+  "properties": {
+    "protocol_version": { "const": 1 },
+    "request_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "world_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "region_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "command_type": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
+    },
+    "expected_tick_number": { "type": "integer", "minimum": 0 },
+    "payload": {
+      "type": "object",
+      "description": "Command-specific data validated by the registered server command handler.",
+      "maxProperties": 128
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:material-definition:v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "definition_id", "revision", "display_name", "prototype_bulk_density_kg_m3", "uses"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "definition_id": { "$ref": "#/$defs/id" },
+    "revision": { "type": "integer", "minimum": 1, "maximum": 9007199254740990 },
+    "display_name": { "$ref": "#/$defs/id" },
+    "prototype_bulk_density_kg_m3": { "type": "number", "exclusiveMinimum": 0, "maximum": 100000 },
+    "uses": { "type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true,
+      "items": { "enum": ["terrain.fill", "crafting.feedstock", "hydroponics.substrate"] } }
+  },
+  "$defs": { "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" } }
+}

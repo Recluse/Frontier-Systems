@@ -1,0 +1,14 @@
+{
+  "schema_version": 1, "ledger_id": "inventory.prototype", "state_revision": 0,
+  "containers": [
+    {"container_id": "body.human-1", "owner_item_id": "", "capacity": {"max_mass_milligrams": 40000000, "max_volume_millilitres": 100000, "max_items": 32, "accepted_tags": ["item.handheld", "storage.portable"]}},
+    {"container_id": "world.tray-1", "owner_item_id": "", "capacity": {"max_mass_milligrams": 100000000, "max_volume_millilitres": 200000, "max_items": 64, "accepted_tags": ["item.handheld", "storage.portable"]}},
+    {"container_id": "storage.backpack-1", "owner_item_id": "backpack-1", "capacity": {"max_mass_milligrams": 15000000, "max_volume_millilitres": 18000, "max_items": 16, "accepted_tags": ["item.handheld", "storage.portable"]}},
+    {"container_id": "storage.pouch-1", "owner_item_id": "pouch-1", "capacity": {"max_mass_milligrams": 5000000, "max_volume_millilitres": 1500, "max_items": 4, "accepted_tags": ["item.handheld"]}}
+  ],
+  "items": [
+    {"item_id": "backpack-1", "definition_id": "item.backpack.prototype", "definition_revision": 1, "condition_permille": 850, "container_id": "body.human-1"},
+    {"item_id": "pouch-1", "definition_id": "item.pouch.prototype", "definition_revision": 1, "condition_permille": 900, "container_id": "storage.backpack-1"},
+    {"item_id": "crowbar-1", "definition_id": "item.crowbar.prototype", "definition_revision": 1, "condition_permille": 750, "container_id": "storage.pouch-1"}
+  ]
+}

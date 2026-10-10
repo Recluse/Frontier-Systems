@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "function_id": "door.manual_move",
+  "required_component_capabilities": ["door.manual_path"]
+}

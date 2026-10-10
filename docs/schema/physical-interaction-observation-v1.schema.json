@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:physical-interaction-observation:v1",
+  "title": "Trusted physical interaction observation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "action", "target_id", "pushable", "grippable", "movable", "contact_force_limit_millinewtons", "required_force_millinewtons", "participants"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "action": {"enum": ["push_off", "grab", "pull_along", "move_world_object"]},
+    "target_id": {"$ref": "#/$defs/id"},
+    "pushable": {"type": "boolean"},
+    "grippable": {"type": "boolean"},
+    "movable": {"type": "boolean"},
+    "contact_force_limit_millinewtons": {"$ref": "#/$defs/force"},
+    "required_force_millinewtons": {"$ref": "#/$defs/force"},
+    "participants": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/participant"}}
+  },
+  "allOf": [
+    {"if": {"properties": {"action": {"enum": ["push_off", "grab", "pull_along"]}}}, "then": {"properties": {"participants": {"maxItems": 1}}}}
+  ],
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "force": {"type": "integer", "minimum": 0, "maximum": 1000000000},
+    "participant": {
+      "type": "object", "additionalProperties": false,
+      "required": ["body_id", "free_hand_ids", "capable", "reachable", "contact", "force_budget_millinewtons"],
+      "properties": {
+        "body_id": {"$ref": "#/$defs/id"},
+        "free_hand_ids": {"type": "array", "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "capable": {"type": "boolean"},
+        "reachable": {"type": "boolean"},
+        "contact": {"type": "boolean"},
+        "force_budget_millinewtons": {"$ref": "#/$defs/force"}
+      }
+    }
+  }
+}

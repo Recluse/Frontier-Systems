@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:profile-upload-receipt:v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "status", "sequence", "capture_tick_number", "fingerprint"],
+  "properties": {
+    "schema_version": { "const": 1 }, "status": { "const": "stored" },
+    "sequence": { "type": "integer", "minimum": 1 },
+    "capture_tick_number": { "type": "integer", "minimum": 0 },
+    "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

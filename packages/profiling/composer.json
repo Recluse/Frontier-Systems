@@ -1,0 +1,19 @@
+{
+  "name": "frontier-systems/profiling",
+  "description": "Bounded profiling capture contracts and asynchronous storage boundaries.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^8.3",
+    "frontier-systems/world-contracts": "^0.1@dev",
+    "react/promise": "^3.0"
+  },
+  "repositories": [
+    { "type": "path", "url": "../world-contracts", "options": {
+      "symlink": false, "versions": { "frontier-systems/world-contracts": "0.1.x-dev" }
+    } }
+  ],
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "autoload": { "psr-4": { "Frontier\\Profiling\\": "src/" } }
+}

@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "definition_id": "overlay.terminal", "display_name": "Terminal",
+  "colors": {"background": "#07120B", "panel": "#102016", "text": "#C5F7D3", "accent": "#61D98B"},
+  "font_size": 16, "spacing": 8, "corner_radius": 0
+}

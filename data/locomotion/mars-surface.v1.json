@@ -1,0 +1,4 @@
+{
+  "schema_version": 1, "frame_id": "frame.mars.surface.prototype", "frame_in_freefall": false,
+  "natural_acceleration_mm_s2": [0, -3710, 0], "generators": []
+}

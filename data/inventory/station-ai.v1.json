@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "definition_id": "inventory.body.station-ai",
+  "revision": 1,
+  "max_carried_mass_milligrams": 0,
+  "hand_slot_ids": [],
+  "slots": []
+}

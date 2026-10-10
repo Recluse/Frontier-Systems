@@ -1,0 +1,16 @@
+{
+  "name": "frontier-systems/profiling-http",
+  "description": "Authenticated streaming HTTP boundary for bounded profiling captures.",
+  "type": "library", "license": "MIT",
+  "require": {
+    "php": "^8.3", "frontier-systems/profiling": "^0.1@dev",
+    "psr/http-message": "^1.1 || ^2.0", "react/event-loop": "^1.2",
+    "react/http": "^1.9", "react/promise": "^3.0", "react/stream": "^1.4"
+  },
+  "repositories": [
+    { "type": "path", "url": "../profiling", "options": { "symlink": false, "versions": { "frontier-systems/profiling": "0.1.x-dev" } } },
+    { "type": "path", "url": "../world-contracts", "options": { "symlink": false, "versions": { "frontier-systems/world-contracts": "0.1.x-dev" } } }
+  ],
+  "minimum-stability": "dev", "prefer-stable": true,
+  "autoload": { "psr-4": { "Frontier\\ProfilingHttp\\": "src/" } }
+}

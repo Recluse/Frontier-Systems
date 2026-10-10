@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "definition_id": "layout.mirrored", "display_name": "Controls right",
+  "orientation": "horizontal", "panel_ids": ["overlay.habitat", "overlay.controls"],
+  "leading_weight": 0.56, "spacing": 16
+}

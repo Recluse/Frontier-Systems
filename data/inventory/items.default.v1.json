@@ -1,0 +1,19 @@
+[
+  {
+    "schema_version": 1, "definition_id": "item.backpack.prototype", "revision": 1,
+    "tags": ["item.handheld", "wearable.human.backpack", "storage.portable"],
+    "mass_milligrams": 1000000, "volume_millilitres": 20000,
+    "storage": {"max_mass_milligrams": 15000000, "max_volume_millilitres": 18000, "max_items": 16, "accepted_tags": ["item.handheld", "storage.portable"]}
+  },
+  {
+    "schema_version": 1, "definition_id": "item.crowbar.prototype", "revision": 1,
+    "tags": ["item.handheld", "tool.crowbar"],
+    "mass_milligrams": 2000000, "volume_millilitres": 1000, "storage": null
+  },
+  {
+    "schema_version": 1, "definition_id": "item.pouch.prototype", "revision": 1,
+    "tags": ["item.handheld", "storage.portable"],
+    "mass_milligrams": 500000, "volume_millilitres": 2000,
+    "storage": {"max_mass_milligrams": 5000000, "max_volume_millilitres": 1500, "max_items": 4, "accepted_tags": ["item.handheld"]}
+  }
+]

@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "definition_id": "layout.default", "display_name": "Controls left",
+  "orientation": "horizontal", "panel_ids": ["overlay.controls", "overlay.habitat"],
+  "leading_weight": 0.44, "spacing": 16
+}

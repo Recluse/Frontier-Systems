@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:inventory-item-definition:v1",
+  "title": "Trusted inventory item definition v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "definition_id", "revision", "tags", "mass_milligrams", "volume_millilitres", "storage"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "definition_id": {"$ref": "#/$defs/id"},
+    "revision": {"type": "integer", "minimum": 1, "maximum": 9007199254740990},
+    "tags": {"$ref": "#/$defs/tags"},
+    "mass_milligrams": {"$ref": "#/$defs/quantity"},
+    "volume_millilitres": {"$ref": "#/$defs/quantity"},
+    "storage": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/capacity"}]}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+    "quantity": {"type": "integer", "minimum": 0, "maximum": 9007199254740990},
+    "tags": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "capacity": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_mass_milligrams", "max_volume_millilitres", "max_items", "accepted_tags"],
+      "properties": {
+        "max_mass_milligrams": {"$ref": "#/$defs/quantity"},
+        "max_volume_millilitres": {"$ref": "#/$defs/quantity"},
+        "max_items": {"type": "integer", "minimum": 0, "maximum": 512},
+        "accepted_tags": {"$ref": "#/$defs/tags"}
+      }
+    }
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:crew-note:v1",
+  "title": "Frontier Systems Crew Note v1",
+  "description": "Canonical versioned note record used by PDAs and crew workspaces.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "note_id",
+    "world_id",
+    "author_principal_id",
+    "revision_author_principal_id",
+    "revision",
+    "title",
+    "content",
+    "visibility",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "note_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "world_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "colony_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "author_principal_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "revision_author_principal_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "revision": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "content": { "type": "string", "maxLength": 50000 },
+    "visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": {
+          "enum": ["private", "named_principals", "crew_group", "colony_board"]
+        },
+        "principal_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 256,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "group_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 64,
+      "items": { "type": "string", "minLength": 1, "maxLength": 48 }
+    },
+    "linked_entity_ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 256,
+      "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "parent_revision": { "type": "integer", "minimum": 1 },
+    "change_summary": { "type": "string", "maxLength": 500 }
+  }
+}

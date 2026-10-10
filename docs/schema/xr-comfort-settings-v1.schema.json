@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:xr-comfort-settings:v1",
+  "title": "Local XR presentation comfort preferences v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "snap_turn_degrees", "turn_engage_permille", "turn_release_permille", "seated_mode", "seated_height_offset_mm"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "snap_turn_degrees": {"type": "integer", "enum": [0, 15, 30, 45, 60]},
+    "turn_engage_permille": {"type": "integer", "minimum": 1, "maximum": 1000},
+    "turn_release_permille": {"type": "integer", "minimum": 0, "maximum": 999, "description": "Runtime additionally requires release < engage."},
+    "seated_mode": {"type": "boolean"},
+    "seated_height_offset_mm": {"type": "integer", "minimum": 0, "maximum": 1000}
+  }
+}

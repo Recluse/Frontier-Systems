@@ -1,0 +1,12 @@
+{
+  "schema_version": 1, "definition_id": "sections.compact", "display_name": "Compact",
+  "sections": [
+    {"section_id": "hud.status", "collapsed": false},
+    {"section_id": "hud.feedback", "collapsed": false},
+    {"section_id": "hud.airlock", "collapsed": false},
+    {"section_id": "hud.inventory", "collapsed": false},
+    {"section_id": "hud.machine", "collapsed": true},
+    {"section_id": "hud.access", "collapsed": true},
+    {"section_id": "hud.profiling", "collapsed": true}
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:overlay-theme:v1",
+  "title": "Local overlay appearance theme v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "definition_id", "display_name", "colors", "font_size", "spacing", "corner_radius"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "definition_id": {"$ref": "#/$defs/id"},
+    "display_name": {"$ref": "#/$defs/id"},
+    "font_size": {"type": "integer", "minimum": 12, "maximum": 32},
+    "spacing": {"type": "integer", "minimum": 4, "maximum": 24},
+    "corner_radius": {"type": "integer", "minimum": 0, "maximum": 16},
+    "colors": {
+      "type": "object", "additionalProperties": false,
+      "required": ["background", "panel", "text", "accent"],
+      "properties": {
+        "background": {"$ref": "#/$defs/color"},
+        "panel": {"$ref": "#/$defs/color"},
+        "text": {"$ref": "#/$defs/color"},
+        "accent": {"$ref": "#/$defs/color"}
+      }
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+    "color": {"type": "string", "pattern": "^#[0-9a-fA-F]{6}$"}
+  }
+}

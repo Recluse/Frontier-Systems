@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:machine-module-instance:v1",
+  "title": "Installed module inspection record (not a complete circuit save)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "instance_id", "slot_id", "definition_id", "definition_revision", "integrity"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "instance_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+    "slot_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+    "definition_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+    "definition_revision": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+    "integrity": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

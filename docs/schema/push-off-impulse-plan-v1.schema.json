@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:push-off-impulse-plan:v1",
+  "title": "Pure conservative push-off impulse plan v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "actor_before", "target_before", "actor_after", "target_after", "impulse_micro_ns", "required_force_millinewtons"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "actor_before": {"$ref": "urn:frontier-systems:schema:linear-motion-state:v1"},
+    "target_before": {"$ref": "urn:frontier-systems:schema:linear-motion-state:v1"},
+    "actor_after": {"$ref": "urn:frontier-systems:schema:linear-motion-state:v1"},
+    "target_after": {"$ref": "urn:frontier-systems:schema:linear-motion-state:v1"},
+    "impulse_micro_ns": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "integer", "minimum": -1000000000, "maximum": 1000000000}},
+    "required_force_millinewtons": {"type": "integer", "minimum": 1, "maximum": 1000000000}
+  }
+}

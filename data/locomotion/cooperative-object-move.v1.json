@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "action": "move_world_object",
+  "target_id": "object.salvage-crate",
+  "pushable": true,
+  "grippable": true,
+  "movable": true,
+  "contact_force_limit_millinewtons": 500000,
+  "required_force_millinewtons": 300000,
+  "participants": [
+    {"body_id": "body.human-1", "free_hand_ids": ["hand.left"], "capable": true, "reachable": true, "contact": true, "force_budget_millinewtons": 200000},
+    {"body_id": "body.human-2", "free_hand_ids": ["hand.right"], "capable": true, "reachable": true, "contact": true, "force_budget_millinewtons": 200000}
+  ]
+}

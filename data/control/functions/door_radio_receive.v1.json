@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "function_id": "door.radio_receive",
+  "required_component_capabilities": ["radio.receive", "control.power"]
+}

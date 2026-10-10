@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:local-profiling-configuration:v1",
+  "title": "Loopback-only development profiling preset",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "development_only", "host", "authentication", "receiver", "uploader"],
+  "properties": {
+    "schema_version": { "const": 1 }, "development_only": { "const": true },
+    "host": {
+      "type": "object", "additionalProperties": false, "required": ["world_id", "region_id"],
+      "properties": { "world_id": { "$ref": "#/$defs/id" }, "region_id": { "$ref": "#/$defs/id" } }
+    },
+    "authentication": {
+      "type": "object", "additionalProperties": false, "required": ["bearer_token"],
+      "properties": { "bearer_token": { "type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[A-Za-z0-9._~+/-]+={0,2}$" } }
+    },
+    "receiver": {
+      "type": "object", "additionalProperties": false,
+      "required": ["address", "maximum_connections", "maximum_concurrent", "maximum_bytes", "authentication_timeout_seconds", "body_timeout_seconds", "retained_captures", "retained_bytes"],
+      "properties": {
+        "address": { "type": "string", "pattern": "^127\\.0\\.0\\.1:[0-9]{1,5}$" },
+        "maximum_connections": { "type": "integer", "minimum": 1, "maximum": 64 },
+        "maximum_concurrent": { "type": "integer", "minimum": 1, "maximum": 16 },
+        "maximum_bytes": { "type": "integer", "minimum": 1, "maximum": 8388608 },
+        "authentication_timeout_seconds": { "$ref": "#/$defs/deadline" },
+        "body_timeout_seconds": { "$ref": "#/$defs/deadline" },
+        "retained_captures": { "type": "integer", "minimum": 1, "maximum": 128 },
+        "retained_bytes": { "type": "integer", "minimum": 1, "maximum": 134217728 }
+      }
+    },
+    "uploader": {
+      "type": "object", "additionalProperties": false, "required": ["endpoint", "timeout_seconds", "sample_limit", "history_capacity"],
+      "properties": {
+        "endpoint": { "type": "string", "pattern": "^http://127\\.0\\.0\\.1:[0-9]{1,5}/v1/profiling/captures$" },
+        "timeout_seconds": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 },
+        "sample_limit": { "type": "integer", "minimum": 0, "maximum": 2048 },
+        "history_capacity": { "type": "integer", "minimum": 1, "maximum": 2048 }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+    "deadline": { "type": "number", "exclusiveMinimum": 0, "maximum": 30 }
+  }
+}

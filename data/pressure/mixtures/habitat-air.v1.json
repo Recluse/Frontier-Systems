@@ -1,0 +1,4 @@
+{
+  "schema_version": 1, "volume_id": "mixture.habitat.prototype", "state_revision": 0, "volume_m3": 1.0, "temperature_kelvin": 293.15,
+  "species_micromoles": {"gas.oxygen": 8700000, "gas.nitrogen": 32700000, "gas.carbon_dioxide": 20000, "gas.argon": 380000}
+}

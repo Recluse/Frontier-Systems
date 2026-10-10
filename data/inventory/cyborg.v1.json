@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "definition_id": "inventory.body.cyborg",
+  "revision": 1,
+  "max_carried_mass_milligrams": 80000000,
+  "hand_slot_ids": ["manipulator.left", "manipulator.right"],
+  "slots": [
+    {"slot_id": "manipulator.left", "accepted_tags": ["item.handheld"], "max_mass_milligrams": 30000000, "max_volume_millilitres": 30000},
+    {"slot_id": "manipulator.right", "accepted_tags": ["item.handheld"], "max_mass_milligrams": 30000000, "max_volume_millilitres": 30000},
+    {"slot_id": "module.utility", "accepted_tags": ["module.cyborg.utility"], "max_mass_milligrams": 40000000, "max_volume_millilitres": 40000}
+  ]
+}

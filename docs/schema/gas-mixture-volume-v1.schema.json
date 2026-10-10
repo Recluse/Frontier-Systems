@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:gas-mixture-volume:v1",
+  "title": "Isothermal constituent gas volume v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "volume_id", "state_revision", "volume_m3", "temperature_kelvin", "species_micromoles"],
+  "properties": {
+    "schema_version": {"const": 1}, "volume_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+    "state_revision": {"$ref": "#/$defs/quantity"}, "volume_m3": {"type": "number", "minimum": 0.000001, "maximum": 1000000000},
+    "temperature_kelvin": {"type": "number", "exclusiveMinimum": 0, "maximum": 10000},
+    "species_micromoles": {"type": "object", "additionalProperties": false, "properties": {
+      "gas.oxygen": {"$ref": "#/$defs/quantity"}, "gas.nitrogen": {"$ref": "#/$defs/quantity"},
+      "gas.carbon_dioxide": {"$ref": "#/$defs/quantity"}, "gas.argon": {"$ref": "#/$defs/quantity"}
+    }}
+  },
+  "$defs": {"quantity": {"type": "integer", "minimum": 0, "maximum": 9007199254740990}}
+}

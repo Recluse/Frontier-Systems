@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:body-inventory-interaction-policy:v1",
+  "title": "Timed physical body inventory access policy v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "definition_id", "revision", "max_distance_millimetres", "duration_ticks"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "definition_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+    "revision": {"type": "integer", "minimum": 1, "maximum": 9007199254740990},
+    "max_distance_millimetres": {"type": "integer", "minimum": 1, "maximum": 5000},
+    "duration_ticks": {
+      "type": "object", "additionalProperties": false,
+      "required": ["search", "take", "insert", "equip", "unequip"],
+      "properties": {
+        "search": {"$ref": "#/$defs/duration"}, "take": {"$ref": "#/$defs/duration"},
+        "insert": {"$ref": "#/$defs/duration"}, "equip": {"$ref": "#/$defs/duration"}, "unequip": {"$ref": "#/$defs/duration"}
+      }
+    }
+  },
+  "$defs": {"duration": {"type": "integer", "minimum": 1, "maximum": 3600}}
+}

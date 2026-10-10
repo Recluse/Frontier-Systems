@@ -1,0 +1,12 @@
+{
+  "schema_version": 1, "definition_id": "sections.default", "display_name": "Expanded",
+  "sections": [
+    {"section_id": "hud.status", "collapsed": false},
+    {"section_id": "hud.airlock", "collapsed": false},
+    {"section_id": "hud.inventory", "collapsed": false},
+    {"section_id": "hud.access", "collapsed": false},
+    {"section_id": "hud.machine", "collapsed": false},
+    {"section_id": "hud.profiling", "collapsed": false},
+    {"section_id": "hud.feedback", "collapsed": false}
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:inventory-ledger:v1",
+  "title": "Physical inventory ownership ledger v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "ledger_id", "state_revision", "containers", "items"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "ledger_id": {"$ref": "#/$defs/id"},
+    "state_revision": {"type": "integer", "minimum": 0, "maximum": 9007199254740990},
+    "containers": {"type": "array", "maxItems": 256, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["container_id", "owner_item_id", "capacity"],
+      "properties": {
+        "container_id": {"$ref": "#/$defs/id"},
+        "owner_item_id": {"oneOf": [{"const": ""}, {"$ref": "#/$defs/id"}]},
+        "capacity": {"$ref": "urn:frontier-systems:schema:inventory-item-definition:v1#/$defs/capacity"}
+      }
+    }},
+    "items": {"type": "array", "maxItems": 512, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["item_id", "definition_id", "definition_revision", "condition_permille", "container_id"],
+      "properties": {
+        "item_id": {"$ref": "#/$defs/id"},
+        "definition_id": {"$ref": "#/$defs/id"},
+        "definition_revision": {"type": "integer", "minimum": 1, "maximum": 9007199254740990},
+        "condition_permille": {"type": "integer", "minimum": 0, "maximum": 1000},
+        "container_id": {"$ref": "#/$defs/id"}
+      }
+    }}
+  },
+  "$defs": {"id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"}}
+}

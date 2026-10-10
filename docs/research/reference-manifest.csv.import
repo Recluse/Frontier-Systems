@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cyh3nd2h76e87"
+
+[deps]
+
+files=["res://docs/research/reference-manifest.repository.translation", "res://docs/research/reference-manifest.exact.translation", "res://docs/research/reference-manifest.revision.translation", "res://docs/research/reference-manifest.revision.translation", "res://docs/research/reference-manifest.access.translation", "res://docs/research/reference-manifest.stated.translation", "res://docs/research/reference-manifest.lesson.translation", "res://docs/research/reference-manifest.independent.translation", "res://docs/research/reference-manifest.allowed.translation"]
+
+source_file="res://docs/research/reference-manifest.csv"
+dest_files=["res://docs/research/reference-manifest.repository.translation", "res://docs/research/reference-manifest.exact.translation", "res://docs/research/reference-manifest.revision.translation", "res://docs/research/reference-manifest.revision.translation", "res://docs/research/reference-manifest.access.translation", "res://docs/research/reference-manifest.stated.translation", "res://docs/research/reference-manifest.lesson.translation", "res://docs/research/reference-manifest.independent.translation", "res://docs/research/reference-manifest.allowed.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

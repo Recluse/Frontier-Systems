@@ -1,0 +1,4 @@
+{
+  "schema_version": 1, "volume_id": "mixture.oxygen-tank.prototype", "state_revision": 0, "volume_m3": 0.01, "temperature_kelvin": 293.15,
+  "species_micromoles": {"gas.oxygen": 120000000}
+}

@@ -1,0 +1,26 @@
+# Godot generated/imported state
+.godot/
+/android/
+# Generated translations from the research CSV importer
+/docs/research/reference-manifest.*.translation
+
+# PHP dependencies and local configuration
+**/vendor/
+**/.env
+**/.env.*
+!**/.env.example
+
+# Runtime output and profiling captures
+var/
+logs/
+profiling-captures/
+config/local/
+/services/control-plane/bin/build/
+**/.php-cs-fixer.cache
+*.log
+
+# Editor and operating-system files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

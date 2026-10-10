@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:tick-profile-report:v1",
+  "title": "Summary of a bounded tick history window",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "sample_count", "first_tick", "last_tick", "tick_timing_usec", "command_timing_usec", "over_budget_samples", "queue_peak", "commands_processed", "omitted_system_observations", "systems"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "sample_count": { "type": "integer", "minimum": 0, "maximum": 2048 },
+    "first_tick": { "type": ["integer", "null"], "minimum": 0 },
+    "last_tick": { "type": ["integer", "null"], "minimum": 0 },
+    "tick_timing_usec": { "$ref": "#/$defs/statistics" },
+    "command_timing_usec": { "$ref": "#/$defs/statistics" },
+    "over_budget_samples": { "type": "integer", "minimum": 0, "maximum": 2048 },
+    "queue_peak": { "type": "integer", "minimum": 0 },
+    "commands_processed": { "type": "integer", "minimum": 0 },
+    "omitted_system_observations": { "type": "integer", "minimum": 0 },
+    "systems": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/system" } }
+  },
+  "$defs": {
+    "statistics": {
+      "type": "object", "additionalProperties": false,
+      "required": ["count", "minimum", "maximum", "mean", "p50", "p95", "p99"],
+      "properties": {
+        "count": { "type": "integer", "minimum": 0, "maximum": 2048 },
+        "minimum": { "type": ["number", "null"], "minimum": 0 },
+        "maximum": { "type": ["number", "null"], "minimum": 0 },
+        "mean": { "type": ["number", "null"], "minimum": 0 },
+        "p50": { "type": ["number", "null"], "minimum": 0 },
+        "p95": { "type": ["number", "null"], "minimum": 0 },
+        "p99": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "system": {
+      "type": "object", "additionalProperties": false,
+      "required": ["system_id", "timing_usec", "last_observed_tick", "latest_counters"],
+      "properties": {
+        "system_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "timing_usec": { "$ref": "#/$defs/statistics" },
+        "last_observed_tick": { "type": "integer", "minimum": 0 },
+        "latest_counters": { "type": "object", "maxProperties": 16, "propertyNames": { "minLength": 1, "maxLength": 64 }, "additionalProperties": { "type": "number" } }
+      }
+    }
+  }
+}

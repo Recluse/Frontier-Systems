@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "definition_id": "material.dirt",
+  "revision": 1,
+  "display_name": "Dirt",
+  "prototype_bulk_density_kg_m3": 1200,
+  "uses": ["terrain.fill", "crafting.feedstock", "hydroponics.substrate"]
+}

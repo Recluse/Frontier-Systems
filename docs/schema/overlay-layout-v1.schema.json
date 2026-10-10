@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:overlay-layout:v1",
+  "title": "Registered two-panel overlay layout v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "definition_id", "display_name", "orientation", "panel_ids", "leading_weight", "spacing"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "definition_id": {"$ref": "#/$defs/id"},
+    "display_name": {"$ref": "#/$defs/id"},
+    "orientation": {"enum": ["horizontal", "vertical"]},
+    "panel_ids": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+    "leading_weight": {"type": "number", "minimum": 0.25, "maximum": 0.75},
+    "spacing": {"type": "integer", "minimum": 4, "maximum": 24}
+  },
+  "$defs": {"id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"}}
+}

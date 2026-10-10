@@ -1,0 +1,8 @@
+{
+  "schema_version": 1, "job_id": "interaction.prototype-take-1",
+  "actor_body_id": "body.human-2", "target_body_id": "body.human-1",
+  "policy_id": "inventory.body-interactions.default", "policy_revision": 1,
+  "action": "take", "target_container_id": "storage.pouch-1", "item_id": "crowbar-1", "slot_id": "",
+  "last_tick": 0, "progress_ticks": 0, "state": "active", "cancellation_code": "",
+  "actor_control_epoch": 0, "target_action_epoch": 0, "actor_inventory_revision": 0, "target_inventory_revision": 0
+}

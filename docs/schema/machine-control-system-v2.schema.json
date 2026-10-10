@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:machine-control-system:v2",
+  "title": "Prototype machine controls with salvaged parts",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "host_id", "circuit", "salvage"],
+  "properties": {
+    "schema_version": { "const": 2 },
+    "host_id": { "const": "habitat_airlock" },
+    "circuit": { "$ref": "urn:frontier-systems:schema:machine-control-circuit:v1" },
+    "salvage": { "type": "array", "maxItems": 64, "items": { "$ref": "urn:frontier-systems:schema:machine-module-instance:v1" } }
+  }
+}

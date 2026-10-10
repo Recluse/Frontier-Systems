@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "definition_id": "board.door.control",
+  "revision": 2,
+  "mount_interface_id": "door.controlboard.v1",
+  "slots": [
+    { "schema_version": 1, "slot_id": "door.receiver.1", "interface_id": "control.industrial.v1", "capacity_units": 1, "allowed_module_families": ["radio.receiver"] },
+    { "schema_version": 1, "slot_id": "door.utility.1", "interface_id": "control.utility.v1", "capacity_units": 1, "allowed_module_families": ["*"] },
+    { "schema_version": 1, "slot_id": "door.utility.2", "interface_id": "control.utility.v1", "capacity_units": 2, "allowed_module_families": ["*"] }
+  ]
+}

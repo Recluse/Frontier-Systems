@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:shared-inventory-world-intent:v1",
+  "title": "Internal world pickup/drop intent v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["request_id", "body_id", "operation", "item_id", "world_container_id", "destination_container_id", "slot_id", "expected_revision"],
+  "properties": {
+    "request_id": {"$ref": "#/$defs/id"}, "body_id": {"$ref": "#/$defs/id"}, "operation": {"enum": ["pickup", "drop"]},
+    "item_id": {"$ref": "#/$defs/id"}, "world_container_id": {"$ref": "#/$defs/id"},
+    "destination_container_id": {"$ref": "#/$defs/optionalId"}, "slot_id": {"$ref": "#/$defs/optionalId"},
+    "expected_revision": {"type": "integer", "minimum": 0, "maximum": 9007199254740990}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+    "optionalId": {"oneOf": [{"const": ""}, {"$ref": "#/$defs/id"}]}
+  },
+  "allOf": [{"if": {"properties": {"operation": {"const": "pickup"}}}, "then": {"properties": {"destination_container_id": {"$ref": "#/$defs/id"}}}, "else": {"properties": {"destination_container_id": {"const": ""}, "slot_id": {"const": ""}}}}]
+}

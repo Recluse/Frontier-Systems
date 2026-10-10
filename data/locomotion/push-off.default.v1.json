@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "actor": {"schema_version": 1, "body_id": "body.human-1", "frame_id": "frame.space.prototype", "state_revision": 0, "mass_milligrams": 80000000, "linear_momentum_micro_ns": [0, 0, 0]},
+  "target": {"schema_version": 1, "body_id": "assembly.salvage-crate", "frame_id": "frame.space.prototype", "state_revision": 0, "mass_milligrams": 120000000, "linear_momentum_micro_ns": [0, 0, 0]},
+  "contact": {
+    "schema_version": 1, "normal_permille": [1000, 0, 0], "duration_microseconds": 100000,
+    "capability_observation": {
+      "schema_version": 1, "action": "push_off", "target_id": "assembly.salvage-crate",
+      "pushable": true, "grippable": false, "movable": true,
+      "contact_force_limit_millinewtons": 200000, "required_force_millinewtons": 0,
+      "participants": [{"body_id": "body.human-1", "free_hand_ids": ["hand.left"], "capable": true, "reachable": true, "contact": true, "force_budget_millinewtons": 200000}]
+    }
+  },
+  "impulse_micro_ns": [8000000, 0, 0]
+}

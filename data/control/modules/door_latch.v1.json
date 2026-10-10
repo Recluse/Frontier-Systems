@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "definition_id": "module.door_latch.utility",
+  "revision": 1,
+  "module_family": "door.latch",
+  "interface_id": "control.utility.v1",
+  "size_units": 1,
+  "idle_power_watts": 1,
+  "required_host_capabilities": ["power.consumer", "control.wired", "door.latch"],
+  "ports": [
+    { "port_id": "lock", "direction": "input", "signal_type": "pulse", "transport": "wired" },
+    { "port_id": "unlock", "direction": "input", "signal_type": "pulse", "transport": "wired" }
+  ],
+  "handler_id": "door.latch.v1"
+}

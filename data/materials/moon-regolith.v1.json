@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "definition_id": "material.regolith.moon",
+  "revision": 1,
+  "display_name": "Untreated lunar regolith",
+  "prototype_bulk_density_kg_m3": 1500,
+  "uses": ["terrain.fill", "crafting.feedstock"]
+}

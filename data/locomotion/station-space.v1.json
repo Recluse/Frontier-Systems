@@ -1,0 +1,6 @@
+{
+  "schema_version": 1, "frame_id": "frame.station.space.prototype", "frame_in_freefall": true,
+  "natural_acceleration_mm_s2": [0, 0, 0],
+  "generators": [{"generator_id": "generator.station.prototype", "enabled": true, "powered": true, "inside_field": true,
+    "condition_permille": 1000, "priority": 0, "acceleration_mm_s2": [0, -9810, 0]}]
+}

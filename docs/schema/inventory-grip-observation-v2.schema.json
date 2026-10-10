@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:inventory-grip-observation:v2",
+  "title": "Local development body grip observation v2",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "grip_revision", "sessions", "hands", "targets"],
+  "properties": {
+    "schema_version": {"const": 2},
+    "grip_revision": {"type": "integer", "minimum": 0, "maximum": 9007199254740990},
+    "sessions": {"type": "array", "maxItems": 32, "items": {"$ref": "#/$defs/session"}},
+    "hands": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/hand"}},
+    "targets": {"type": "array", "maxItems": 2, "items": {"$ref": "#/$defs/target"}}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "action": {"enum": ["grab", "pull_along", "move_world_object"]},
+    "session": {
+      "type": "object", "additionalProperties": false,
+      "required": ["session_id", "target_id", "action", "paused", "own_hand_ids", "participant_count", "movement_available"],
+      "properties": {
+        "session_id": {"$ref": "#/$defs/id"},
+        "target_id": {"$ref": "#/$defs/id"},
+        "action": {"$ref": "#/$defs/action"},
+        "paused": {"type": "boolean"},
+        "own_hand_ids": {"type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/id"}},
+        "participant_count": {"type": "integer", "minimum": 1, "maximum": 16},
+        "movement_available": {"type": "boolean"}
+      }
+    },
+    "hand": {
+      "type": "object", "additionalProperties": false,
+      "required": ["hand_id", "state"],
+      "properties": {"hand_id": {"$ref": "#/$defs/id"}, "state": {"enum": ["free", "occupied", "reserved"]}}
+    },
+    "target": {
+      "type": "object", "additionalProperties": false,
+      "required": ["target_id", "reachable", "actions", "session_id", "session_action", "session_paused"],
+      "properties": {
+        "target_id": {"enum": ["fixture.salvage-crate", "fixture.ladder"]},
+        "reachable": {"type": "boolean"},
+        "actions": {"type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": {"$ref": "#/$defs/action"}},
+        "session_id": {"type": "string", "maxLength": 128},
+        "session_action": {"enum": ["", "grab", "pull_along", "move_world_object"]},
+        "session_paused": {"type": "boolean"}
+      },
+      "allOf": [{"if": {"properties": {"session_id": {"const": ""}}}, "then": {"properties": {"session_action": {"const": ""}, "session_paused": {"const": false}}}, "else": {"properties": {"session_action": {"$ref": "#/$defs/action"}}}}]
+    }
+  }
+}

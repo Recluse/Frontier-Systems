@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:push-off-contact:v1",
+  "title": "Trusted centerline push-off contact v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "normal_permille", "duration_microseconds", "capability_observation"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "normal_permille": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "integer", "minimum": -1000, "maximum": 1000}, "description": "Unit outward normal scaled by 1000; code checks exact squared magnitude 1000000."},
+    "duration_microseconds": {"type": "integer", "minimum": 1, "maximum": 1000000},
+    "capability_observation": {
+      "allOf": [
+        {"$ref": "urn:frontier-systems:schema:physical-interaction-observation:v1"},
+        {"properties": {"action": {"const": "push_off"}}}
+      ]
+    }
+  }
+}

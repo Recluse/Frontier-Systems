@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:llm-conversation:v1",
+  "title": "Frontier Systems LLM Planning Conversation v1",
+  "description": "Persisted PDA conversation metadata and bounded messages. Credentials and provider secrets are never part of this record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "conversation_id",
+    "world_id",
+    "initiating_principal_id",
+    "provider_mode",
+    "status",
+    "visibility",
+    "selected_context",
+    "messages",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "conversation_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "world_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "colony_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "initiating_principal_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "provider_mode": { "enum": ["local", "remote"] },
+    "provider_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "model_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "status": { "enum": ["active", "completed", "cancelled", "failed", "expired"] },
+    "visibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode"],
+      "properties": {
+        "mode": { "enum": ["private", "named_principals", "crew_group"] },
+        "principal_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "maxItems": 256,
+          "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+        },
+        "group_id": { "type": "string", "minLength": 1, "maxLength": 128 }
+      }
+    },
+    "selected_context": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["record_kind", "record_id", "revision"],
+        "properties": {
+          "record_kind": {
+            "enum": ["note", "plan", "device", "diagnostic", "blueprint", "work_order", "contract"]
+          },
+          "record_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "revision": { "type": "string", "minLength": 1, "maxLength": 128 }
+        }
+      }
+    },
+    "messages": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["message_id", "role", "provenance", "content", "created_at"],
+        "properties": {
+          "message_id": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "role": { "enum": ["user", "assistant", "tool"] },
+          "provenance": { "enum": ["user_input", "model_output", "authorized_record", "validated_tool_result"] },
+          "content": { "type": "string", "maxLength": 16000 },
+          "source_record_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "maxItems": 128,
+            "items": { "type": "string", "minLength": 1, "maxLength": 128 }
+          },
+          "tool_name": { "type": "string", "minLength": 1, "maxLength": 128 },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    },
+    "retention_until": { "type": "string", "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:xr-comfort-input:v1",
+  "title": "Local XR comfort input observation v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "turn_axis", "session_focused", "left_tracked", "right_tracked", "seated_pressed", "height_up_pressed", "height_down_pressed"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "turn_axis": {"type": "number", "minimum": -1, "maximum": 1},
+    "session_focused": {"type": "boolean"},
+    "left_tracked": {"type": "boolean"},
+    "right_tracked": {"type": "boolean"},
+    "seated_pressed": {"type": "boolean"},
+    "height_up_pressed": {"type": "boolean"},
+    "height_down_pressed": {"type": "boolean"}
+  }
+}

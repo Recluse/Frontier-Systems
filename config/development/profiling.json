@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "development_only": true,
+  "host": { "world_id": "development-world", "region_id": "local-habitat" },
+  "authentication": { "bearer_token": "frontier-local-telemetry-test-only" },
+  "receiver": {
+    "address": "127.0.0.1:8081",
+    "maximum_connections": 16,
+    "maximum_concurrent": 2,
+    "maximum_bytes": 1048576,
+    "authentication_timeout_seconds": 5,
+    "body_timeout_seconds": 10,
+    "retained_captures": 16,
+    "retained_bytes": 16777216
+  },
+  "uploader": {
+    "endpoint": "http://127.0.0.1:8081/v1/profiling/captures",
+    "timeout_seconds": 15,
+    "sample_limit": 120,
+    "history_capacity": 120
+  }
+}

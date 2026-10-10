@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "world_id": "development-world",
+  "region_id": "local-habitat",
+  "capture_tick_number": 0,
+  "history": {
+    "schema_version": 1, "capacity": 120, "retained_samples": 0,
+    "overwritten_samples": 0, "samples": []
+  },
+  "report": {
+    "schema_version": 1, "sample_count": 0, "first_tick": null, "last_tick": null,
+    "tick_timing_usec": { "count": 0, "minimum": null, "maximum": null, "mean": null, "p50": null, "p95": null, "p99": null },
+    "command_timing_usec": { "count": 0, "minimum": null, "maximum": null, "mean": null, "p50": null, "p95": null, "p99": null },
+    "over_budget_samples": 0, "queue_peak": 0, "commands_processed": 0,
+    "omitted_system_observations": 0, "systems": []
+  }
+}

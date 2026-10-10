@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:locomotion-environment:v1",
+  "title": "Local-frame gravity environment v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "frame_id", "frame_in_freefall", "natural_acceleration_mm_s2", "generators"],
+  "properties": {
+    "schema_version": {"const": 1}, "frame_id": {"$ref": "#/$defs/id"}, "frame_in_freefall": {"type": "boolean"},
+    "natural_acceleration_mm_s2": {"$ref": "#/$defs/vector"},
+    "generators": {"type": "array", "maxItems": 16, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["generator_id", "enabled", "powered", "inside_field", "condition_permille", "priority", "acceleration_mm_s2"],
+      "properties": {
+        "generator_id": {"$ref": "#/$defs/id"}, "enabled": {"type": "boolean"}, "powered": {"type": "boolean"}, "inside_field": {"type": "boolean"},
+        "condition_permille": {"type": "integer", "minimum": 0, "maximum": 1000}, "priority": {"type": "integer", "minimum": 0, "maximum": 255}, "acceleration_mm_s2": {"$ref": "#/$defs/vector"}
+      }
+    }}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+    "vector": {"type": "array", "minItems": 3, "maxItems": 3, "items": {"type": "integer", "minimum": -100000, "maximum": 100000}}
+  }
+}

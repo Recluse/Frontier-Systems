@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "definition_id": "module.alarm.local.utility",
+  "revision": 1,
+  "module_family": "alarm.output",
+  "interface_id": "control.utility.v1",
+  "size_units": 1,
+  "idle_power_watts": 1,
+  "required_host_capabilities": ["power.consumer", "control.wired"],
+  "ports": [
+    { "port_id": "raise_alarm", "direction": "input", "signal_type": "pulse", "transport": "wired" }
+  ],
+  "handler_id": "alarm.local.v1"
+}

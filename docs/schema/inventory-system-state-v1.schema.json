@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:inventory-system-state:v1",
+  "title": "Local development inventory simulation state v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "last_tick", "owner", "bodies", "jobs"],
+  "properties": {
+    "schema_version": {"const": 1}, "last_tick": {"$ref": "#/$defs/counter"},
+    "owner": {"$ref": "urn:frontier-systems:schema:shared-inventory-state:v1"},
+    "bodies": {"type": "array", "maxItems": 32, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["body_id", "principal_id", "control_epoch", "action_epoch", "x_millimetres", "resisted_tick"],
+      "properties": {
+        "body_id": {"$ref": "#/$defs/id"}, "principal_id": {"$ref": "#/$defs/id"},
+        "control_epoch": {"$ref": "#/$defs/counter"}, "action_epoch": {"$ref": "#/$defs/counter"},
+        "x_millimetres": {"type": "integer", "minimum": -10000000, "maximum": 10000000},
+        "resisted_tick": {"type": "integer", "minimum": -1, "maximum": 9007199254740990}
+      }
+    }},
+    "jobs": {"type": "array", "maxItems": 32, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["job", "principal_id", "request"],
+      "properties": {
+        "job": {"$ref": "urn:frontier-systems:schema:body-inventory-interaction-job:v1"},
+        "principal_id": {"$ref": "#/$defs/id"},
+        "request": {"oneOf": [{"type": "null"}, {"$ref": "urn:frontier-systems:schema:shared-inventory-transfer-intent:v1"}]}
+      }
+    }}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+    "counter": {"type": "integer", "minimum": 0, "maximum": 9007199254740990}
+  }
+}

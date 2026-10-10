@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "slot_id": "controller.expansion.1",
+  "interface_id": "control.industrial.v1",
+  "capacity_units": 2,
+  "allowed_module_families": ["radio.receiver", "radio.transmitter", "logic.relay", "alarm.output", "message.output"]
+}

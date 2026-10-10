@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "definition_id": "inventory.body-interactions.default",
+  "revision": 1,
+  "max_distance_millimetres": 1500,
+  "duration_ticks": {"search": 120, "take": 180, "insert": 120, "equip": 180, "unequip": 180}
+}

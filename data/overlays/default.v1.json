@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "definition_id": "overlay.default", "display_name": "Frontier",
+  "colors": {"background": "#111820", "panel": "#1D2935", "text": "#F1F5F9", "accent": "#75C9FF"},
+  "font_size": 16, "spacing": 10, "corner_radius": 4
+}

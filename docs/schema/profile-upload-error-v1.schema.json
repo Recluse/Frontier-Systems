@@ -1,0 +1,10 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:profile-upload-error:v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "error"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "error": { "enum": ["not_found", "method_not_allowed", "unexpected_query", "unsupported_media_type", "invalid_content_length", "capture_too_large", "upload_capacity", "streaming_pipeline_required", "host_authentication_failed", "body_unavailable", "content_length_mismatch", "body_stream_error", "body_closed_early", "body_timeout", "invalid_capture", "upload_unavailable"] }
+  }
+}

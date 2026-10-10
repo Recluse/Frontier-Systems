@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:machine-maintenance-intent:v1",
+  "title": "Machine maintenance intent (identity supplied by server)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "operation", "parameters"],
+  "properties": { "schema_version": { "const": 1 }, "operation": { "type": "string" }, "parameters": { "type": "object" } },
+  "oneOf": [
+    { "properties": { "operation": { "enum": ["isolate", "restore_power"] }, "parameters": { "maxProperties": 0 } } },
+    { "properties": { "operation": { "const": "remove" }, "parameters": { "$ref": "#/$defs/remove" } } },
+    { "properties": { "operation": { "const": "install" }, "parameters": { "$ref": "#/$defs/install" } } },
+    { "properties": { "operation": { "const": "attach_wire" }, "parameters": { "$ref": "#/$defs/wire" } } },
+    { "properties": { "operation": { "const": "detach_wire" }, "parameters": { "$ref": "#/$defs/detach" } } }
+  ],
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+    "remove": {
+      "type": "object", "additionalProperties": false, "required": ["instance_id"],
+      "properties": { "instance_id": { "$ref": "#/$defs/id" } }
+    },
+    "install": {
+      "type": "object", "additionalProperties": false, "required": ["instance_id", "slot_id"],
+      "properties": { "instance_id": { "$ref": "#/$defs/id" }, "slot_id": { "$ref": "#/$defs/id" } }
+    },
+    "wire": {
+      "type": "object", "additionalProperties": false,
+      "required": ["wire_id", "first_module", "first_port", "second_module", "second_port"],
+      "properties": {
+        "wire_id": { "$ref": "#/$defs/id" },
+        "first_module": { "$ref": "#/$defs/id" }, "first_port": { "$ref": "#/$defs/id" },
+        "second_module": { "$ref": "#/$defs/id" }, "second_port": { "$ref": "#/$defs/id" }
+      }
+    },
+    "detach": {
+      "type": "object", "additionalProperties": false, "required": ["wire_id"],
+      "properties": { "wire_id": { "$ref": "#/$defs/id" } }
+    }
+  }
+}

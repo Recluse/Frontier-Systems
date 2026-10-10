@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "snap_turn_degrees": 30,
+  "turn_engage_permille": 750,
+  "turn_release_permille": 250,
+  "seated_mode": false,
+  "seated_height_offset_mm": 600
+}

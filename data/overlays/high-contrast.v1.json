@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "definition_id": "overlay.high-contrast", "display_name": "High contrast",
+  "colors": {"background": "#000000", "panel": "#101010", "text": "#FFFFFF", "accent": "#FFE066"},
+  "font_size": 20, "spacing": 12, "corner_radius": 0
+}

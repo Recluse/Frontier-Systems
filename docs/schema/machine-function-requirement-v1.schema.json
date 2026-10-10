@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:machine-function-requirement:v1",
+  "title": "Machine function component requirements v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "function_id", "required_component_capabilities"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "function_id": { "$ref": "#/$defs/id" },
+    "required_component_capabilities": {
+      "type": "array", "maxItems": 64, "uniqueItems": true,
+      "items": { "$ref": "#/$defs/id" }
+    }
+  },
+  "$defs": { "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" } }
+}

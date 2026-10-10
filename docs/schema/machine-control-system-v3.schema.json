@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:machine-control-system:v3",
+  "title": "Prototype controls with reserved board work",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "host_id", "circuit", "salvage", "installed_board_id", "board_spares", "board_job"],
+  "properties": {
+    "schema_version": { "const": 3 }, "host_id": { "const": "habitat_airlock" },
+    "circuit": { "$ref": "urn:frontier-systems:schema:machine-control-circuit:v1" },
+    "salvage": { "type": "array", "maxItems": 64, "items": { "$ref": "urn:frontier-systems:schema:machine-module-instance:v1" } },
+    "installed_board_id": { "$ref": "#/$defs/id" },
+    "board_spares": { "type": "array", "maxItems": 64, "items": { "$ref": "#/$defs/spare" } },
+    "board_job": { "oneOf": [ { "type": "null" }, { "$ref": "urn:frontier-systems:schema:board-replacement-job:v1" } ] }
+  },
+  "$defs": {
+    "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+    "spare": {
+      "type": "object", "additionalProperties": false,
+      "required": ["instance_id", "definition_id", "revision"],
+      "properties": { "instance_id": { "$ref": "#/$defs/id" }, "definition_id": { "$ref": "#/$defs/id" }, "revision": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 } }
+    }
+  }
+}

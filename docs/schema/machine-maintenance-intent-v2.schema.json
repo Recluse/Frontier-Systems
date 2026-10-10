@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:machine-maintenance-intent:v2",
+  "title": "Machine maintenance and board work intent",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "operation", "parameters"],
+  "properties": { "schema_version": { "const": 2 }, "operation": { "type": "string" }, "parameters": { "type": "object" } },
+  "oneOf": [
+    { "properties": { "operation": { "enum": ["isolate", "restore_power", "resume_board_job", "cancel_board_job"] }, "parameters": { "maxProperties": 0 } } },
+    { "properties": { "operation": { "const": "remove" }, "parameters": { "$ref": "urn:frontier-systems:schema:machine-maintenance-intent:v1#/$defs/remove" } } },
+    { "properties": { "operation": { "const": "install" }, "parameters": { "$ref": "urn:frontier-systems:schema:machine-maintenance-intent:v1#/$defs/install" } } },
+    { "properties": { "operation": { "const": "attach_wire" }, "parameters": { "$ref": "urn:frontier-systems:schema:machine-maintenance-intent:v1#/$defs/wire" } } },
+    { "properties": { "operation": { "const": "detach_wire" }, "parameters": { "$ref": "urn:frontier-systems:schema:machine-maintenance-intent:v1#/$defs/detach" } } },
+    { "properties": { "operation": { "const": "replace_board" }, "parameters": {
+      "type": "object", "additionalProperties": false, "required": ["target_board_id"],
+      "properties": { "target_board_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" } }
+    } } }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:overlay-layout-preference:v1",
+  "title": "Local overlay layout selection v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "layout_id", "leading_weight"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "layout_id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"},
+    "leading_weight": {"type": "number", "minimum": 0.25, "maximum": 0.75}
+  }
+}

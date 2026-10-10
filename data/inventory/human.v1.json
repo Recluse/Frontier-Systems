@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "definition_id": "inventory.body.human",
+  "revision": 1,
+  "max_carried_mass_milligrams": 40000000,
+  "hand_slot_ids": ["hand.left", "hand.right"],
+  "slots": [
+    {"slot_id": "hand.left", "accepted_tags": ["item.handheld"], "max_mass_milligrams": 15000000, "max_volume_millilitres": 20000},
+    {"slot_id": "hand.right", "accepted_tags": ["item.handheld"], "max_mass_milligrams": 15000000, "max_volume_millilitres": 20000},
+    {"slot_id": "clothing.uniform", "accepted_tags": ["wearable.human.uniform"], "max_mass_milligrams": 5000000, "max_volume_millilitres": 10000},
+    {"slot_id": "clothing.suit", "accepted_tags": ["wearable.human.suit"], "max_mass_milligrams": 25000000, "max_volume_millilitres": 50000},
+    {"slot_id": "clothing.head", "accepted_tags": ["wearable.human.head"], "max_mass_milligrams": 5000000, "max_volume_millilitres": 10000},
+    {"slot_id": "clothing.feet", "accepted_tags": ["wearable.human.feet"], "max_mass_milligrams": 5000000, "max_volume_millilitres": 10000},
+    {"slot_id": "clothing.gloves", "accepted_tags": ["wearable.human.gloves"], "max_mass_milligrams": 2000000, "max_volume_millilitres": 5000},
+    {"slot_id": "back", "accepted_tags": ["wearable.human.backpack", "wearable.human.tank"], "max_mass_milligrams": 30000000, "max_volume_millilitres": 60000},
+    {"slot_id": "belt", "accepted_tags": ["wearable.human.belt"], "max_mass_milligrams": 10000000, "max_volume_millilitres": 15000},
+    {"slot_id": "pda", "accepted_tags": ["device.pda"], "max_mass_milligrams": 1000000, "max_volume_millilitres": 1000}
+  ]
+}

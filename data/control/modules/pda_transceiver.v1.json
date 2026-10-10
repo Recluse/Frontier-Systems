@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "definition_id": "module.radio_transceiver.pda",
+  "revision": 1,
+  "module_family": "radio.transceiver",
+  "interface_id": "control.portable.v1",
+  "size_units": 1,
+  "idle_power_watts": 1,
+  "required_host_capabilities": ["power.consumer", "control.wired"],
+  "ports": [
+    { "port_id": "transmit_request", "direction": "input", "signal_type": "pulse", "transport": "wired" },
+    { "port_id": "radio_out", "direction": "output", "signal_type": "pulse", "transport": "radio" },
+    { "port_id": "radio_in", "direction": "input", "signal_type": "pulse", "transport": "radio" },
+    { "port_id": "received", "direction": "output", "signal_type": "pulse", "transport": "wired" }
+  ],
+  "handler_id": "radio.transceiver.v1"
+}

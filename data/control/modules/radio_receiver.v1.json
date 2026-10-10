@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "definition_id": "module.radio_receiver.industrial",
+  "revision": 1,
+  "module_family": "radio.receiver",
+  "interface_id": "control.industrial.v1",
+  "size_units": 1,
+  "idle_power_watts": 5,
+  "required_host_capabilities": ["power.consumer", "control.wired"],
+  "ports": [
+    { "port_id": "receive", "direction": "input", "signal_type": "pulse", "transport": "radio" },
+    { "port_id": "pulse_out", "direction": "output", "signal_type": "pulse", "transport": "wired" }
+  ],
+  "handler_id": "radio.receiver.v1"
+}

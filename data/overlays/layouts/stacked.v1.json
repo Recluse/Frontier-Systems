@@ -1,0 +1,5 @@
+{
+  "schema_version": 1, "definition_id": "layout.stacked", "display_name": "Stacked",
+  "orientation": "vertical", "panel_ids": ["overlay.controls", "overlay.habitat"],
+  "leading_weight": 0.5, "spacing": 12
+}

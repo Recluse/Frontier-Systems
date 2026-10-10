@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "definition_id": "module.igniter.utility",
+  "revision": 1,
+  "module_family": "thermal.igniter",
+  "interface_id": "control.utility.v1",
+  "size_units": 1,
+  "idle_power_watts": 0,
+  "required_host_capabilities": ["power.consumer", "control.wired"],
+  "ports": [
+    { "port_id": "ignite", "direction": "input", "signal_type": "pulse", "transport": "wired" }
+  ],
+  "handler_id": "thermal.igniter.v1"
+}
