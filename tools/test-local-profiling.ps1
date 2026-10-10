@@ -81,17 +81,54 @@ try {
     $cases = @(
         @{ Name = 'invalid credential'; Expected = 401; Headers = @{ Authorization = 'Bearer invalid-fixture-token' }; Body = $body },
         @{ Name = 'malformed capture'; Expected = 422; Headers = $authorization; Body = '{}' },
-        @{ Name = 'wrong host scope'; Expected = 422; Headers = $authorization; Body = ($fixture | ConvertTo-Json -Depth 16 -Compress) },
-        @{ Name = 'oversized capture'; Expected = 413; Headers = $authorization; Body = ('x' * ([int]$preset.receiver.maximum_bytes + 1)) }
+        @{ Name = 'wrong host scope'; Expected = 422; Headers = $authorization; Body = ($fixture | ConvertTo-Json -Depth 16 -Compress) }
     )
     foreach ($case in $cases) {
         $response = Invoke-WebRequest -Uri $preset.uploader.endpoint -Method Post -Headers $case.Headers -ContentType 'application/json' -Body $case.Body -SkipHttpErrorCheck -TimeoutSec 20
         if ([int]$response.StatusCode -ne $case.Expected) { throw ('Unexpected rejection status for ' + $case.Name) }
         Write-Output ('PASS: ' + $case.Name + ' => ' + $response.StatusCode)
     }
-    & $godotCommand --headless --path $projectRoot --script res://tests/godot/local_profiling_upload_test.gd -- "--profiling-config=$configPath"
-    if ($LASTEXITCODE -ne 0) {
-        throw 'Godot profiling upload smoke test failed.'
+    # Check header admission without writing a body after an early rejection.
+    # Linux HTTP clients can report broken pipe when the server closes during upload.
+    $oversizedProbe = [System.Net.Sockets.TcpClient]::new()
+    try {
+        $oversizedProbe.Connect('127.0.0.1', $port)
+        $oversizedStream = $oversizedProbe.GetStream()
+        $oversizedStream.ReadTimeout = 5000
+        $oversizedStream.WriteTimeout = 5000
+        $targetUri = [Uri]$preset.uploader.endpoint
+        $declaredSize = [int]$preset.receiver.maximum_bytes + 1
+        $header = "POST $($targetUri.PathAndQuery) HTTP/1.1`r`nHost: $($targetUri.Authority)`r`nAuthorization: Bearer $($preset.authentication.bearer_token)`r`nContent-Type: application/json`r`nContent-Length: $declaredSize`r`nConnection: close`r`n`r`n"
+        $wireBytes = [System.Text.Encoding]::ASCII.GetBytes($header)
+        $oversizedStream.Write($wireBytes, 0, $wireBytes.Length)
+        $responseReader = [System.IO.StreamReader]::new($oversizedStream)
+        try {
+            if ($responseReader.ReadLine() -notmatch '^HTTP/1\.[01] 413(?: |$)') {
+                throw 'Oversized capture header was not rejected with HTTP 413.'
+            }
+        } finally {
+            $responseReader.Dispose()
+        }
+        Write-Output 'PASS: oversized capture header => 413 before body upload'
+    } finally {
+        $oversizedProbe.Dispose()
+    }
+    # Windows GUI-subsystem Godot executables do not wait under direct invocation.
+    $godotLaunch = @{
+        FilePath = $godotCommand
+        ArgumentList = @('--headless', '--path', ('"' + $projectRoot + '"'), '--script', 'res://tests/godot/local_profiling_upload_test.gd', '--', ('"--profiling-config=' + $configPath + '"'))
+        WorkingDirectory = $projectRoot
+        RedirectStandardOutput = Join-Path $outputDirectory 'godot.stdout.log'
+        RedirectStandardError = Join-Path $outputDirectory 'godot.stderr.log'
+        Wait = $true
+        PassThru = $true
+    }
+    if ($IsWindows) { $godotLaunch.WindowStyle = 'Hidden' }
+    $godotProcess = Start-Process @godotLaunch
+    Get-Content -LiteralPath $godotLaunch.RedirectStandardOutput
+    Get-Content -LiteralPath $godotLaunch.RedirectStandardError
+    if ($godotProcess.ExitCode -ne 0) {
+        throw "Godot profiling upload smoke test failed (exit $($godotProcess.ExitCode))."
     }
     $stale = Invoke-WebRequest -Uri $preset.uploader.endpoint -Method Post -Headers $authorization -ContentType 'application/json' -Body $body -SkipHttpErrorCheck -TimeoutSec 20
     if ([int]$stale.StatusCode -ne 422) { throw 'An older fixture capture overwrote newer Godot telemetry.' }
