@@ -157,6 +157,13 @@ func run() -> void:
 	root.add_child(restored)
 	check(not restored.restore_world_snapshot_json(JSON.stringify(forged)).is_success, "forged structural mass rejects")
 	restored.free()
+	var wrong_pose: Dictionary = JSON.parse_string(snapshot)
+	wrong_pose["systems"]["production"]["machinery"]["placements"][generator]["position"][0] += 1
+	restored = WorldRuntime.new()
+	restored.resource_carriers_enabled = true
+	root.add_child(restored)
+	check(not restored.restore_world_snapshot_json(JSON.stringify(wrong_pose)).is_success, "mismatched physical world location rejects")
+	restored.free()
 	print("Machinery integration: %d failures" % failures)
 	world.free()
 	quit(1 if failures else 0)

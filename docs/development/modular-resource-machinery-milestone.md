@@ -6,7 +6,7 @@ The Construction tab adds a second path alongside the bootstrap workbench:
 
 1. Extract ore with a handheld tool into a physical canister, carry it to the workbench, unload it and refine iron.
 2. Hand-build a frame, controller, power connector and a work head. These are independently movable physical inventory items with conserved material bills.
-3. Fit modules to a frame. Fit canister sockets, then insert canisters. A socket is an independently removable portable container; it can be fitted to any prototype frame regardless of which head is installed.
+3. Fit modules to a frame. Fit canister sockets, then insert canisters. A socket is an independently removable portable container; it can be fitted to any prototype frame regardless of which head is installed. Its standard portable-storage definition also works through native inventory nesting outside machinery; future host adapters can reuse this physical component rather than duplicate cargo ownership.
 4. Deploy a frame containing a solar module, controller and power connector. Deploy processing equipment within reach, and connect owned cables directly or through a router frame.
 5. Load refinery inputs into fitted canisters. Empty or matching canisters receive outputs; a consumed input canister can receive one of the outputs. Iron refining needs room for both iron and tailings. Regolith separation needs three output materials. No byproduct disappears.
 6. Deploy an extractor beside a registered finite source. Run `extract.iron`, `extract.ice` or `extract.regolith` to fill a fitted canister. Remove and carry that canister to a refinery.
