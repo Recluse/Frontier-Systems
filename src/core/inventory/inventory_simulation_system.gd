@@ -18,6 +18,7 @@ var _setup: ServiceResult
 var _world_storage: Dictionary = {}
 var _grips: PhysicalGripOwner
 var _health: HealthSimulationSystem
+var _tool_capability_provider: Callable
 ## Logical development targets; these are not inventory items or rigid bodies.
 const GRIP_TARGETS: Dictionary = {
 	"fixture.salvage-crate": {"position": [0, 0, 0], "movable": true, "required_force": 300000},
@@ -97,11 +98,21 @@ func active_tool(context: AuthenticatedCommandContext, required_tag: String) -> 
 			if binding["slot_id"] != body["active_hand_slot_id"] or _grip_slot_reserved(allowed.value, binding["slot_id"]):
 				continue
 			for item in record["ledger"]["items"]:
-				if item["item_id"] == binding["item_id"] and int(item["condition_permille"]) > 0:
+				if item["item_id"] == binding["item_id"]:
 					var definition: ServiceResult = _catalog.get_definition(item["definition_id"], int(item["definition_revision"]))
 					if definition.is_success and definition.value["tags"].has(required_tag):
-						return ServiceResult.success(item["item_id"])
+						if _tool_capability_provider.is_valid():
+							var capable: ServiceResult = _tool_capability_provider.call(item["item_id"], required_tag)
+							if capable.is_success and capable.value == true: return ServiceResult.success(item["item_id"])
+						elif int(item["condition_permille"]) > 0:
+							return ServiceResult.success(item["item_id"])
 	return _failure("Equip a usable matching tool in your active hand.")
+
+
+func bind_tool_capability_provider(provider: Callable) -> ServiceResult:
+	if _tool_capability_provider.is_valid() or not provider.is_valid(): return _failure("Bind one trusted tool capability owner.")
+	_tool_capability_provider = provider
+	return ServiceResult.success()
 
 
 ## Shared workstation gate: server-owned logical reach and manipulator availability.

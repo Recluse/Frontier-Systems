@@ -76,6 +76,9 @@ func _receive(frame: Dictionary) -> void:
 			_authenticated = true
 			server_slot = int(frame["slot"])
 		"observation":
+			if not ToolObservationValidation.valid(frame.get("tools")):
+				_socket.close(1008, "Invalid tool observation")
+				return
 			if not _authenticated or typeof(frame.get("production")) != TYPE_DICTIONARY or typeof(frame.get("inventory")) != TYPE_DICTIONARY or not InventorySpatialMath.is_position(frame.get("position")):
 				return
 			frame["position"] = InventorySpatialMath.normalized(frame["position"])

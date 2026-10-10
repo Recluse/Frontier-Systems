@@ -48,6 +48,14 @@ func to_record() -> Dictionary:
 	return _record.duplicate(true)
 
 
+func revision() -> int:
+	return int(_record["state_revision"])
+
+
+func has_assembly(id: String) -> bool:
+	return _record["assemblies"].has(id)
+
+
 ## Count each standalone part once, irrespective of mounting or detached location.
 func material_stock() -> Dictionary:
 	var stock: Dictionary = {}

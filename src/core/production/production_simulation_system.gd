@@ -19,6 +19,7 @@ var _catalog_fingerprint: String = ""
 var _state: Dictionary = {}
 var _inventory: InventorySimulationSystem
 var _blueprints := EquipmentBlueprintCatalog.new()
+var _tools: ToolSimulationSystem
 
 
 func _init() -> void:
@@ -26,7 +27,7 @@ func _init() -> void:
 	tick_priority = 300
 
 
-func configure(inventory: InventorySimulationSystem) -> ServiceResult:
+func configure(inventory: InventorySimulationSystem, tools: ToolSimulationSystem = null) -> ServiceResult:
 	if not _state.is_empty() or inventory == null:
 		return _failure("Configure one inventory capability provider.")
 	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/production/catalog.v1.json"))
@@ -38,6 +39,7 @@ func configure(inventory: InventorySimulationSystem) -> ServiceResult:
 	_catalog = raw.duplicate(true)
 	_catalog_fingerprint = JSON.stringify(_catalog, "", true, true).sha256_text()
 	_inventory = inventory
+	_tools = tools
 	var blueprints: ServiceResult = _blueprints.configure(JSON.parse_string(FileAccess.get_file_as_string("res://data/production/equipment-blueprints.v1.json")), inventory, _catalog["materials"])
 	if not blueprints.is_success:
 		return blueprints
@@ -202,6 +204,14 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 		return _failure("The production revision is stale or exhausted.")
 	var candidate: Dictionary = _state.duplicate(true)
 	var prepared_inventory: Dictionary = {}
+	var prepared_tools: ToolAssemblyLedger
+	if operation == "repair_tool_component":
+		if _tools == null or not _fields(payload, ["expected_revision", "expected_tool_revision", "part_id", "amount_ppm"]) or not ControlContractValidation.is_id(payload.get("part_id")) or not ControlContractValidation.is_integer(payload.get("amount_ppm"), 1, 1000000) or not ControlContractValidation.is_integer(payload.get("expected_tool_revision"), 0, MAX_REVISION): return _failure("Repair requires exact component identity, revisions and bounded integrity.")
+		var repair: ServiceResult = _tools.prepare_repair(context, payload["part_id"], int(payload["amount_ppm"]), int(payload["expected_tool_revision"]))
+		if not repair.is_success: return repair
+		if not candidate["powered"]["construction"] or int(candidate["energy_joules"]) < int(repair.value["energy_joules"]): return _failure("Maintenance requires workstation power and sufficient energy.")
+		candidate["energy_joules"] -= int(repair.value["energy_joules"])
+		prepared_tools = repair.value["ledger"]
 	if operation in ["fabricate_equipment", "salvage_equipment"]:
 		var factory: ServiceResult = _prepare_fabrication(candidate, context, request_id, operation, payload)
 		if not factory.is_success:
@@ -234,9 +244,18 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 		var carriers: ServiceResult = _inventory.owned_resource_carriers(context)
 		if not carriers.is_success or not carriers.value.has(payload.get("carrier_id")):
 			return _failure("Only a carrier in your own inventory may be filled or emptied.")
-	var applied: ServiceResult = ServiceResult.success() if not prepared_inventory.is_empty() else _plan(candidate, "extract" if operation == "tool_extract" else operation, payload)
+	var applied: ServiceResult = ServiceResult.success() if not prepared_inventory.is_empty() or prepared_tools != null else _plan(candidate, "extract" if operation == "tool_extract" else operation, payload)
 	if not applied.is_success:
 		return applied
+	if operation == "tool_extract" and _tools != null:
+		var active: ServiceResult = _inventory.active_tool(context, "tool.extractor")
+		var usage: ServiceResult = _tools.prepare_usage(active.value)
+		if not usage.is_success: return usage
+		prepared_tools = usage.value
+	if not prepared_inventory.is_empty() and _tools != null:
+		var sync: ServiceResult = _tools.prepare_inventory(prepared_inventory, candidate["structures"])
+		if not sync.is_success: return sync
+		prepared_tools = sync.value
 	candidate["state_revision"] = int(candidate["state_revision"]) + 1
 	var receipt: Dictionary = {"request_id": request_id, "fingerprint": fingerprint, "state_revision": candidate["state_revision"], "tick_number": tick}
 	candidate["receipts"].append(receipt)
@@ -253,6 +272,7 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 			_state = previous
 			return committed
 	# Derived caches only; all capacities were validated above without an await.
+	if prepared_tools != null: _tools.commit_prepared(prepared_tools)
 	_inventory.refresh_payload_loads()
 	return ServiceResult.success(receipt.duplicate(true))
 

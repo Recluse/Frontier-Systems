@@ -75,10 +75,13 @@ func _run() -> void:
 	capacity_command.operation = "fabricate_equipment"
 	capacity_command.payload = {"blueprint_id": "equipment.canister", "expected_revision": limited_production.capture_snapshot().value["state_revision"]}
 	var limited_before: Dictionary = limited_production.capture_snapshot().value
+	var limited_tools := limited.get_simulation_system(ToolSimulationSystem.SYSTEM_ID) as ToolSimulationSystem
+	var before_parts: Dictionary = limited_tools.capture_snapshot().value["ledger"]
 	limited.enqueue_command(capacity_command)
 	limited_runner._physics_process(1.0 / 60.0)
 	var limited_after: Dictionary = limited_production.capture_snapshot().value
 	_check(not capacity_result["result"].is_success and limited_after["store"] == limited_before["store"] and limited_after["energy_joules"] == limited_before["energy_joules"] and limited_after["structures"].is_empty(), "inventory capacity failure leaves resources, energy and equipment unchanged")
+	_check(before_parts == limited_tools.capture_snapshot().value["ledger"], "failed fabrication cannot leak tool parts")
 	limited.free()
 	var before_mass: int = int(_inventory.own_inventory_observation(_context).value["mass_milligrams"])
 	var payload: Dictionary = {"blueprint_id": "equipment.extractor", "expected_revision": _state()["state_revision"]}
@@ -131,6 +134,8 @@ func _run() -> void:
 	clone.free()
 	_command("salvage_equipment", {"item_id": "extractor-1"}, false)
 	_command("salvage_equipment", {"item_id": extractor})
+	var remaining_tools := _world.get_simulation_system(ToolSimulationSystem.SYSTEM_ID) as ToolSimulationSystem
+	_check(not remaining_tools.capture_snapshot().value["ledger"]["assemblies"].has(extractor), "whole-tool salvage removes its canonical component association")
 	_check(_inventory.own_inventory_observation(_context).value["equipped"].size() == 1 and _state()["store"]["iron"] == 1800000, "salvage releases tool equipment binding and restores construction iron")
 	_command("fabricate_equipment", {"blueprint_id": "equipment.canister"})
 	var canister: String = _state()["structures"].keys()[0]

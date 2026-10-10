@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:tool-inventory-bindings:v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "bindings"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "bindings": {
+      "type": "object", "maxProperties": 64,
+      "propertyNames": {"$ref": "#/$defs/id"},
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false,
+        "required": ["profile_id", "parts"],
+        "properties": {
+          "profile_id": {"$ref": "#/$defs/id"},
+          "parts": {
+            "type": "object", "maxProperties": 16,
+            "propertyNames": {"$ref": "#/$defs/id"},
+            "additionalProperties": {
+              "type": "array", "minItems": 2, "maxItems": 2,
+              "items": {"$ref": "#/$defs/id"}
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {"id": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S"}},
+  "description": "Trusted physical inventory definition -> assembly profile and slot -> [part definition, material grade]. Runtime validates catalog references, mounts and preserved shell/structure mass."
+}

@@ -43,3 +43,8 @@ See [equipment fabrication architecture](../architecture/equipment-fabrication.m
 ## Next milestone
 
 [Independent modular tool components](../architecture/modular-tool-components.md) are the next foundation: space-tier routine wear is low, with repair/replace/upgrade paths rather than disposable tools. Runtime component/inventory ownership and conserved structural migration must precede sustained extractor reservations and interruption recovery. Terrain excavation follows after the extraction/equipment route. Inventory child-container manufacturing (backpacks/pouches), arbitrary machine/vehicle assemblies, timed fabrication and production queues remain future extensions.
+
+
+## Follow-up: live components
+
+The [live tool condition and maintenance milestone](tool-maintenance-milestone.md) now supplies canonical fitted parts, saved condition, conservative completed-work wear and paid workstation maintenance. Detached physical part inventory and player replacement/upgrades remain next.

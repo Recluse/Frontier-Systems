@@ -26,7 +26,8 @@
         "recycle_component",
         "tool_extract",
         "fabricate_equipment",
-        "salvage_equipment"
+        "salvage_equipment",
+        "repair_tool_component"
       ]
     },
     "payload": {
@@ -348,6 +349,43 @@
         "properties": {
           "operation": {
             "const": "salvage_equipment"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "repair_tool_component"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "amount_ppm": {
+                "maximum": 1000000,
+                "type": "integer",
+                "minimum": 1
+              },
+              "part_id": {
+                "$ref": "#/$defs/id"
+              },
+              "expected_tool_revision": {
+                "maximum": 9007199254740000,
+                "type": "integer",
+                "minimum": 0
+              },
+              "expected_revision": {}
+            },
+            "unevaluatedProperties": false,
+            "required": [
+              "part_id",
+              "amount_ppm",
+              "expected_tool_revision"
+            ]
           }
         }
       }

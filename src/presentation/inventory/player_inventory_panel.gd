@@ -21,6 +21,8 @@ var _result := Label.new()
 var _buttons: Array[Button] = []
 var _pending: String = ""
 var _view_key: String = ""
+var _tools: Dictionary = {}
+var _tool_parts := OptionButton.new()
 
 
 func configure(remote: RemoteWorldRuntime) -> void:
@@ -33,7 +35,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_equipment)
 	_label("Browse container (double-click a backpack or pouch to open)")
 	add_child(_source)
-	_source.item_selected.connect(func(_index: int) -> void: _fill_items())
+	_source.item_selected.connect(func(_index: int) -> void: _fill_items(); _inspect())
 	_items.custom_minimum_size.y = 180
 	_items.item_selected.connect(func(_index: int) -> void: _inspect())
 	_items.item_activated.connect(_open_storage)
@@ -64,6 +66,9 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_deposit)
 	add_child(_carrier)
 	_button(self, "Extract 1 kg using active tool", _use_tool)
+	_label("Tool component maintenance · select a tool above, then a component")
+	add_child(_tool_parts)
+	_button(self, "Maintain selected component at workstation", _repair_component)
 	_label("Equip the extractor in a hand, make that hand active, carry a canister and approach the source. Mounted extraction remains available through Workstation. Crowbar world interactions are a later integration.")
 	add_child(_result)
 	remote.command_completed.connect(_completed)
@@ -81,10 +86,11 @@ func observe(frame: Dictionary) -> void:
 	_record = frame["inventory"]
 	_production = frame["production"]
 	_nearby = frame["world_items"]
+	_tools = frame.get("tools", {})
 	var world_containers: Array = []
 	for container in _nearby.get("containers", []):
 		world_containers.append(container["container_id"])
-	var view_key: String = JSON.stringify([_record["inventory_revision"], _record["mass_milligrams"], _production["state_revision"], world_containers])
+	var view_key: String = JSON.stringify([_record["inventory_revision"], _record["mass_milligrams"], _production["state_revision"], _tools.get("state_revision", -1), world_containers])
 	if view_key == _view_key:
 		return
 	_view_key = view_key
@@ -149,10 +155,12 @@ func _fill_items() -> void:
 func _inspect() -> void:
 	var id: String = _selected_id(_items)
 	_details.text = "Select an item to inspect its condition, mass and contents."
+	var selected_part: String = str(_tool_parts.get_item_metadata(_tool_parts.selected)) if _tool_parts.selected >= 0 else ""
+	_tool_parts.clear()
 	for detail in _record.get("item_details", []):
 		if detail["item"]["item_id"] != id:
 			continue
-		_details.text = "%s · condition %d%% · loaded mass %.2f kg\nVolume: %.2f L" % [_item_name(id), int(detail["item"]["condition_permille"]) / 10, float(detail["mass_milligrams"]) / 1000000.0, float(detail["volume_millilitres"]) / 1000.0]
+		_details.text = "%s · legacy shell condition %d%% · loaded mass %.2f kg\nVolume: %.2f L" % [_item_name(id), int(detail["item"]["condition_permille"]) / 10, float(detail["mass_milligrams"]) / 1000000.0, float(detail["volume_millilitres"]) / 1000.0]
 		for container in _record.get("container_records", []):
 			if container["owner_item_id"] == id:
 				_details.text += "\nStorage: %.2f / %.2f kg · %.2f / %.2f L" % [float(container["load"]["mass_milligrams"]) / 1000000.0, float(container["capacity"]["max_mass_milligrams"]) / 1000000.0, float(container["load"]["volume_millilitres"]) / 1000.0, float(container["capacity"]["max_volume_millilitres"]) / 1000.0]
@@ -164,6 +172,17 @@ func _inspect() -> void:
 			_details.text += "\nRecoverable construction materials:"
 			for material in _production["structures"][id]["materials"]:
 				_details.text += " %s %.2f kg" % [material, float(_production["structures"][id]["materials"][material]) / 1000000.0]
+	for assembly in _tools.get("assemblies", []):
+		if assembly["assembly_id"] != id: continue
+		_details.text += "\nComponent condition (authoritative):"
+		for part in assembly["parts"]:
+			var text: String = "%s · %s · %.4f%%" % [part["name"], part["material_name"], float(part["integrity_ppm"]) / 10000.0]
+			_details.text += "\n" + text
+			_tool_parts.add_item(text)
+			_tool_parts.set_item_metadata(_tool_parts.item_count - 1, part["part_id"])
+			if part["part_id"] == selected_part: _tool_parts.select(_tool_parts.item_count - 1)
+		for action in assembly["actions"]:
+			_details.text += "\n%s: %s" % [action, "available" if assembly["actions"][action]["available"] else "missing " + ", ".join(PackedStringArray(assembly["actions"][action]["missing_functions"]))]
 
 
 func _open_storage(index: int) -> void:
@@ -220,6 +239,13 @@ func _use_tool() -> void:
 
 func switch_active_hand() -> void:
 	_self_action("switch_hand")
+
+
+func _repair_component() -> void:
+	if _tool_parts.selected < 0 or _tools.is_empty():
+		_result.text = "Select a tool and component first."
+		return
+	_submit("repair_tool_component", {"part_id": _tool_parts.get_item_metadata(_tool_parts.selected), "amount_ppm": 1000000, "expected_revision": _production["state_revision"], "expected_tool_revision": _tools["state_revision"]}, true)
 
 
 func use_active_tool() -> void:

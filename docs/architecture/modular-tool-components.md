@@ -6,7 +6,7 @@ Every tool must be composed from separately identifiable components that can be 
 
 ## Implemented domain foundation
 
-`src/core/tools/` provides ToolComponentCatalog, independent ToolPartState and ToolAssemblyLedger. These are reusable RefCounted domain types with exact versioned records and detached transaction plans. They are **not yet registered as a world simulation owner**, and current live extractor/crowbar items still use the existing inventory condition model. This slice does not claim live repair/upgrade UI, sustained extraction, part inventory transactions or world persistence integration.
+`src/core/tools/` provides ToolComponentCatalog, independent ToolPartState and ToolAssemblyLedger. These are reusable RefCounted domain types with exact versioned records and detached transaction plans. ToolSimulationSystem now registers their live inventory associations and component condition. See [live condition and maintenance](../development/tool-maintenance-milestone.md) for ownership, energy settlement, inspection, completed-work wear and migration. Physical part inventory, live replacement/upgrades and sustained extraction remain pending.
 
 The trusted `data/tools/catalog.v1.json` defines:
 
@@ -28,7 +28,7 @@ Mounting checks intersecting physical interface IDs. It does not require a part 
 
 Operational installed parts contribute function grants. Prerequisites resolve through a bounded monotonic dependency closure; cyclic grants cannot power themselves. Disabled parts remain fitted and retain material but do not supply functions. Missing functions are reported for each action, so removing an optional controller removes automation/scanning while leaving other capabilities available.
 
-A drive's presence is a capability prerequisite, **not proof of live electrical supply**. The future world owner must still check actual power, tools, targets, environment, consciousness, permissions and work reservations.
+A drive's presence is a capability prerequisite, **not proof of live electrical supply**. The world owner must still check actual power, tools, targets, environment, consciousness, permissions and work reservations.
 
 ## Wear, damage and maintenance
 
@@ -42,7 +42,7 @@ Maintenance plans restore bounded integrity and quote energy. The owning system 
 
 Plans carry expected revision, validated next record and required energy. Adoption accepts only the next revision and revalidates the pinned catalog, parts and mounts. These APIs are trusted internal preparation hooks, **not client RPC endpoints or proof of authorization/payment**. The owner must settle energy, resource, inventory and assembly records atomically; no external callback may mutate them.
 
-JSON schemas: tool-component-catalog-v1, tool-part-v1 and tool-assembly-ledger-v1. A ledger pins the normalized catalog fingerprint; definition changes require explicit migration. Bounds: 64 definitions per catalog registry, 512 parts, 64 assemblies, 16 slots per tool, 32 functions per part/action registry, 32 prerequisites per function and 10,000 cycles per usage plan. The current world snapshot remains unchanged.
+JSON schemas: tool-component-catalog-v1, tool-part-v1 and tool-assembly-ledger-v1. A ledger pins the normalized catalog fingerprint; definition changes require explicit migration. Bounds: 64 definitions per catalog registry, 512 parts, 64 assemblies, 16 slots per tool, 32 functions per part/action registry, 32 prerequisites per function and 10,000 cycles per usage plan. World snapshots now include tool-system v1; bindings and scoped observation schemas document the live integration.
 
 ## Required integration order
 
@@ -55,4 +55,4 @@ JSON schemas: tool-component-catalog-v1, tool-part-v1 and tool-assembly-ledger-v
 
 ## Verification scope
 
-Godot editor import, affected-script parsing, JSON syntax and diff whitespace checks were performed. The owner subsequently requested CI verification. tool_components_test.gd now passes locally and covers mounting, replacement without material loss, partial functionality, automation, space-tier and fractional wear, damage/maintenance, stale plans and JSON restore. Interactive runtime integration is still pending. Before runtime integration, verify compatible/nonsensical mounts, duplicate ownership rejection, disabled capability loss, cycles, wear batching/remainders, repair energy settlement, replacement material conservation and restore. Existing equipment fabrication acceptance evidence does not verify this new domain model.
+Godot editor import, affected-script parsing, JSON syntax and diff whitespace checks were performed. The owner subsequently requested CI verification. tool_components_test.gd now passes locally and covers mounting, replacement without material loss, partial functionality, automation, space-tier and fractional wear, damage/maintenance, stale plans and JSON restore. Live component integration is now covered by tool_runtime_test.gd and the cooperative equipment route; see the maintenance milestone for exact evidence and limits. Before runtime integration, verify compatible/nonsensical mounts, duplicate ownership rejection, disabled capability loss, cycles, wear batching/remainders, repair energy settlement, replacement material conservation and restore. Existing equipment fabrication acceptance evidence does not verify this new domain model.

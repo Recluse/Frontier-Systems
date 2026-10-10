@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "bindings": {
+    "item.extractor.prototype": {"profile_id":"tool.extractor","parts":{"frame":["part.frame","grade.iron.space"],"head":["part.head.multipurpose","grade.iron.space"],"drive":["part.drive","grade.iron.space"]}},
+    "item.extractor.fabricated": {"profile_id":"tool.extractor","parts":{"frame":["part.frame","grade.iron.space"],"head":["part.head.multipurpose","grade.iron.space"],"drive":["part.drive","grade.iron.space"]}},
+    "item.crowbar.prototype": {"profile_id":"tool.crowbar","parts":{"handle":["part.lever-shaft","grade.iron.space"],"head":["part.lever","grade.iron.space"]}}
+  }
+}

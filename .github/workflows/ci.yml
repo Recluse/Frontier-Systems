@@ -151,6 +151,9 @@ jobs:
       - name: Check standalone tool parts and modular assembly plans
         run: godot --headless --path . --script res://tests/godot/tool_components_test.gd
 
+      - name: Check live tool wear, paid maintenance and snapshot migration
+        run: godot --headless --path . --script res://tests/godot/tool_runtime_test.gd
+
       - name: Check machine module import and compatibility contracts
         run: godot --headless --path . --script res://tests/godot/machine_module_contracts_test.gd
 

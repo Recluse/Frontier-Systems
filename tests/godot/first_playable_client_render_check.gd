@@ -115,6 +115,18 @@ func _equipment_route(client: FirstPlayableBootstrap) -> bool:
 		push_error("Graphical fabricated carrier nesting/inspection failed: " + inventory._result.text)
 		return false
 	print("Graphical equipment route: fabricate, load, move into backpack and inspect structural/contents mass passed.")
+	for index in range(inventory._items.item_count):
+		if inventory._items.get_item_metadata(index)["item_id"] == "extractor-1":
+			inventory._items.select(index)
+			inventory._inspect()
+	if inventory._tool_parts.item_count != 3 or not inventory._details.text.contains("Component condition (authoritative)"):
+		push_error("Graphical tool component inspection failed.")
+		return false
+	print("Graphical tool inspection: scoped extractor frame/head/drive condition and actions passed.")
+	for index in range(inventory._items.item_count):
+		if inventory._items.get_item_metadata(index)["item_id"] == id:
+			inventory._items.select(index)
+			inventory._inspect()
 	return true
 
 

@@ -19,6 +19,7 @@ var _control_setup_result: ServiceResult
 var _inventory_setup_result: ServiceResult
 var _health_setup_result: ServiceResult
 var _production_setup_result: ServiceResult
+var _tool_setup_result: ServiceResult
 
 
 func _ready() -> void:
@@ -48,15 +49,21 @@ func _ready() -> void:
 	if _health_setup_result.is_success:
 		_health_setup_result = inventory_system.bind_health(health_system)
 	_simulation_runner.add_child(health_system)
+	var tool_system := ToolSimulationSystem.new()
+	tool_system.name = "ToolSimulationSystem"
+	_tool_setup_result = tool_system.configure(inventory_system)
+	_simulation_runner.add_child(tool_system)
 	var production_system := ProductionSimulationSystem.new()
 	production_system.name = "ProductionSimulationSystem"
-	_production_setup_result = production_system.configure(inventory_system)
+	_production_setup_result = production_system.configure(inventory_system, tool_system)
 	_simulation_runner.add_child(production_system)
 	_simulation_runner.external_command_completed.connect(_on_external_command_completed)
 	add_child(_simulation_runner)
 
 
 func start_simulation() -> ServiceResult:
+	if _tool_setup_result == null or not _tool_setup_result.is_success:
+		return ServiceResult.failure(&"tools_setup_failed", "Tool component bindings must initialize before starting.")
 	if _production_setup_result == null or not _production_setup_result.is_success:
 		return ServiceResult.failure(&"production_setup_failed", "The production catalog and stores must initialize before starting.")
 	if _health_setup_result == null or not _health_setup_result.is_success:
@@ -264,6 +271,11 @@ func restore_world_snapshot(snapshot: WorldSnapshot) -> ServiceResult:
 		if production == null:
 			return ServiceResult.failure(&"production_migration_failed", "Production migration requires its trusted catalog.")
 		system_records["production"] = production.initial_record(normalized.tick_number)
+	if not system_records.has("tools"):
+		var tools := get_simulation_system(ToolSimulationSystem.SYSTEM_ID) as ToolSimulationSystem
+		var migration: ServiceResult = tools.migrate_inventory(system_records["inventory"]["owner"], normalized.tick_number)
+		if not migration.is_success: return migration
+		system_records["tools"] = migration.value
 	var link_validation: ServiceResult = _validate_cross_system_state(system_records, normalized.tick_number)
 	if not link_validation.is_success:
 		return link_validation
@@ -326,4 +338,10 @@ func _validate_cross_system_state(system_records: Dictionary, snapshot_tick_numb
 	var valid_production: ServiceResult = production.validate_snapshot_record(system_records["production"], snapshot_tick_number)
 	if not valid_production.is_success:
 		return valid_production
-	return production.validate_inventory_links(valid_production.value, inventory_record)
+	var production_links: ServiceResult = production.validate_inventory_links(valid_production.value, inventory_record)
+	if not production_links.is_success: return production_links
+	var tools := get_simulation_system(ToolSimulationSystem.SYSTEM_ID) as ToolSimulationSystem
+	if tools == null or typeof(system_records.get("tools")) != TYPE_DICTIONARY:
+		return ServiceResult.failure(&"invalid_tool_links", "World snapshots require tool condition ownership.")
+	var valid_tools: ServiceResult = tools.validate_snapshot_record(system_records["tools"], snapshot_tick_number)
+	return tools.validate_inventory_links(valid_tools.value, inventory_record["owner"], valid_production.value["structures"]) if valid_tools.is_success else valid_tools

@@ -167,13 +167,15 @@ func _publish(id: int) -> void:
 	var own: ServiceResult = inventory.own_inventory_observation(context, true)
 	var position: ServiceResult = inventory.own_position(context)
 	var world_items: ServiceResult = inventory.world_inventory_observation(context)
+	var tools := _world.get_simulation_system(ToolSimulationSystem.SYSTEM_ID) as ToolSimulationSystem
+	var tool_view: ServiceResult = tools.observation(context)
 	if production.is_success and own.is_success and position.is_success:
 		var players: Array = []
 		for peer in _peers.values():
 			if peer["slot"] >= 0:
 				var peer_position: ServiceResult = inventory.own_position(_context(peer["slot"]))
 				players.append({"slot": peer["slot"], "position": peer_position.value})
-		_send(id, {"type": "observation", "tick_number": _world.current_tick_number(), "production": production.value, "inventory": own.value, "position": position.value, "players": players, "persistence": persistence.status() if persistence != null else {}, "world_items": world_items.value if world_items.is_success else {}})
+		_send(id, {"type": "observation", "tick_number": _world.current_tick_number(), "production": production.value, "tools": tool_view.value if tool_view.is_success else {}, "inventory": own.value, "position": position.value, "players": players, "persistence": persistence.status() if persistence != null else {}, "world_items": world_items.value if world_items.is_success else {}})
 
 
 func _send(id: int, value: Dictionary) -> void:

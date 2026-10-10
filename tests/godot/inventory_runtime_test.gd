@@ -74,6 +74,7 @@ func _run() -> void:
 	_check(not reject.restore_world_snapshot_json(JSON.stringify(invalid)).is_success and reject.capture_world_snapshot_json().value == before, "invalid future job epoch must reject world restore atomically")
 	var legacy: Dictionary = JSON.parse_string(saved)
 	legacy["systems"].erase("inventory")
+	legacy["systems"].erase("tools") # This fixture predates both physical inventories and tool assemblies.
 	legacy["systems"].erase("health")
 	var old_world: WorldRuntime = _world(false)
 	_check(old_world.restore_world_snapshot_json(JSON.stringify(legacy)).is_success, "older worlds must migrate an empty inventory system")
