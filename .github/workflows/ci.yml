@@ -135,6 +135,9 @@ jobs:
       - name: Start the client-independent runtime headlessly
         run: godot --headless --path . --quit-after 2
 
+      - name: Check cooperative first playable and durable restart continuation
+        run: godot --headless --xr-mode off --path . --script res://tests/godot/first_playable_acceptance.gd
+
       - name: Check machine module import and compatibility contracts
         run: godot --headless --path . --script res://tests/godot/machine_module_contracts_test.gd
 

@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "owner_id": "inventory.shared.prototype",
+  "state_revision": 0,
+  "ledger": {
+    "schema_version": 1,
+    "ledger_id": "inventory.prototype",
+    "state_revision": 0,
+    "containers": [
+      {
+        "container_id": "body.human-1",
+        "owner_item_id": "",
+        "capacity": {
+          "max_mass_milligrams": 40000000,
+          "max_volume_millilitres": 100000,
+          "max_items": 32,
+          "accepted_tags": [
+            "item.handheld",
+            "storage.portable"
+          ]
+        }
+      },
+      {
+        "container_id": "world.tray-1",
+        "owner_item_id": "",
+        "capacity": {
+          "max_mass_milligrams": 100000000,
+          "max_volume_millilitres": 200000,
+          "max_items": 64,
+          "accepted_tags": [
+            "item.handheld",
+            "storage.portable"
+          ]
+        }
+      },
+      {
+        "container_id": "storage.backpack-1",
+        "owner_item_id": "backpack-1",
+        "capacity": {
+          "max_mass_milligrams": 15000000,
+          "max_volume_millilitres": 18000,
+          "max_items": 16,
+          "accepted_tags": [
+            "item.handheld",
+            "storage.portable"
+          ]
+        }
+      },
+      {
+        "container_id": "storage.pouch-1",
+        "owner_item_id": "pouch-1",
+        "capacity": {
+          "max_mass_milligrams": 5000000,
+          "max_volume_millilitres": 1500,
+          "max_items": 4,
+          "accepted_tags": [
+            "item.handheld"
+          ]
+        }
+      },
+      {
+        "container_id": "body.human-2",
+        "owner_item_id": "",
+        "capacity": {
+          "max_mass_milligrams": 40000000,
+          "max_volume_millilitres": 100000,
+          "max_items": 32,
+          "accepted_tags": [
+            "item.handheld",
+            "storage.portable"
+          ]
+        }
+      },
+      {
+        "container_id": "storage.backpack-2",
+        "owner_item_id": "backpack-2",
+        "capacity": {
+          "max_mass_milligrams": 15000000,
+          "max_items": 16,
+          "max_volume_millilitres": 18000,
+          "accepted_tags": [
+            "item.handheld",
+            "storage.portable"
+          ]
+        }
+      }
+    ],
+    "items": [
+      {
+        "item_id": "backpack-1",
+        "definition_id": "item.backpack.prototype",
+        "definition_revision": 1,
+        "condition_permille": 850,
+        "container_id": "body.human-1"
+      },
+      {
+        "item_id": "pouch-1",
+        "definition_id": "item.pouch.prototype",
+        "definition_revision": 1,
+        "condition_permille": 900,
+        "container_id": "storage.backpack-1"
+      },
+      {
+        "item_id": "crowbar-1",
+        "definition_id": "item.crowbar.prototype",
+        "definition_revision": 1,
+        "condition_permille": 750,
+        "container_id": "storage.pouch-1"
+      },
+      {
+        "item_id": "resource-canister-1",
+        "definition_id": "item.resource-canister.prototype",
+        "definition_revision": 1,
+        "condition_permille": 1000,
+        "container_id": "body.human-2"
+      },
+      {
+        "item_id": "resource-canister-2",
+        "definition_id": "item.resource-canister.prototype",
+        "definition_revision": 1,
+        "condition_permille": 1000,
+        "container_id": "world.tray-1"
+      },
+      {
+        "definition_revision": 1,
+        "definition_id": "item.backpack.prototype",
+        "container_id": "body.human-2",
+        "condition_permille": 1000,
+        "item_id": "backpack-2"
+      },
+      {
+        "definition_revision": 1,
+        "definition_id": "item.extractor.prototype",
+        "container_id": "storage.backpack-2",
+        "condition_permille": 1000,
+        "item_id": "extractor-1"
+      },
+      {
+        "definition_revision": 1,
+        "definition_id": "item.extractor.prototype",
+        "container_id": "storage.backpack-1",
+        "condition_permille": 1000,
+        "item_id": "extractor-2"
+      }
+    ]
+  },
+  "bodies": [
+    {
+      "schema_version": 1,
+      "body_id": "body.human-1",
+      "state_revision": 0,
+      "profile_id": "inventory.body.human",
+      "profile_revision": 1,
+      "body_container_id": "body.human-1",
+      "active_hand_slot_id": "hand.left",
+      "equipped": [
+        {
+          "slot_id": "back",
+          "item_id": "backpack-1"
+        }
+      ]
+    },
+    {
+      "schema_version": 1,
+      "body_id": "body.human-2",
+      "state_revision": 0,
+      "profile_id": "inventory.body.human",
+      "profile_revision": 1,
+      "body_container_id": "body.human-2",
+      "active_hand_slot_id": "hand.left",
+      "equipped": [
+        {
+          "item_id": "backpack-2",
+          "slot_id": "back"
+        }
+      ]
+    }
+  ],
+  "receipts": []
+}

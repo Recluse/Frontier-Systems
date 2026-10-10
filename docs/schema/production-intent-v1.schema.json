@@ -1,0 +1,312 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:production-intent:v1",
+  "title": "Production command intent v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operation",
+    "payload"
+  ],
+  "properties": {
+    "operation": {
+      "enum": [
+        "extract",
+        "mine",
+        "process",
+        "cancel",
+        "dispense",
+        "return",
+        "build",
+        "deconstruct",
+        "power",
+        "load_cargo",
+        "unload_cargo",
+        "materialize_plate",
+        "recycle_component",
+        "tool_extract"
+      ]
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "expected_revision"
+      ],
+      "properties": {
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740000
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "enum": [
+              "extract",
+              "tool_extract"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "deposit_id",
+              "carrier_id",
+              "amount_milligrams"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "deposit_id": {
+                "$ref": "#/$defs/id"
+              },
+              "carrier_id": {
+                "$ref": "#/$defs/id"
+              },
+              "amount_milligrams": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1000000
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "enum": [
+              "load_cargo",
+              "unload_cargo"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "carrier_id",
+              "material",
+              "amount_milligrams"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "carrier_id": {
+                "$ref": "#/$defs/id"
+              },
+              "material": {
+                "$ref": "#/$defs/id"
+              },
+              "amount_milligrams": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2000000
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "mine"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "deposit_id"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "deposit_id": {
+                "$ref": "#/$defs/id"
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "process"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "recipe_id"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "recipe_id": {
+                "$ref": "#/$defs/id"
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "enum": [
+              "cancel",
+              "build",
+              "deconstruct"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "maxProperties": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "enum": [
+              "dispense",
+              "return"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "material",
+              "amount_milligrams"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "material": {
+                "$ref": "#/$defs/id"
+              },
+              "amount_milligrams": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2000000
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "power"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "station",
+              "enabled"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "station": {
+                "enum": [
+                  "drill",
+                  "refinery",
+                  "chemical",
+                  "printer",
+                  "recycler",
+                  "dispenser",
+                  "construction"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "materialize_plate"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "maxProperties": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "recycle_component"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "item_id"
+            ],
+            "properties": {
+              "item_id": {
+                "$ref": "#/$defs/id"
+              },
+              "expected_revision": {}
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    }
+  },
+  "description": "Typed intent wrapped by local or server-authenticated command submission. Clients cannot supply principals or grants. Runtime checks exact fields, ownership, current revision, reach and resource capacities."
+}

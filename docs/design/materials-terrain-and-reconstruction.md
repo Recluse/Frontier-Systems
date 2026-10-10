@@ -80,6 +80,10 @@ The first model conserves transferred bulk mass. Chemical/element balances, gas 
 
 All stages share the material model and authoritative command path, including automation and LLM-controlled workers. Providers may propose work orders; they cannot create matter or bypass construction requirements.
 
-## Checks
+## Workstation gameplay implementation
+
+The [production runtime](../architecture/production-gameplay-loop.md) now implements finite fixture mining, reserved refining/chemical/printing batches, a shared chemical dispenser, wall construction/deconstruction and plate recycling with conserved mass and persistent state. These resources are owned by production bulk storage; portable inventory materials and freeform terrain remain separate future integrations.
+
+## Terrain contract checks
 
 `tests/godot/terrain_material_contracts_test.gd` exercises default fixture import, detached catalog reads, derived volume, excavation/fill conservation, unchanged source state, JSON recovery, unknown/mismatched materials, invalid quantities, overflow and revision exhaustion. Windows Godot 4.7.2 import and the focused script passed locally. Windows/Ubuntu CI includes the script; Linux execution remains unverified locally.

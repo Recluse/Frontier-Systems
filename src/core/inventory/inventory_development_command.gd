@@ -1,7 +1,8 @@
 extends SimulationCommand
 class_name InventoryDevelopmentCommand
 
-## Closed local fixture command surface; no production session accepts these intents.
+## Typed fixture intents. The first playable host binds authenticated contexts itself;
+## remote clients cannot supply principals, sessions, grants or authoritative records.
 var operation: String = ""
 var payload: Dictionary = {}
 

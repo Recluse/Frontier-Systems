@@ -5,6 +5,33 @@ class_name InventoryItemCatalog
 const MAX_EXACT_INTEGER: int = 9007199254740990
 const MAX_DEFINITIONS: int = 4096
 var _definitions: Dictionary = {}
+var _payload_mass_provider: Callable
+var _payload_mass_override: Dictionary = {}
+var _has_mass_override: bool = false
+
+
+## Trusted component owner only; payloads are never supplied by transport clients.
+func bind_payload_mass_provider(provider: Callable) -> ServiceResult:
+	if _payload_mass_provider.is_valid() or not provider.is_valid():
+		return ServiceResult.failure(&"payload_mass_binding", "Bind one canonical payload mass provider.")
+	_payload_mass_provider = provider
+	return ServiceResult.success()
+
+
+func payload_mass(item_id: String) -> ServiceResult:
+	var value: Variant = _payload_mass_override.get(item_id, 0) if _has_mass_override else (_payload_mass_provider.call(item_id) if _payload_mass_provider.is_valid() else 0)
+	if not ControlContractValidation.is_integer(value, 0, MAX_EXACT_INTEGER):
+		return ServiceResult.failure(&"payload_mass_invalid", "Payload mass must be bounded integral milligrams.")
+	return ServiceResult.success(int(value))
+
+
+## Disposable prospective view for atomic transaction/restore capacity checks.
+func with_payload_masses(masses: Dictionary) -> InventoryItemCatalog:
+	var view := InventoryItemCatalog.new()
+	view._definitions = _definitions.duplicate(false)
+	view._payload_mass_override = masses.duplicate(true)
+	view._has_mass_override = true
+	return view
 
 
 func register_definition(record: Dictionary) -> ServiceResult:

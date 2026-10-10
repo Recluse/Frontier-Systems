@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:production-system:v2",
+  "title": "Finite production with portable cargo v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalog_revision",
+    "catalog_fingerprint",
+    "timebase_hz",
+    "last_tick",
+    "state_revision",
+    "deposits",
+    "store",
+    "vessel",
+    "wall_mass_milligrams",
+    "energy_joules",
+    "powered",
+    "job",
+    "receipts",
+    "cargo"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "catalog_revision": {
+      "const": 1
+    },
+    "catalog_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timebase_hz": {
+      "enum": [
+        60,
+        72,
+        90
+      ]
+    },
+    "last_tick": {
+      "$ref": "#/$defs/revision"
+    },
+    "state_revision": {
+      "$ref": "#/$defs/revision"
+    },
+    "deposits": {
+      "$ref": "#/$defs/stock"
+    },
+    "store": {
+      "$ref": "#/$defs/stock"
+    },
+    "vessel": {
+      "$ref": "#/$defs/stock"
+    },
+    "wall_mass_milligrams": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000000,
+      "multipleOf": 1000000
+    },
+    "energy_joules": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000
+    },
+    "powered": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill",
+        "refinery",
+        "chemical",
+        "printer",
+        "recycler",
+        "dispenser",
+        "construction"
+      ],
+      "properties": {
+        "drill": {
+          "type": "boolean"
+        },
+        "refinery": {
+          "type": "boolean"
+        },
+        "chemical": {
+          "type": "boolean"
+        },
+        "printer": {
+          "type": "boolean"
+        },
+        "recycler": {
+          "type": "boolean"
+        },
+        "dispenser": {
+          "type": "boolean"
+        },
+        "construction": {
+          "type": "boolean"
+        }
+      }
+    },
+    "job": {
+      "oneOf": [
+        {
+          "type": "object",
+          "maxProperties": 0
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "recipe_id",
+            "deposit_id",
+            "station",
+            "inputs",
+            "outputs",
+            "remaining_ticks"
+          ],
+          "properties": {
+            "recipe_id": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "deposit_id": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "station": {
+              "enum": [
+                "drill",
+                "refinery",
+                "chemical",
+                "printer",
+                "recycler",
+                "dispenser",
+                "construction"
+              ]
+            },
+            "inputs": {
+              "$ref": "#/$defs/stock"
+            },
+            "outputs": {
+              "$ref": "#/$defs/stock"
+            },
+            "remaining_ticks": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 36000
+            }
+          }
+        }
+      ]
+    },
+    "receipts": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "request_id",
+          "fingerprint",
+          "state_revision",
+          "tick_number"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "state_revision": {
+            "$ref": "#/$defs/revision"
+          },
+          "tick_number": {
+            "$ref": "#/$defs/revision"
+          }
+        }
+      }
+    },
+    "cargo": {
+      "maxProperties": 32,
+      "propertyNames": {
+        "minLength": 1,
+        "maxLength": 128,
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/stock"
+      },
+      "type": "object"
+    }
+  },
+  "$defs": {
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740000
+    },
+    "stock": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100000000
+      }
+    }
+  },
+  "description": "Canonical production record. Cargo maps actual canister or physical plate item IDs to payload mass. Runtime cross-validates inventory identity/definition, capacities and the conserved 25 kg budget. A plate payload must contain exactly 1 kg plate; base item mass excludes this payload."
+}

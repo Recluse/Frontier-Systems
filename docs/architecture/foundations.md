@@ -1,5 +1,7 @@
 # Runtime foundations
 
+> Current cooperative prototype status (2026-10-10): see [agent handoff](../development/FIRST_PLAYABLE_HANDOFF.md) and [acceptance evidence](../development/first-playable-acceptance.md). Older sections describe their original development slices; the separate first-playable scene adds authenticated networking, physical production items and durable checkpoints.
+
 [Localized injuries](localized-injuries.md) now provide part-specific blunt/burn records, oxygen injury, trusted queued changes and derived knockout causes connected to inventory incapacity. V2 health snapshots preserve damage and migrate v1 sources; physical impact, finite treatment resources and player UI remain pending.
 
 [Public server status](public-server-status.md) now has a separate bounded promise-based PHP cache and safe Twitch channel projections, with freshness, source scope and rebind-race checks. TwitchPHP is the preferred future OAuth/Helix/EventSub provider; live service/panel wiring remains pending.
@@ -145,6 +147,10 @@ DiscordPHP and the Discord Social SDK belong behind a separate PHP/client adapte
 
 The first prototype intentionally rejects external command ingress when its configured queue is full. Production adapters must surface that rejection to the requester, apply rate limits, and record it. Commands are typed `SimulationCommand` objects and are revalidated immediately before application. Do not silently drop a command or run it on an arbitrary callback thread.
 
-## Foundation limitations
+## Production gameplay
+
+The [finite production loop](production-gameplay-loop.md) is registered in client and headless worlds. It provides shared fixture mining, refining, chemical processing/dispensing, crafting, construction/deconstruction and recycling, with reserved batches and persistent material/energy state. The [portable resource bridge](portable-resource-carriers.md) attaches payloads to physical inventory canisters and includes their mass in carried/equipment capacities. Atmospheric construction and network sessions remain separate integrations.
+
+## Wider foundation limitations
 
 The current code is a local prototype, not the persistence/networking implementation. The client can submit airlock and bypass-job commands through the fixed-tick queue and observe pressure/access state; both simulation systems have versioned snapshot contracts, but no durable world record or database integration exists. There is no player movement, network session, blueprint loader, actor authentication, or reconnect flow yet. The access-control slice uses synthetic debug tool IDs and session-provided verified tool IDs; it has no authoritative inventory, spatial/panel access, real ACL policy evaluator, repairable bypass faults, or electrical hazard model. Mechanical bypass releases a latch but does not force an unsafe door open. The pressure solver is an isothermal ideal-gas demonstration, not the production gas/liquid network. Durable world storage, schema migrations, authoritative multiplayer replication, identity/ACLs, blueprint contracts, deterministic automation DSL, Discord Social SDK flows, Steam lobby/multiplayer provider methods, and LLM tool schemas need dedicated implementation contracts before production use. The first survival, pressure, docking, and salvage rules are captured in `docs/design/survival-pressure-and-recovery.md`.

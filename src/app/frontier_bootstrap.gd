@@ -57,6 +57,7 @@ func _resolve_runtime_mode() -> RuntimeMode:
 
 func _start_world_runtime() -> void:
 	_world_runtime = WorldRuntime.new()
+	_world_runtime.resource_carriers_enabled = true
 	_world_runtime.name = "WorldRuntime"
 	_world_runtime.command_completed.connect(_on_command_completed)
 	add_child(_world_runtime)
@@ -88,7 +89,7 @@ func _create_client_status_view() -> void:
 	screen.add_child(_overlay_layout_host)
 	var view_column := VBoxContainer.new()
 	var view_help := Label.new()
-	view_help.text = "Right-drag to look; overview wheel to zoom. Walk: WASD, Shift, Space. Free look also uses Q/E. Escape releases mouse."
+	view_help.text = "Use configured controls to look, move and zoom. Hold the UI cursor key (default Left Alt) for panels; Controls settings changes bindings."
 	if not _xr_startup_status.is_empty():
 		view_help.text = _xr_startup_status + "\n" + view_help.text
 	view_help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -137,6 +138,13 @@ func _create_client_status_view() -> void:
 	content.add_child(layout_controller)
 	var section_controller := OverlaySectionController.new()
 	content.add_child(section_controller)
+	var controls_toggle := Button.new()
+	controls_toggle.text = "Controls settings"
+	content.add_child(controls_toggle)
+	var controls_panel := PlayerControlsPanel.new()
+	controls_panel.visible = false
+	content.add_child(controls_panel)
+	controls_toggle.pressed.connect(func() -> void: controls_panel.visible = not controls_panel.visible)
 
 	var title := Label.new()
 	title.text = "Frontier Systems"
@@ -253,6 +261,11 @@ func _create_client_status_view() -> void:
 	var health_panel_result: ServiceResult = health_panel.configure(_world_runtime)
 	if not health_panel_result.is_success:
 		push_warning("Health panel setup failed: %s" % health_panel_result.error_code)
+	var production_panel := LocalProductionPanel.new()
+	_inventory_panel.add_child(production_panel)
+	var production_panel_result: ServiceResult = production_panel.configure(_world_runtime)
+	if not production_panel_result.is_success:
+		push_warning("Production panel setup failed: %s" % production_panel_result.error_code)
 	_register_overlay_section("hud.status", "Pressure and alarms", [_pressure_status_label, _alarm_indicator], false)
 	_register_overlay_section("hud.airlock", "Airlock controls", [actions])
 	var inventory_section: ServiceResult = _overlay_section_stack.register_section("hud.inventory", "Local inventory demo", _inventory_panel)
@@ -280,13 +293,21 @@ func _create_client_status_view() -> void:
 		_habitat_preview.world_inventory.pickup_requested.connect(_inventory_panel.collect_world_item)
 		_inventory_body_adapter = LocalInventoryBodyAdapter.new()
 		add_child(_inventory_body_adapter)
-		var adapter_result: ServiceResult = _inventory_body_adapter.configure(_world_runtime, _habitat_preview.character, ProceduralWorldInventoryPreview.DISPLAY_ORIGIN)
+		var adapter_result: ServiceResult = _inventory_body_adapter.configure(_world_runtime, _habitat_preview.character, ProceduralWorldInventoryPreview.DISPLAY_ORIGIN, true)
 		if adapter_result.is_success:
 			var link := CheckButton.new()
 			link.text = "Link inventory actor to walker (local development)"
-			link.tooltip_text = "Opt in to queued logical position updates from this local capsule. This is not network movement authority."
+			link.tooltip_text = "Enabled by default for the local extraction route. Uses queued logical position updates; this is not network movement authority."
 			link.toggled.connect(_inventory_body_adapter.set_enabled)
+			link.set_pressed_no_signal(true)
+			_inventory_body_adapter.set_enabled(true)
+			_inventory_body_adapter.sample()
 			_inventory_panel.add_child(link)
+	if _habitat_preview.production != null:
+		production_panel.observation_changed.connect(_habitat_preview.production.observe)
+		_habitat_preview.production.source_selected.connect(production_panel.select_source)
+		_habitat_preview.production.extraction_requested.connect(production_panel.extract_source)
+		production_panel.refresh()
 
 
 func _register_overlay_section(section_id: String, title: String, controls: Array[Control], collapsible: bool = true) -> void:

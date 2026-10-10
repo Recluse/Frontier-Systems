@@ -1,0 +1,165 @@
+{
+  "properties": {
+    "sensitivity": {
+      "type": "number",
+      "minimum": 0.0005,
+      "maximum": 0.01
+    },
+    "bindings": {
+      "type": "object",
+      "propertyNames": {
+        "enum": [
+          "move_forward",
+          "move_back",
+          "move_left",
+          "move_right",
+          "jump",
+          "sprint",
+          "fly_down",
+          "fly_up",
+          "look",
+          "ui_cursor",
+          "release_cursor",
+          "world_select",
+          "zoom_in",
+          "zoom_out",
+          "inventory",
+          "settings",
+          "switch_hand",
+          "use_tool",
+          "camera_first",
+          "camera_third",
+          "camera_overview",
+          "ui_accept",
+          "ui_cancel",
+          "ui_left",
+          "ui_right",
+          "ui_up",
+          "ui_down",
+          "ui_focus_next",
+          "ui_focus_prev"
+        ]
+      },
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "code",
+              "location",
+              "shift",
+              "ctrl",
+              "alt",
+              "meta"
+            ],
+            "properties": {
+              "shift": {
+                "type": "boolean"
+              },
+              "ctrl": {
+                "type": "boolean"
+              },
+              "alt": {
+                "type": "boolean"
+              },
+              "code": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 4195000
+              },
+              "meta": {
+                "type": "boolean"
+              },
+              "kind": {
+                "const": "key"
+              },
+              "location": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 2
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9
+              },
+              "kind": {
+                "const": "mouse"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "code"
+            ],
+            "properties": {
+              "code": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 20
+              },
+              "kind": {
+                "const": "button"
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "code",
+              "direction"
+            ],
+            "properties": {
+              "code": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5
+              },
+              "direction": {
+                "enum": [
+                  -1,
+                  1
+                ]
+              },
+              "kind": {
+                "const": "axis"
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "maxProperties": 64
+    },
+    "schema_version": {
+      "const": 1
+    }
+  },
+  "type": "object",
+  "description": "Presentation preferences only. Partial binding maps retain defaults for missing actions; runtime ignores malformed entries and bounds the input file to 32 KiB. No authority, scripts or world state is loaded.",
+  "title": "Local player input preferences v1",
+  "required": [
+    "schema_version",
+    "bindings",
+    "sensitivity"
+  ],
+  "additionalProperties": false,
+  "$id": "urn:frontier-systems:schema:player-controls:v1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

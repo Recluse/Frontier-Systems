@@ -29,6 +29,10 @@ func item_observation(item_id: String) -> ServiceResult:
 			continue
 		var definition: Dictionary = _catalog.get_definition(item["definition_id"], int(item["definition_revision"])).value
 		var mass: int = int(definition["mass_milligrams"])
+		var payload: ServiceResult = _catalog.payload_mass(item_id)
+		if not payload.is_success or int(payload.value) > MAX_EXACT_INTEGER - mass:
+			return _failure("Payload mass is invalid or exceeds capacity.")
+		mass += int(payload.value)
 		for container in _record["containers"]:
 			if container["owner_item_id"] == item_id:
 				var contents_mass: int = int(_loads[container["container_id"]]["mass_milligrams"])
@@ -134,6 +138,10 @@ static func from_record(record: Dictionary, catalog: InventoryItemCatalog) -> Se
 			return definition
 		items[item["item_id"]] = item
 		definitions[item["item_id"]] = definition.value
+		var payload: ServiceResult = catalog.payload_mass(item["item_id"])
+		if not payload.is_success or int(payload.value) > MAX_EXACT_INTEGER - int(definition.value["mass_milligrams"]):
+			return _failure("Item payload exceeds the exact mass bound.")
+		definitions[item["item_id"]]["mass_milligrams"] += int(payload.value)
 	for owner_id in owned_containers:
 		if not items.has(owner_id) or definitions[owner_id]["storage"] == null or not InventoryItemCatalog.capacities_match(containers[owned_containers[owner_id]]["capacity"], definitions[owner_id]["storage"]):
 			return _failure("Hosted storage must match its existing item's trusted definition.")

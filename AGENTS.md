@@ -31,6 +31,8 @@
 
 ## AI-assisted development
 
+- Civ13 is the user's primary reference for later planet-start civilization-to-space progression. The user explicitly authorizes consultation of any Civ13 code/assets as references and reports being a lead developer. Pin reviewed paths/revisions in the reference manifest and express requirements independently. Reference authorization does not replace file-level rights clearance for copying/adapting material into the MIT project; distinguish owner-controlled originals from inherited code and other contributors' assets. Do not import a Civ13 file without verified MIT-compatible redistribution rights.
+
 - Codex is the primary coding and review agent for this project. Claude may be used as a supplemental contributor or reviewer when it is available and useful; both must follow these instructions and the same subsystem contracts.
 - Keep AI tasks narrow and reviewable. Give the task its relevant design contract, files and interfaces in scope, non-goals, acceptance criteria, and the checks to run. Avoid simultaneous edits to shared schemas or authority boundaries.
 - Treat generated code, plans, schemas, and asset suggestions as proposals. Review every diff for correctness, permissions, persistence, Windows compatibility, documentation, and license provenance before accepting it.

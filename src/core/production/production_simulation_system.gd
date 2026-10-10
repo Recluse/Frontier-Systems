@@ -1,0 +1,569 @@
+extends SimulationSystem
+class_name ProductionSimulationSystem
+
+## Volatile local notification after an output commit; not a durable receipt.
+signal batch_completed(recipe_id: String, tick_number: int)
+
+## Sole owner of finite fixture deposits, bulk storage, vessel and reserved batches.
+const SYSTEM_ID: StringName = &"production"
+const MAX_MASS: int = 100000000
+const VESSEL_CAPACITY: int = 2000000
+const MAX_VESSEL_PRESSURE_KPA: float = 1000.0
+const MAX_RECEIPTS: int = 64
+const MAX_REVISION: int = 9007199254740000
+const STATIONS: Array[String] = ["drill", "refinery", "chemical", "printer", "recycler", "dispenser", "construction"]
+## Stable fixture sites, relative to the inventory display origin in millimetres.
+const SOURCE_POSITIONS: Dictionary = {"deposit.iron": [-3000, 0, -1000], "deposit.ice": [-6000, 0, -1000], "deposit.regolith": [-9000, 0, -1000]}
+var _catalog: Dictionary = {}
+var _catalog_fingerprint: String = ""
+var _state: Dictionary = {}
+var _inventory: InventorySimulationSystem
+
+
+func _init() -> void:
+	system_id = SYSTEM_ID
+	tick_priority = 300
+
+
+func configure(inventory: InventorySimulationSystem) -> ServiceResult:
+	if not _state.is_empty() or inventory == null:
+		return _failure("Configure one inventory capability provider.")
+	var raw: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/production/catalog.v1.json"))
+	if typeof(raw) != TYPE_DICTIONARY:
+		return _failure("A trusted production catalog is required.")
+	var valid: ServiceResult = _validate_catalog(raw)
+	if not valid.is_success:
+		return valid
+	_catalog = raw.duplicate(true)
+	_catalog_fingerprint = JSON.stringify(_catalog, "", true, true).sha256_text()
+	_inventory = inventory
+	_state = initial_record(0)
+	return inventory.bind_payload_mass_provider(payload_mass)
+
+
+func initial_record(tick: int) -> Dictionary:
+	var powered: Dictionary = {}
+	for station in STATIONS:
+		powered[station] = true
+	return {"schema_version": 2, "catalog_revision": 1, "catalog_fingerprint": _catalog_fingerprint, "timebase_hz": Engine.physics_ticks_per_second,
+		"last_tick": tick, "state_revision": 0, "deposits": _initial_deposits(), "store": _empty_stock(),
+		"vessel": _empty_stock(), "wall_mass_milligrams": 0, "energy_joules": 100000,
+		"powered": powered, "job": {}, "receipts": [], "cargo": {}}
+
+
+func payload_mass(item_id: String) -> int:
+	return _mass(_state["cargo"][item_id]) if _state.has("cargo") and _state["cargo"].has(item_id) else 0
+
+
+static func cargo_masses(cargo: Dictionary) -> Dictionary:
+	var masses: Dictionary = {}
+	for item_id in cargo:
+		masses[item_id] = _mass(cargo[item_id])
+	return masses
+
+
+## Validate payload/item associations and prospective carried/equipment capacities.
+func validate_inventory_links(record: Dictionary, inventory_record: Dictionary) -> ServiceResult:
+	var cargo: Variant = record.get("cargo", {})
+	if typeof(cargo) != TYPE_DICTIONARY or typeof(inventory_record.get("owner")) != TYPE_DICTIONARY:
+		return _failure("Cargo requires a valid inventory owner record.")
+	for id in cargo:
+		if not _stock_valid(cargo[id], true):
+			return _failure("Cargo component contents must be valid before cross-system validation.")
+	var validated_owner: ServiceResult = _inventory.validate_payload_masses(cargo_masses(cargo), inventory_record["owner"])
+	if not validated_owner.is_success:
+		return validated_owner
+	var carriers: Dictionary = {}
+	for item in validated_owner.value.to_record()["ledger"]["items"]:
+		if item["definition_id"] == "item.resource-canister.prototype" and int(item["definition_revision"]) == 1:
+			carriers[item["item_id"]] = true
+		elif item["definition_id"] == "item.plate.prototype" and int(item["definition_revision"]) == 1:
+			if not cargo.has(item["item_id"]) or int(cargo[item["item_id"]]["plate"]) != 1000000 or _mass(cargo[item["item_id"]]) != 1000000:
+				return _failure("Each physical plate requires exactly its conserved one kilogram material payload.")
+			carriers[item["item_id"]] = true
+	for id in cargo:
+		if not carriers.has(id) or not _stock_valid(cargo[id], true):
+			return _failure("Each payload must belong to an existing trusted physical carrier.")
+	return ServiceResult.success()
+
+
+func _initial_deposits() -> Dictionary:
+	var result: Dictionary = {}
+	for id in _catalog["deposits"]:
+		result[id] = int(_catalog["deposits"][id]["mass_milligrams"])
+	return result
+
+
+func _empty_stock() -> Dictionary:
+	var result: Dictionary = {}
+	for id in _catalog["materials"]:
+		result[id] = 0
+	return result
+
+
+func authorize(context: AuthenticatedCommandContext, voluntary: bool = true) -> ServiceResult:
+	if _inventory == null or _state.is_empty():
+		return _failure("Production services are unavailable.")
+	return _inventory.production_capability(context, voluntary)
+
+
+func authorize_operation(context: AuthenticatedCommandContext, operation: String, payload: Dictionary) -> ServiceResult:
+	if operation not in ["extract", "tool_extract"]:
+		return authorize(context)
+	if _inventory == null or not SOURCE_POSITIONS.has(payload.get("deposit_id")):
+		return _failure("Select a registered environmental extraction source.")
+	return _inventory.production_capability(context, true, SOURCE_POSITIONS[payload["deposit_id"]])
+
+
+func observation(context: AuthenticatedCommandContext) -> ServiceResult:
+	var allowed: ServiceResult = _inventory.production_capability(context, false, []) if _inventory != null else _failure("Inventory is unavailable.")
+	if not allowed.is_success:
+		return allowed
+	var observed: Dictionary = _state.duplicate(false)
+	observed.erase("receipts")
+	observed.erase("cargo")
+	observed = observed.duplicate(true)
+	observed["cargo"] = {}
+	var carriers: ServiceResult = _inventory.owned_resource_carriers(context)
+	if not carriers.is_success:
+		return carriers
+	for id in carriers.value:
+		observed["cargo"][id] = _state["cargo"].get(id, _empty_stock()).duplicate(true)
+	observed["components"] = []
+	var own: ServiceResult = _inventory.own_inventory_observation(context)
+	for item in own.value["items"]:
+		if item["definition_id"] == "item.plate.prototype":
+			observed["components"].append(item["item_id"])
+	observed["recipes"] = _catalog["recipes"].keys()
+	observed["dispensable"] = _catalog["dispensable"].duplicate()
+	observed["can_operate"] = authorize(context).is_success
+	observed["vessel_pressure_kpa"] = _vessel_pressure(_state["vessel"])
+	observed["extractable_sources"] = []
+	for id in SOURCE_POSITIONS:
+		if _inventory.production_capability(context, true, SOURCE_POSITIONS[id]).is_success:
+			observed["extractable_sources"].append(id)
+	return ServiceResult.success(observed)
+
+
+## Called by fixed-tick command ingress; commits one whole candidate on success.
+func apply_local(context: AuthenticatedCommandContext, request_id: String, operation: String, payload: Dictionary, tick: int) -> ServiceResult:
+	var allowed: ServiceResult = authorize_operation(context, operation, payload)
+	if not allowed.is_success:
+		return allowed
+	if operation == "tool_extract" and not _inventory.active_tool(context, "tool.extractor").is_success:
+		return _failure("Hold a working resource extractor in your active hand.")
+	if not ControlContractValidation.is_id(request_id) or tick != int(_state["last_tick"]) + 1 or Engine.physics_ticks_per_second != int(_state["timebase_hz"]):
+		return _failure("A fresh fixed tick and stable request identity are required.")
+	var fingerprint: String = JSON.stringify([String(context.principal_id), operation, payload], "", true).sha256_text()
+	for receipt in _state["receipts"]:
+		if receipt["request_id"] == request_id:
+			return ServiceResult.success(receipt.duplicate(true)) if receipt["fingerprint"] == fingerprint else _failure("Retained request ID identifies different intent.")
+	if not payload.has("expected_revision") or not ControlContractValidation.is_integer(payload["expected_revision"], int(_state["state_revision"]), int(_state["state_revision"])) or int(_state["state_revision"]) >= MAX_REVISION:
+		return _failure("The production revision is stale or exhausted.")
+	var candidate: Dictionary = _state.duplicate(true)
+	var prepared_inventory: Dictionary = {}
+	if operation in ["materialize_plate", "recycle_component"]:
+		var create: bool = operation == "materialize_plate"
+		if not _fields(payload, ["expected_revision"] if create else ["expected_revision", "item_id"]):
+			return _failure("Physical components require an exact factory or recycler intent.")
+		if not create and not ControlContractValidation.is_id(payload["item_id"]):
+			return _failure("The recyclable physical item ID must be a bounded string.")
+		var item_id: String = "plate-%s" % request_id.sha256_text().substr(0, 24) if create else String(payload.get("item_id", ""))
+		if create:
+			if int(candidate["store"]["plate"]) < 1000000 or candidate["cargo"].size() >= 32:
+				return _failure("Printing output or physical component capacity is unavailable.")
+			candidate["store"]["plate"] -= 1000000
+			candidate["cargo"][item_id] = _empty_stock()
+			candidate["cargo"][item_id]["plate"] = 1000000
+		else:
+			if not candidate["powered"]["recycler"] or int(candidate["energy_joules"]) < 500 or not candidate["cargo"].has(item_id) or int(candidate["cargo"][item_id]["plate"]) != 1000000 or _mass(candidate["store"]) + _reserved_mass(candidate) + 1000000 > MAX_MASS:
+				return _failure("The physical component, recycler energy or receiving capacity is unavailable.")
+			candidate["cargo"].erase(item_id)
+			candidate["store"]["iron"] += 1000000
+			candidate["energy_joules"] -= 500
+		var prepared: ServiceResult = _inventory.prepare_plate_change(context, "factory-%s" % request_id.sha256_text().substr(0, 32), item_id, create, cargo_masses(candidate["cargo"]))
+		if not prepared.is_success:
+			return prepared
+		prepared_inventory = prepared.value
+	if operation in ["load_cargo", "unload_cargo", "extract", "tool_extract"]:
+		var carriers: ServiceResult = _inventory.owned_resource_carriers(context)
+		if not carriers.is_success or not carriers.value.has(payload.get("carrier_id")):
+			return _failure("Only a carrier in your own inventory may be filled or emptied.")
+	var applied: ServiceResult = ServiceResult.success() if not prepared_inventory.is_empty() else _plan(candidate, "extract" if operation == "tool_extract" else operation, payload)
+	if not applied.is_success:
+		return applied
+	candidate["state_revision"] = int(candidate["state_revision"]) + 1
+	var receipt: Dictionary = {"request_id": request_id, "fingerprint": fingerprint, "state_revision": candidate["state_revision"], "tick_number": tick}
+	candidate["receipts"].append(receipt)
+	if candidate["receipts"].size() > MAX_RECEIPTS:
+		candidate["receipts"].pop_front()
+	var capacity: ServiceResult = _inventory.validate_payload_masses(cargo_masses(candidate["cargo"]), prepared_inventory)
+	if not capacity.is_success:
+		return capacity
+	var previous: Dictionary = _state
+	_state = candidate
+	if not prepared_inventory.is_empty():
+		var committed: ServiceResult = _inventory.commit_prepared_owner(prepared_inventory)
+		if not committed.is_success:
+			_state = previous
+			return committed
+	# Derived caches only; all capacities were validated above without an await.
+	_inventory.refresh_payload_loads()
+	return ServiceResult.success(receipt.duplicate(true))
+
+
+func _plan(candidate: Dictionary, operation: String, payload: Dictionary) -> ServiceResult:
+	if operation == "extract":
+		if not _fields(payload, ["expected_revision", "deposit_id", "carrier_id", "amount_milligrams"]) or not _catalog["deposits"].has(payload["deposit_id"]) or not ControlContractValidation.is_id(payload["carrier_id"]) or not ControlContractValidation.is_integer(payload["amount_milligrams"], 1, 1000000):
+			return _failure("Extraction requires a source, owned carrier and positive mass up to 1 kg.")
+		var id: String = payload["carrier_id"]
+		if not candidate["cargo"].has(id):
+			if candidate["cargo"].size() >= 32:
+				return _failure("The portable carrier registry is full.")
+			candidate["cargo"][id] = _empty_stock()
+		var amount: int = int(payload["amount_milligrams"])
+		var energy: int = maxi(1, int(ceil(float(amount) / 4000.0)))
+		if int(candidate["deposits"][payload["deposit_id"]]) < amount or int(candidate["energy_joules"]) < energy or not candidate["powered"]["drill"]:
+			return _failure("Source mass, extractor power or finite energy is unavailable.")
+		var material: String = _catalog["deposits"][payload["deposit_id"]]["material"]
+		candidate["cargo"][id][material] += amount
+		if not _cargo_valid(candidate["cargo"][id]):
+			return _failure("The receiving canister is full, incompatible or overpressure.")
+		candidate["deposits"][payload["deposit_id"]] -= amount
+		candidate["energy_joules"] -= energy
+		return ServiceResult.success()
+	if operation in ["load_cargo", "unload_cargo"]:
+		if not _fields(payload, ["expected_revision", "carrier_id", "material", "amount_milligrams"]) or not ControlContractValidation.is_id(payload["carrier_id"]) or not _catalog["materials"].has(payload["material"]) or not ControlContractValidation.is_integer(payload["amount_milligrams"], 1, VESSEL_CAPACITY):
+			return _failure("Portable transfer requires an exact carrier/material intent and bounded mass.")
+		var id: String = payload["carrier_id"]
+		if not candidate["cargo"].has(id):
+			if candidate["cargo"].size() >= 32:
+				return _failure("The portable carrier registry is full.")
+			candidate["cargo"][id] = _empty_stock()
+		var source: Dictionary = candidate["store"] if operation == "load_cargo" else candidate["cargo"][id]
+		var destination: Dictionary = candidate["cargo"][id] if operation == "load_cargo" else candidate["store"]
+		var amount: int = int(payload["amount_milligrams"])
+		var capacity: int = VESSEL_CAPACITY if operation == "load_cargo" else MAX_MASS - _reserved_mass(candidate)
+		if int(source[payload["material"]]) < amount or _mass(destination) + amount > capacity:
+			return _failure("Portable transfer exceeds existing stock or receiving capacity.")
+		source[payload["material"]] -= amount
+		destination[payload["material"]] += amount
+		if not _cargo_valid(candidate["cargo"][id]):
+			return _failure("The carrier permits one material at a time and must satisfy gas pressure limits.")
+		return ServiceResult.success()
+	if operation == "power":
+		if not _fields(payload, ["expected_revision", "station", "enabled"]) or not STATIONS.has(payload["station"]) or typeof(payload["enabled"]) != TYPE_BOOL:
+			return _failure("Select a registered station and boolean power state.")
+		candidate["powered"][payload["station"]] = payload["enabled"]
+		return ServiceResult.success()
+	if operation == "cancel":
+		if not _fields(payload, ["expected_revision"]) or candidate["job"].is_empty():
+			return _failure("No batch is available to cancel.")
+		var job: Dictionary = candidate["job"]
+		if job["deposit_id"] != "":
+			candidate["deposits"][job["deposit_id"]] += _mass(job["inputs"])
+		else:
+			_add(candidate["store"], job["inputs"])
+		candidate["job"] = {}
+		return ServiceResult.success() # Spent energy is not refunded.
+	if operation in ["dispense", "return"]:
+		if not _fields(payload, ["expected_revision", "material", "amount_milligrams"]) or not _catalog["dispensable"].has(payload["material"]) or not ControlContractValidation.is_integer(payload["amount_milligrams"], 1, VESSEL_CAPACITY) or not candidate["powered"]["dispenser"]:
+			return _failure("Powered dispensing requires a registered chemical and positive bounded mass.")
+		var source: Dictionary = candidate["store"] if operation == "dispense" else candidate["vessel"]
+		var destination: Dictionary = candidate["vessel"] if operation == "dispense" else candidate["store"]
+		var amount: int = int(payload["amount_milligrams"])
+		var capacity: int = VESSEL_CAPACITY if operation == "dispense" else MAX_MASS - _reserved_mass(candidate)
+		if int(source[payload["material"]]) < amount or _mass(destination) + amount > capacity:
+			return _failure("Insufficient chemical or receiving capacity.")
+		source[payload["material"]] -= amount
+		destination[payload["material"]] += amount
+		if _vessel_pressure(candidate["vessel"]) > MAX_VESSEL_PRESSURE_KPA:
+			return _failure("Transfer exceeds the sealed vessel pressure limit; use a smaller amount or remove gas/liquid.")
+		return ServiceResult.success()
+	if operation in ["build", "deconstruct"]:
+		if not _fields(payload, ["expected_revision"]) or not candidate["powered"]["construction"]:
+			return _failure("Construction requires the powered fixture tool.")
+		if operation == "build":
+			if int(candidate["store"]["plate"]) < 1000000:
+				return _failure("One kilogram of printed plate is required for a wall segment.")
+			candidate["store"]["plate"] -= 1000000
+			candidate["wall_mass_milligrams"] += 1000000
+		else:
+			if int(candidate["wall_mass_milligrams"]) < 1000000 or _mass(candidate["store"]) + _reserved_mass(candidate) + 1000000 > MAX_MASS:
+				return _failure("No wall segment or insufficient receiving capacity.")
+			candidate["wall_mass_milligrams"] -= 1000000
+			candidate["store"]["plate"] += 1000000
+		return ServiceResult.success()
+	if not candidate["job"].is_empty():
+		return _failure("Finish or cancel the active workstation batch first.")
+	if int(candidate["state_revision"]) > MAX_REVISION - 36001:
+		return _failure("Insufficient revision capacity to complete a batch.")
+	var inputs: Dictionary
+	var outputs: Dictionary
+	var station: String
+	var duration: int
+	var energy: int
+	var deposit_id: String = ""
+	var recipe_id: String = ""
+	if operation == "mine":
+		if not _fields(payload, ["expected_revision", "deposit_id"]) or not _catalog["deposits"].has(payload["deposit_id"]):
+			return _failure("Mining requires a registered finite deposit.")
+		deposit_id = payload["deposit_id"]
+		if int(candidate["deposits"][deposit_id]) < 1000000:
+			return _failure("This deposit is exhausted.")
+		inputs = {_catalog["deposits"][deposit_id]["material"]: 1000000}
+		outputs = inputs.duplicate(true)
+		station = "drill"
+		duration = 60
+		energy = 250
+	elif operation == "process":
+		if not _fields(payload, ["expected_revision", "recipe_id"]) or not _catalog["recipes"].has(payload["recipe_id"]):
+			return _failure("Processing requires a trusted recipe ID.")
+		recipe_id = payload["recipe_id"]
+		var recipe: Dictionary = _catalog["recipes"][recipe_id]
+		inputs = recipe["inputs"].duplicate(true)
+		outputs = recipe["outputs"].duplicate(true)
+		station = recipe["station"]
+		duration = int(recipe["duration_ticks"])
+		energy = int(recipe["energy_joules"])
+		for material in inputs:
+			if int(candidate["store"][material]) < int(inputs[material]):
+				return _failure("Recipe ingredients are missing.")
+	else:
+		return _failure("Unknown production operation.")
+	if not candidate["powered"][station] or int(candidate["energy_joules"]) < energy or _mass(candidate["store"]) + (0 if deposit_id == "" else _mass(outputs)) > MAX_MASS:
+		return _failure("Station power, finite energy or output storage is unavailable.")
+	if deposit_id != "":
+		candidate["deposits"][deposit_id] -= 1000000
+	else:
+		for material in inputs:
+			candidate["store"][material] -= int(inputs[material])
+	candidate["energy_joules"] -= energy
+	candidate["job"] = {"recipe_id": recipe_id, "deposit_id": deposit_id, "station": station,
+		"inputs": inputs, "outputs": outputs, "remaining_ticks": duration}
+	return ServiceResult.success()
+
+
+func simulate_tick(tick: int, _delta: float) -> void:
+	if _state.is_empty() or tick != int(_state["last_tick"]) + 1 or Engine.physics_ticks_per_second != int(_state["timebase_hz"]):
+		return
+	_state["last_tick"] = tick
+	if _state["job"].is_empty() or not _state["powered"][_state["job"]["station"]]:
+		return
+	if int(_state["state_revision"]) >= MAX_REVISION:
+		return
+	_state["job"]["remaining_ticks"] -= 1
+	if int(_state["job"]["remaining_ticks"]) == 0:
+		# Countdown is progress, not a competing material/configuration transaction.
+		# Keep the command revision stable so remote pause/cancel can be applied.
+		_state["state_revision"] += 1
+		var completed_recipe: String = _state["job"]["recipe_id"]
+		_add(_state["store"], _state["job"]["outputs"])
+		_state["job"] = {}
+		batch_completed.emit(completed_recipe, tick)
+
+
+func capture_snapshot() -> ServiceResult:
+	return ServiceResult.success(_state.duplicate(true)) if not _state.is_empty() else _failure("Production is unconfigured.")
+
+
+func validate_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
+	return _decode(record, tick)
+
+
+func restore_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
+	var decoded: ServiceResult = _decode(record, tick)
+	if decoded.is_success:
+		_state = decoded.value
+		_inventory.refresh_payload_loads()
+	return decoded
+
+
+func _decode(record: Dictionary, tick: int) -> ServiceResult:
+	var fields: Array = ["schema_version", "catalog_revision", "catalog_fingerprint", "timebase_hz", "last_tick", "state_revision", "deposits", "store", "vessel", "wall_mass_milligrams", "energy_joules", "powered", "job", "receipts"]
+	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 2):
+		fields.append("cargo")
+	if _catalog.is_empty() or not _fields(record, fields):
+		return _failure("An exact configured production snapshot is required.")
+	if record["catalog_fingerprint"] != _catalog_fingerprint:
+		return _failure("The saved catalog differs; an explicit production migration is required.")
+	if not ControlContractValidation.is_integer(record["schema_version"], 1, 2) or not ControlContractValidation.is_integer(record["catalog_revision"], 1, 1):
+		return _failure("Unsupported production/catalog version.")
+	if not ControlContractValidation.is_integer(record["last_tick"], tick, tick) or not ControlContractValidation.is_integer(record["timebase_hz"], Engine.physics_ticks_per_second, Engine.physics_ticks_per_second) or not [60, 72, 90].has(Engine.physics_ticks_per_second):
+		return _failure("Production tick and supported timebase must match the world.")
+	for field in ["state_revision", "wall_mass_milligrams", "energy_joules"]:
+		var limit: int = MAX_REVISION if field == "state_revision" else (100000 if field == "energy_joules" else MAX_MASS)
+		if not ControlContractValidation.is_integer(record[field], 0, limit):
+			return _failure("Production quantities exceed bounds.")
+	if int(record["wall_mass_milligrams"]) % 1000000 != 0:
+		return _failure("Constructed walls must contain whole blueprint segments.")
+	var normalized: Dictionary = record.duplicate(true)
+	for field in ["schema_version", "catalog_revision", "timebase_hz", "last_tick", "state_revision", "wall_mass_milligrams", "energy_joules"]:
+		normalized[field] = int(record[field])
+	normalized["schema_version"] = 2
+	var saved_cargo: Variant = record.get("cargo", {})
+	if typeof(saved_cargo) != TYPE_DICTIONARY or saved_cargo.size() > 32:
+		return _failure("Cargo component records must be bounded.")
+	normalized["cargo"] = saved_cargo.duplicate(true)
+	var carried_mass: int = 0
+	for id in normalized["cargo"]:
+		if not ControlContractValidation.is_id(id) or not _stock_valid(normalized["cargo"][id], true) or not _cargo_valid(normalized["cargo"][id]):
+			return _failure("Invalid portable payload identity, contents or pressure.")
+		for material in normalized["cargo"][id]:
+			normalized["cargo"][id][material] = int(normalized["cargo"][id][material])
+		carried_mass += _mass(normalized["cargo"][id])
+	for field in ["store", "vessel"]:
+		if not _stock_valid(record[field], true):
+			return _failure("Storage must contain exact known bounded material quantities.")
+		for material in record[field]:
+			normalized[field][material] = int(record[field][material])
+	for material in _catalog["materials"]:
+		if not _catalog["dispensable"].has(material) and int(normalized["vessel"][material]) != 0:
+			return _failure("The chemical vessel cannot contain non-dispensable solids.")
+	if typeof(record["deposits"]) != TYPE_DICTIONARY or not _fields(record["deposits"], _catalog["deposits"].keys()) or typeof(record["powered"]) != TYPE_DICTIONARY or not _fields(record["powered"], STATIONS):
+		return _failure("Deposits and stations must match their trusted registry.")
+	for id in record["deposits"]:
+		if not ControlContractValidation.is_integer(record["deposits"][id], 0, int(_catalog["deposits"][id]["mass_milligrams"])):
+			return _failure("Deposit mass is invalid.")
+		normalized["deposits"][id] = int(record["deposits"][id])
+	for id in STATIONS:
+		if typeof(record["powered"][id]) != TYPE_BOOL:
+			return _failure("Station power must be boolean.")
+	if typeof(record["job"]) != TYPE_DICTIONARY:
+		return _failure("The reserved batch must be an object.")
+	if not record["job"].is_empty():
+		var job: Dictionary = record["job"]
+		if not _fields(job, ["recipe_id", "deposit_id", "station", "inputs", "outputs", "remaining_ticks"]) or not _stock_valid(job["inputs"]) or not _stock_valid(job["outputs"]):
+			return _failure("A bounded reserved batch is required.")
+		var expected: Dictionary
+		if typeof(job["deposit_id"]) == TYPE_STRING and _catalog["deposits"].has(job["deposit_id"]) and job["recipe_id"] == "":
+			var material: String = _catalog["deposits"][job["deposit_id"]]["material"]
+			expected = {"station": "drill", "inputs": {material: 1000000}, "outputs": {material: 1000000}, "duration_ticks": 60}
+		elif job["deposit_id"] == "" and typeof(job["recipe_id"]) == TYPE_STRING and _catalog["recipes"].has(job["recipe_id"]):
+			expected = _catalog["recipes"][job["recipe_id"]]
+		else:
+			return _failure("Unknown batch recipe or deposit.")
+		if job["station"] != expected["station"] or not _same_stock(job["inputs"], expected["inputs"]) or not _same_stock(job["outputs"], expected["outputs"]) or not ControlContractValidation.is_integer(job["remaining_ticks"], 1, int(expected["duration_ticks"])):
+			return _failure("Reserved batch must match its pinned recipe.")
+		normalized["job"]["remaining_ticks"] = int(job["remaining_ticks"])
+		for field in ["inputs", "outputs"]:
+			for material in normalized["job"][field]:
+				normalized["job"][field][material] = int(job[field][material])
+	if _mass(normalized["store"]) + _reserved_mass(normalized) > MAX_MASS or _mass(normalized["vessel"]) > VESSEL_CAPACITY or _vessel_pressure(normalized["vessel"]) > MAX_VESSEL_PRESSURE_KPA:
+		return _failure("Reserved output or vessel exceeds capacity.")
+	var total: int = _mass(normalized["deposits"]) + _mass(normalized["store"]) + _mass(normalized["vessel"]) + int(normalized["wall_mass_milligrams"]) + _reserved_mass(normalized) + carried_mass
+	if total != _mass(_initial_deposits()):
+		return _failure("Closed fixture material mass must be conserved, including reserved batches.")
+	if typeof(record["receipts"]) != TYPE_ARRAY or record["receipts"].size() > MAX_RECEIPTS:
+		return _failure("Receipt history exceeds its bound.")
+	var ids: Dictionary = {}
+	var previous_revision: int = 0
+	var previous_tick: int = 0
+	for receipt in normalized["receipts"]:
+		if typeof(receipt) != TYPE_DICTIONARY or not _fields(receipt, ["request_id", "fingerprint", "state_revision", "tick_number"]) or not ControlContractValidation.is_id(receipt.get("request_id")) or ids.has(receipt["request_id"]) or typeof(receipt.get("fingerprint")) != TYPE_STRING or receipt["fingerprint"].length() != 64 or not receipt["fingerprint"].is_valid_hex_number(false):
+			return _failure("Receipts require unique bounded identities and fingerprints.")
+		if not ControlContractValidation.is_integer(receipt["state_revision"], previous_revision + 1, int(normalized["state_revision"])) or not ControlContractValidation.is_integer(receipt["tick_number"], maxi(1, previous_tick), tick):
+			return _failure("Receipt revisions/ticks must be ordered within the snapshot.")
+		previous_revision = int(receipt["state_revision"])
+		previous_tick = int(receipt["tick_number"])
+		receipt["state_revision"] = previous_revision
+		receipt["tick_number"] = previous_tick
+		ids[receipt["request_id"]] = true
+	if int(normalized["state_revision"]) == 0:
+		var initial: Dictionary = initial_record(tick)
+		if normalized != initial:
+			return _failure("Revision-zero production must retain its initial finite fixture state.")
+	elif normalized["receipts"].is_empty():
+		return _failure("Changed production must retain at least one initiating command receipt.")
+	return ServiceResult.success(normalized)
+
+
+func _validate_catalog(record: Dictionary) -> ServiceResult:
+	if not _fields(record, ["schema_version", "materials", "dispensable", "deposits", "recipes"]) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 1) or not ControlContractValidation.decode_ids(record["materials"], 1, 32).is_success or not ControlContractValidation.decode_ids(record["dispensable"], 1, 16).is_success or typeof(record["deposits"]) != TYPE_DICTIONARY or typeof(record["recipes"]) != TYPE_DICTIONARY or record["deposits"].size() > 16 or record["recipes"].size() > 32:
+		return _failure("A bounded trusted production catalog is required.")
+	_catalog = record
+	for id in record["dispensable"]:
+		if not record["materials"].has(id):
+			return _failure("Dispensable chemicals must be registered materials.")
+	for id in ["water", "nutrient-solution", "hydrogen", "oxygen", "plate"]:
+		if not record["materials"].has(id):
+			return _failure("The fixture vessel and construction blueprint require their registered materials.")
+	var total: int = 0
+	for id in record["deposits"]:
+		var deposit: Variant = record["deposits"][id]
+		if not ControlContractValidation.is_id(id) or typeof(deposit) != TYPE_DICTIONARY or not _fields(deposit, ["material", "mass_milligrams"]) or not record["materials"].has(deposit["material"]) or not ControlContractValidation.is_integer(deposit["mass_milligrams"], 1000000, MAX_MASS):
+			return _failure("Deposits must declare a known material and finite mass.")
+		total += int(deposit["mass_milligrams"])
+	if total > MAX_MASS:
+		return _failure("The closed fixture exceeds its material budget.")
+	for id in record["recipes"]:
+		var recipe: Variant = record["recipes"][id]
+		if not ControlContractValidation.is_id(id) or typeof(recipe) != TYPE_DICTIONARY or not _fields(recipe, ["station", "inputs", "outputs", "duration_ticks", "energy_joules"]) or not STATIONS.has(recipe["station"]) or not _stock_valid(recipe["inputs"]) or not _stock_valid(recipe["outputs"]) or _mass(recipe["inputs"]) != _mass(recipe["outputs"]) or not ControlContractValidation.is_integer(recipe["duration_ticks"], 1, 36000) or not ControlContractValidation.is_integer(recipe["energy_joules"], 1, 100000):
+			return _failure("Recipes require known materials, conserved mass, finite energy and duration.")
+	return ServiceResult.success()
+
+
+func _stock_valid(value: Variant, complete: bool = false) -> bool:
+	if typeof(value) != TYPE_DICTIONARY or value.size() > 32 or (complete and not _fields(value, _catalog["materials"])) or (not complete and value.is_empty()):
+		return false
+	for material in value:
+		if not _catalog["materials"].has(material) or not ControlContractValidation.is_integer(value[material], 0 if complete else 1, MAX_MASS):
+			return false
+	return _mass(value) <= MAX_MASS
+
+
+func _cargo_valid(stock: Dictionary) -> bool:
+	var kinds: int = 0
+	for quantity in stock.values():
+		if int(quantity) > 0:
+			kinds += 1
+	return kinds <= 1 and _mass(stock) <= VESSEL_CAPACITY and _vessel_pressure(stock) <= MAX_VESSEL_PRESSURE_KPA
+
+
+static func _mass(stock: Dictionary) -> int:
+	var total: int = 0
+	for value in stock.values():
+		total += int(value)
+	return total
+
+
+static func _same_stock(actual: Dictionary, expected: Dictionary) -> bool:
+	if not _fields(actual, expected.keys()):
+		return false
+	for material in expected:
+		if int(actual[material]) != int(expected[material]):
+			return false
+	return true
+
+
+## Isothermal ideal gas in a sealed 2 L vessel, with liquid displacement.
+## Chemistry and bulk storage are separate from the atmospheric network.
+static func _vessel_pressure(stock: Dictionary) -> float:
+	var gas_moles: float = float(stock["hydrogen"]) / 2016.0 + float(stock["oxygen"]) / 31998.0
+	if gas_moles == 0.0:
+		return 0.0
+	var headspace_m3: float = 0.002 - float(int(stock["water"]) + int(stock["nutrient-solution"])) / 1000000000.0
+	return INF if headspace_m3 <= 0.0 else gas_moles * 8.314462618 * 293.15 / headspace_m3 / 1000.0
+
+
+static func _add(destination: Dictionary, amounts: Dictionary) -> void:
+	for material in amounts:
+		destination[material] += int(amounts[material])
+
+
+static func _reserved_mass(state: Dictionary) -> int:
+	return 0 if state["job"].is_empty() else _mass(state["job"]["outputs"])
+
+
+static func _fields(record: Dictionary, fields: Array) -> bool:
+	return ControlContractValidation.has_exact_fields(record, PackedStringArray(fields))
+
+
+static func _failure(message: String) -> ServiceResult:
+	return ServiceResult.failure(&"production_rejected", message)
+
+
+func profiling_counters() -> Dictionary:
+	if _state.is_empty():
+		return {}
+	return {"active_batches": 0 if _state["job"].is_empty() else 1, "stored_milligrams": _mass(_state["store"]), "vessel_milligrams": _mass(_state["vessel"]), "energy_joules": _state["energy_joules"], "receipts": _state["receipts"].size()}

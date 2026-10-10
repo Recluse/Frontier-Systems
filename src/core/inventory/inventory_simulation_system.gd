@@ -31,7 +31,7 @@ func _init() -> void:
 	tick_priority = 200
 
 
-func configure_defaults() -> ServiceResult:
+func configure_defaults(include_resource_carriers: bool = false) -> ServiceResult:
 	for definition in JSON.parse_string(FileAccess.get_file_as_string("res://data/inventory/items.default.v1.json")):
 		var registered: ServiceResult = _catalog.register_definition(definition)
 		if not registered.is_success:
@@ -46,7 +46,8 @@ func configure_defaults() -> ServiceResult:
 	if not parsed_policy.is_success:
 		return parsed_policy
 	_policy = parsed_policy.value
-	var parsed_owner: ServiceResult = SharedInventoryCoordinator.from_record(JSON.parse_string(FileAccess.get_file_as_string("res://data/inventory/shared.default.v1.json")), _profiles, _catalog)
+	var fixture_path: String = "res://data/inventory/shared.production.v1.json" if include_resource_carriers else "res://data/inventory/shared.default.v1.json"
+	var parsed_owner: ServiceResult = SharedInventoryCoordinator.from_record(JSON.parse_string(FileAccess.get_file_as_string(fixture_path)), _profiles, _catalog)
 	if not parsed_owner.is_success:
 		return parsed_owner
 	_owner = parsed_owner.value
@@ -66,7 +67,9 @@ func bind_health(health: HealthSimulationSystem) -> ServiceResult:
 
 
 func authorize(context: AuthenticatedCommandContext, require_voluntary_action: bool = false) -> ServiceResult:
-	if _setup == null or not OS.is_debug_build() or context == null or context.origin != AuthenticatedCommandContext.Origin.DEVELOPMENT_LOCAL or not context.has_permission("inventory.development"):
+	var local_grant: bool = context != null and OS.is_debug_build() and context.origin == AuthenticatedCommandContext.Origin.DEVELOPMENT_LOCAL and context.has_permission("inventory.development")
+	var session_grant: bool = context != null and context.origin == AuthenticatedCommandContext.Origin.AUTHENTICATED_SESSION and context.has_permission("inventory.operate")
+	if _setup == null or not (local_grant or session_grant):
 		return _failure("Inventory fixture commands require local development grants.")
 	for body in _bodies.values():
 		if body["principal_id"] == String(context.principal_id):
@@ -74,6 +77,123 @@ func authorize(context: AuthenticatedCommandContext, require_voluntary_action: b
 				return _failure("This body cannot perform voluntary inventory actions while unconscious or without health state.")
 			return ServiceResult.success(body["body_id"])
 	return _failure("The local principal has no registered inventory fixture body.")
+
+
+func own_position(context: AuthenticatedCommandContext) -> ServiceResult:
+	var allowed: ServiceResult = authorize(context)
+	return ServiceResult.success(_bodies[allowed.value]["position_millimetres"].duplicate()) if allowed.is_success else allowed
+
+
+## Resolve a usable active-hand tool from canonical equipment, never client tags.
+func active_tool(context: AuthenticatedCommandContext, required_tag: String) -> ServiceResult:
+	var allowed: ServiceResult = authorize(context, true)
+	if not allowed.is_success:
+		return allowed
+	var record: Dictionary = _owner.to_record()
+	for body in record["bodies"]:
+		if body["body_id"] != allowed.value:
+			continue
+		for binding in body["equipped"]:
+			if binding["slot_id"] != body["active_hand_slot_id"] or _grip_slot_reserved(allowed.value, binding["slot_id"]):
+				continue
+			for item in record["ledger"]["items"]:
+				if item["item_id"] == binding["item_id"] and int(item["condition_permille"]) > 0:
+					var definition: ServiceResult = _catalog.get_definition(item["definition_id"], int(item["definition_revision"]))
+					if definition.is_success and definition.value["tags"].has(required_tag):
+						return ServiceResult.success(item["item_id"])
+	return _failure("Equip a usable matching tool in your active hand.")
+
+
+## Shared workstation gate: server-owned logical reach and manipulator availability.
+func bind_payload_mass_provider(provider: Callable) -> ServiceResult:
+	return _catalog.bind_payload_mass_provider(provider)
+
+
+func refresh_payload_loads() -> ServiceResult:
+	return _owner.refresh_payload_loads()
+
+
+func validate_payload_masses(masses: Dictionary, owner_record: Dictionary = {}) -> ServiceResult:
+	return SharedInventoryCoordinator.from_record(_owner.to_record() if owner_record.is_empty() else owner_record, _profiles, _catalog.with_payload_masses(masses))
+
+
+## Identity-scoped physical carriers. Other bodies' payloads are not observable.
+func owned_resource_carriers(context: AuthenticatedCommandContext) -> ServiceResult:
+	var own: ServiceResult = own_inventory_observation(context)
+	if not own.is_success:
+		return own
+	var ids: Array = []
+	for item in own.value["items"]:
+		if item["definition_id"] == "item.resource-canister.prototype" and int(item["definition_revision"]) == 1:
+			ids.append(item["item_id"])
+	return ServiceResult.success(ids)
+
+
+func production_capability(context: AuthenticatedCommandContext, voluntary: bool = true, target_position: Array = [0, 0, 0]) -> ServiceResult:
+	var authorized: ServiceResult = authorize(context, voluntary)
+	if not authorized.is_success:
+		return authorized
+	if not target_position.is_empty() and (not InventorySpatialMath.is_position(target_position) or InventorySpatialMath.distance_millimetres(_bodies[authorized.value]["position_millimetres"], target_position) > WORLD_REACH_MILLIMETRES):
+		return _failure("Move within reach of the production workstation.")
+	if voluntary and not _has_unreserved_hand(authorized.value):
+		return _failure("Production controls require an available unreserved hand.")
+	return authorized
+
+
+## Prepare a trusted physical plate factory/recycler transaction without committing.
+func prepare_plate_change(context: AuthenticatedCommandContext, request_id: String, item_id: String, create: bool, masses: Dictionary) -> ServiceResult:
+	var authorized: ServiceResult = authorize(context, true)
+	if not authorized.is_success or not ControlContractValidation.is_id(item_id):
+		return _failure("A capable bound actor and stable component identity are required.")
+	var candidate: Dictionary = _owner.to_record()
+	if int(candidate["state_revision"]) >= MAX_EXACT_INTEGER or int(candidate["ledger"]["state_revision"]) >= MAX_EXACT_INTEGER:
+		return _failure("Inventory revisions are exhausted.")
+	var body_index: int = -1
+	for index in range(candidate["bodies"].size()):
+		if candidate["bodies"][index]["body_id"] == authorized.value:
+			body_index = index
+	if body_index < 0:
+		return _failure("The actor's inventory body is missing.")
+	var body: Dictionary = candidate["bodies"][body_index]
+	var found: int = -1
+	for index in range(candidate["ledger"]["items"].size()):
+		if candidate["ledger"]["items"][index]["item_id"] == item_id:
+			found = index
+	if create:
+		if found >= 0:
+			return _failure("That physical component already exists.")
+		candidate["ledger"]["items"].append({"item_id": item_id, "definition_id": "item.plate.prototype", "definition_revision": 1, "condition_permille": 1000, "container_id": body["body_container_id"]})
+	else:
+		if found < 0:
+			return _failure("The recyclable component no longer exists.")
+		var item: Dictionary = candidate["ledger"]["items"][found]
+		var ledger: InventoryLedger = InventoryLedger.from_record(candidate["ledger"], _catalog).value
+		if item["definition_id"] != "item.plate.prototype" or int(item["definition_revision"]) != 1 or ledger.root_for_container(item["container_id"]).value != body["body_container_id"]:
+			return _failure("Only an owned physical plate can be recycled.")
+		candidate["ledger"]["items"].remove_at(found)
+		var bindings: Array = []
+		for binding in body["equipped"]:
+			if binding["item_id"] != item_id:
+				bindings.append(binding)
+		body["equipped"] = bindings
+	if int(body["state_revision"]) >= MAX_EXACT_INTEGER:
+		return _failure("The body revision is exhausted.")
+	body["state_revision"] += 1
+	candidate["ledger"]["state_revision"] += 1
+	candidate["state_revision"] += 1
+	var fingerprint: String = JSON.stringify(["plate", item_id, create, authorized.value]).sha256_text()
+	candidate["receipts"].append({"request_id": request_id, "fingerprint": fingerprint, "state_revision": candidate["state_revision"]})
+	if candidate["receipts"].size() > SharedInventoryCoordinator.MAX_RECEIPTS:
+		candidate["receipts"].pop_front()
+	var validated: ServiceResult = validate_payload_masses(masses, candidate)
+	return ServiceResult.success(candidate) if validated.is_success else validated
+
+
+func commit_prepared_owner(record: Dictionary) -> ServiceResult:
+	var validated: ServiceResult = SharedInventoryCoordinator.from_record(record, _profiles, _catalog)
+	if validated.is_success:
+		_owner = validated.value
+	return validated
 
 
 func apply_local(context: AuthenticatedCommandContext, request_id: String, operation: String, payload: Dictionary, tick: int) -> ServiceResult:
@@ -259,7 +379,7 @@ func local_observation(context: AuthenticatedCommandContext) -> ServiceResult:
 	return ServiceResult.success({"schema_version": 1, "inventory_revision": int(_owner.to_record()["state_revision"]), "outcomes": outcomes, "jobs": jobs})
 
 
-func own_inventory_observation(context: AuthenticatedCommandContext) -> ServiceResult:
+func own_inventory_observation(context: AuthenticatedCommandContext, include_details: bool = false) -> ServiceResult:
 	var authorized: ServiceResult = authorize(context)
 	if not authorized.is_success:
 		return authorized
@@ -269,6 +389,8 @@ func own_inventory_observation(context: AuthenticatedCommandContext) -> ServiceR
 			continue
 		var items: Array = []
 		var containers: Array = []
+		var container_records: Array = []
+		var item_details: Array = []
 		var ledger: InventoryLedger = InventoryLedger.from_record(record["ledger"], _catalog).value
 		var rules: Dictionary = _profiles[JSON.stringify([body["profile_id"], int(body["profile_revision"])])].to_record()
 		var slot_ids: Array = []
@@ -277,12 +399,21 @@ func own_inventory_observation(context: AuthenticatedCommandContext) -> ServiceR
 		for container in record["ledger"]["containers"]:
 			if ledger.root_for_container(container["container_id"]).value == body["body_container_id"]:
 				containers.append(container["container_id"])
+				if include_details:
+					var observed_container: Dictionary = container.duplicate(true)
+					observed_container["load"] = ledger.container_load(container["container_id"]).value
+					container_records.append(observed_container)
 		for item in record["ledger"]["items"]:
 			if containers.has(item["container_id"]):
 				items.append(item.duplicate(true))
-		return ServiceResult.success({"schema_version": 2, "body_id": body["body_id"], "active_hand_slot_id": body["active_hand_slot_id"], "equipped": body["equipped"].duplicate(true),
+				if include_details:
+					item_details.append(ledger.item_observation(item["item_id"]).value)
+		var observed: Dictionary = {"schema_version": 2, "body_id": body["body_id"], "active_hand_slot_id": body["active_hand_slot_id"], "equipped": body["equipped"].duplicate(true),
 			"items": items, "container_ids": containers, "body_container_id": body["body_container_id"], "hand_slot_ids": rules["hand_slot_ids"].duplicate(), "slot_ids": slot_ids,
-			"mass_milligrams": ledger.container_load(body["body_container_id"]).value["mass_milligrams"]})
+			"mass_milligrams": ledger.container_load(body["body_container_id"]).value["mass_milligrams"]}
+		if include_details:
+			observed.merge({"schema_version": 3, "inventory_revision": record["state_revision"], "container_records": container_records, "item_details": item_details}, true)
+		return ServiceResult.success(observed)
 	return _failure("No owned fixture inventory is available.")
 
 

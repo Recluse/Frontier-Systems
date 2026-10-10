@@ -11,6 +11,7 @@ var _rendered: Node3D
 var _visible_items: Dictionary = {}
 var _selected_key: String = ""
 var _rebuilds: int = 0
+var player_facing_labels: bool = false
 
 
 func observe(record: Dictionary) -> ServiceResult:
@@ -46,6 +47,8 @@ func _rebuild() -> void:
 		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		label.font_size = 28
 		label.text = "%s (logical fixture)\nClick to select; double-click to collect" % container["container_id"]
+		if player_facing_labels:
+			label.text = "Storage tray\nDouble-click an item to collect"
 		if container["items"].size() > MAX_VISIBLE_ITEMS_PER_CONTAINER:
 			label.text += "\n%d more items available in overlay" % (container["items"].size() - MAX_VISIBLE_ITEMS_PER_CONTAINER)
 		_rendered.add_child(label)
@@ -62,6 +65,15 @@ func _rebuild() -> void:
 			elif item["definition_id"] == "item.pouch.prototype":
 				dimensions = Vector3(0.18, 0.12, 0.12)
 				color = Color("#bba064")
+			elif item["definition_id"] == "item.resource-canister.prototype":
+				dimensions = Vector3(0.16, 0.3, 0.16)
+				color = Color("#79b4c2")
+			elif item["definition_id"] == "item.plate.prototype":
+				dimensions = Vector3(0.4, 0.035, 0.3)
+				color = Color("#b9c2ce")
+			elif item["definition_id"] == "item.extractor.prototype":
+				dimensions = Vector3(0.32, 0.16, 0.12)
+				color = Color("#dfa645")
 			var location: Vector3 = origin + Vector3(-0.3 + float(index % 4) * 0.2, 0.75 + dimensions.y / 2.0, -0.15 + float(index / 4) * 0.3)
 			var mesh: MeshInstance3D = _box(_rendered, dimensions, location, color)
 			var key: String = JSON.stringify([container["container_id"], item["item_id"]])
@@ -85,12 +97,12 @@ func _rebuild() -> void:
 
 func _on_item_input(_camera: Node, event: InputEvent, _position: Vector3, _normal: Vector3, _shape: int, container_id: String, item_id: String) -> void:
 	var key: String = JSON.stringify([container_id, item_id])
-	if not _visible_items.has(key) or not event is InputEventMouseButton or event.button_index != MOUSE_BUTTON_LEFT or not event.pressed:
+	if not _visible_items.has(key) or not PlayerInputSettings.instance().accepts_gameplay_input() or not event.is_action_pressed("world_select"):
 		return
 	_selected_key = key
 	_highlight()
 	item_selected.emit(container_id, item_id)
-	if event.double_click:
+	if not event is InputEventMouseButton or event.double_click:
 		pickup_requested.emit(container_id, item_id)
 
 

@@ -1,5 +1,7 @@
 # Implementation Readiness Review
 
+> Current cooperative prototype status (2026-10-10): see [agent handoff](FIRST_PLAYABLE_HANDOFF.md) and [acceptance evidence](first-playable-acceptance.md). Older sections describe their original development slices; the separate first-playable scene adds authenticated networking, physical production items and durable checkpoints.
+
 Basic injury update: [localized body damage](../architecture/localized-injuries.md) now stores six human prototype parts plus systemic oxygen injury, validates pure damage/heal plans and applies bounded trusted changes on fixed ticks. Head/oxygen effects feed canonical consciousness and existing inventory incapacity. V2 checkpoints and v1 migration are documented/tested. Physical damage sources, treatment resource transactions, broader body control and UI remain pending.
 
 Public status update: [bounded server/card projections](../architecture/public-server-status.md) now validate exact public fields, authenticated host scope, freshness/order, finite cache retention and Twitch binding generations. Offline checks cover private-field rejection and stale/rebound views. Existing local TwitchPHP/HTTP libraries are recorded as preferred providers, with PHP 8.4 and write-retry boundaries explicitly identified. Live publication/OAuth/Extension deployment remain pending.

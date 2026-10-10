@@ -7,6 +7,7 @@ var _world: WorldRuntime
 var _character: LocalHabitatCharacter
 var _origin: Vector3
 var _enabled: bool = false
+var _observe_inactive_character: bool = false
 var _elapsed: float = 0.0
 var _pending_id: String = ""
 var _pending_position: Array = []
@@ -14,12 +15,13 @@ var _last_position: Array = []
 var _nonce: String = str(Time.get_ticks_usec())
 
 
-func configure(world: WorldRuntime, character: LocalHabitatCharacter, origin: Vector3) -> ServiceResult:
+func configure(world: WorldRuntime, character: LocalHabitatCharacter, origin: Vector3, observe_inactive_character: bool = false) -> ServiceResult:
 	if _world != null or not is_instance_valid(world) or not is_instance_valid(character) or not origin.is_finite():
 		return ServiceResult.failure(&"inventory_body_adapter_configuration", "Configure one live world/capsule and finite display origin.")
 	_world = world
 	_character = character
 	_origin = origin
+	_observe_inactive_character = observe_inactive_character
 	_world.command_completed.connect(_on_completed)
 	return ServiceResult.success()
 
@@ -32,7 +34,7 @@ func set_enabled(enabled: bool) -> void:
 
 
 func _process(delta: float) -> void:
-	if not _enabled or not is_instance_valid(_world) or not is_instance_valid(_character) or not _character.navigation_enabled():
+	if not _enabled or not is_instance_valid(_world) or not is_instance_valid(_character) or (not _observe_inactive_character and not _character.navigation_enabled()):
 		return
 	_elapsed += delta
 	if _elapsed < SAMPLE_SECONDS:
@@ -42,7 +44,7 @@ func _process(delta: float) -> void:
 
 
 func sample() -> ServiceResult:
-	if not _enabled or not is_instance_valid(_world) or not is_instance_valid(_character) or not _character.navigation_enabled() or not _pending_id.is_empty():
+	if not _enabled or not is_instance_valid(_world) or not is_instance_valid(_character) or (not _observe_inactive_character and not _character.navigation_enabled()) or not _pending_id.is_empty():
 		return ServiceResult.failure(&"inventory_body_adapter_idle", "The bridge is disabled, inactive or awaiting acknowledgement.")
 	var point: Vector3 = (_character.position - _origin) * 1000.0
 	if not point.is_finite():

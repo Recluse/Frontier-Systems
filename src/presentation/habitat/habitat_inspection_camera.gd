@@ -35,15 +35,15 @@ func set_mode(next_mode: int) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if not current:
+	if not current or not PlayerInputSettings.instance().accepts_gameplay_input():
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+	if event.is_action_pressed("look"):
 		_looking = true
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		PlayerInputSettings.instance().request_capture(self)
 		get_viewport().set_input_as_handled()
-	elif event is InputEventMouseButton and event.pressed and mode == Mode.OVERVIEW:
-		if event.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
-			_radius = clampf(_radius + (-2.0 if event.button_index == MOUSE_BUTTON_WHEEL_UP else 2.0), 5.0, 50.0)
+	elif mode == Mode.OVERVIEW:
+		if event.is_action_pressed("zoom_in") or event.is_action_pressed("zoom_out"):
+			_radius = clampf(_radius + (-2.0 if event.is_action_pressed("zoom_in") else 2.0), 5.0, 50.0)
 			_update_overview()
 			get_viewport().set_input_as_handled()
 
@@ -51,13 +51,13 @@ func _unhandled_input(event: InputEvent) -> void:
 func _input(event: InputEvent) -> void:
 	if not _looking:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
+	if event.is_action_released("look"):
 		_release_mouse()
-	elif event is InputEventKey and event.keycode == KEY_ESCAPE and event.pressed:
+	elif event.is_action_pressed("release_cursor"):
 		_release_mouse()
-	elif event is InputEventMouseMotion:
-		_yaw = fposmod(_yaw - event.relative.x * 0.003, TAU)
-		_pitch = clampf(_pitch - event.relative.y * 0.003, -1.3, 1.3)
+	elif event is InputEventMouseMotion and PlayerInputSettings.instance().can_navigate(self):
+		_yaw = fposmod(_yaw - event.relative.x * PlayerInputSettings.instance().sensitivity, TAU)
+		_pitch = clampf(_pitch - event.relative.y * PlayerInputSettings.instance().sensitivity, -1.3, 1.3)
 		if mode == Mode.OVERVIEW:
 			_update_overview()
 		else:
@@ -65,16 +65,16 @@ func _input(event: InputEvent) -> void:
 
 
 func _process(delta: float) -> void:
-	if not _looking or mode != Mode.FREE_LOOK:
+	if not PlayerInputSettings.instance().can_navigate(self) or mode != Mode.FREE_LOOK:
 		return
 	var movement := Vector3.ZERO
-	if Input.is_physical_key_pressed(KEY_W): movement -= transform.basis.z
-	if Input.is_physical_key_pressed(KEY_S): movement += transform.basis.z
-	if Input.is_physical_key_pressed(KEY_A): movement -= transform.basis.x
-	if Input.is_physical_key_pressed(KEY_D): movement += transform.basis.x
-	if Input.is_physical_key_pressed(KEY_Q): movement -= Vector3.UP
-	if Input.is_physical_key_pressed(KEY_E): movement += Vector3.UP
-	var speed: float = 15.0 if Input.is_physical_key_pressed(KEY_SHIFT) else 6.0
+	if Input.is_action_pressed("move_forward"): movement -= transform.basis.z
+	if Input.is_action_pressed("move_back"): movement += transform.basis.z
+	if Input.is_action_pressed("move_left"): movement -= transform.basis.x
+	if Input.is_action_pressed("move_right"): movement += transform.basis.x
+	if Input.is_action_pressed("fly_down"): movement -= Vector3.UP
+	if Input.is_action_pressed("fly_up"): movement += Vector3.UP
+	var speed: float = 15.0 if Input.is_action_pressed("sprint") else 6.0
 	position += movement.normalized() * speed * clampf(delta, 0.0, 0.1)
 
 
@@ -84,8 +84,7 @@ func _update_overview() -> void:
 
 
 func _release_mouse() -> void:
-	if _looking:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	PlayerInputSettings.instance().release_capture(self)
 	_looking = false
 
 

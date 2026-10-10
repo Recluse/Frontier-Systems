@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:local-checkpoint:v1",
+  "title": "Local alternating checkpoint envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "sequence", "snapshot_json", "sha256"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "sequence": {"type": "integer", "minimum": 1, "maximum": 9007199254740000},
+    "snapshot_json": {"type": "string", "maxLength": 8388608},
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  },
+  "description": "Runtime enforces an 8 MiB UTF-8 snapshot byte limit and 16 MiB envelope file limit, verifies SHA-256 over snapshot_json, then validates the world record and cross-system restore. Schema character limits alone cannot enforce UTF-8 byte limits. Sequence parity selects a/b; highest valid sequence is loaded."
+}

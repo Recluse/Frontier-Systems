@@ -95,12 +95,9 @@ func _physics_process(delta: float) -> void:
 		return
 	if read_local_keyboard:
 		var axes := Vector2.ZERO
-		if _looking:
-			if Input.is_physical_key_pressed(KEY_A): axes.x -= 1.0
-			if Input.is_physical_key_pressed(KEY_D): axes.x += 1.0
-			if Input.is_physical_key_pressed(KEY_W): axes.y -= 1.0
-			if Input.is_physical_key_pressed(KEY_S): axes.y += 1.0
-		set_motion_intent(axes, _jump, _looking and Input.is_physical_key_pressed(KEY_SHIFT))
+		if PlayerInputSettings.instance().can_navigate(self):
+			axes = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+		set_motion_intent(axes, _jump and PlayerInputSettings.instance().can_navigate(self), PlayerInputSettings.instance().can_navigate(self) and Input.is_action_pressed("sprint"))
 	var direction: Vector3 = transform.basis * Vector3(_axes.x, 0.0, _axes.y)
 	var speed: float = RUN_SPEED if _sprint else WALK_SPEED
 	velocity.x = direction.x * speed
@@ -116,31 +113,32 @@ func _physics_process(delta: float) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if _active and event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+	if _active and PlayerInputSettings.instance().accepts_gameplay_input() and event.is_action_pressed("look"):
 		_looking = true
-		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+		PlayerInputSettings.instance().request_capture(self)
 		get_viewport().set_input_as_handled()
 
 
 func _input(event: InputEvent) -> void:
 	if not _looking:
 		return
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
+	if event.is_action_released("look"):
 		release_controls()
-	elif event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+	elif event.is_action_pressed("release_cursor"):
 		release_controls()
-	elif event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_SPACE:
+	elif not PlayerInputSettings.instance().can_navigate(self):
+		return
+	elif event.is_action_pressed("jump") and not event.is_echo():
 		_jump = true
 		get_viewport().set_input_as_handled()
 	elif event is InputEventMouseMotion:
-		rotation.y = fposmod(rotation.y - event.relative.x * 0.003, TAU)
-		_pitch = clampf(_pitch - event.relative.y * 0.003, -1.3, 1.3)
+		rotation.y = fposmod(rotation.y - event.relative.x * PlayerInputSettings.instance().sensitivity, TAU)
+		_pitch = clampf(_pitch - event.relative.y * PlayerInputSettings.instance().sensitivity, -1.3, 1.3)
 		_rig.rotation.x = _pitch
 
 
 func release_controls() -> void:
-	if _looking:
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	PlayerInputSettings.instance().release_capture(self)
 	_looking = false
 	_jump = false
 	_axes = Vector2.ZERO

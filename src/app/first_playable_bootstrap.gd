@@ -1,0 +1,334 @@
+extends Node
+class_name FirstPlayableBootstrap
+
+var _world: WorldRuntime
+var _store: WorldPersistenceAdapter
+var _remote: RemoteWorldRuntime
+var _status: Label
+var _content: VBoxContainer
+var _habitat: ProceduralHabitatPreview
+var _production_panel: LocalProductionPanel
+var _inventory_label: Label
+var _body_initialized: bool = false
+var _elapsed: float = 0.0
+var _movement_pending: bool = false
+var _movement_id: String = ""
+var _last_position: Array = []
+var _latest: Dictionary = {}
+var _avatars: Dictionary = {}
+var _scroll: ScrollContainer
+var _inventory_panel: PlayerInventoryPanel
+var _tabs: TabContainer
+var _hands_hud: Label
+
+
+func _ready() -> void:
+	if OS.get_cmdline_user_args().has("--host"):
+		_start_host()
+	else:
+		_start_client()
+
+
+func _start_host() -> void:
+	Engine.max_fps = 60
+	_world = WorldRuntime.new()
+	_world.resource_carriers_enabled = true
+	add_child(_world)
+	_store = WorldPersistenceAdapter.new()
+	add_child(_store)
+	var directory: String = OS.get_environment("FRONTIER_SAVE_DIRECTORY")
+	if directory.is_empty():
+		directory = "user://first-playable-world"
+	var configured: ServiceResult = _store.configure(_world, directory)
+	if not configured.is_success:
+		push_error(configured.message)
+		get_tree().quit(1)
+		return
+	var host := FirstPlayableHost.new()
+	host.persistence = _store
+	add_child(host)
+	var keys: Array[String] = [OS.get_environment("FRONTIER_PLAYER_ONE_KEY"), OS.get_environment("FRONTIER_PLAYER_TWO_KEY")]
+	var network: ServiceResult = host.configure(_world, keys)
+	if not network.is_success or not _world.start_simulation().is_success:
+		push_error(network.message)
+		get_tree().quit(1)
+		return
+	print("First playable host listening on loopback port 27840; two invite slots and checkpoint persistence enabled.")
+
+
+func _start_client() -> void:
+	_remote = RemoteWorldRuntime.new()
+	add_child(_remote)
+	_remote.observation_received.connect(_on_observation)
+	_remote.connection_closed.connect(func(message: String) -> void: _status.text = message)
+	_remote.command_completed.connect(_on_completed)
+	var canvas := CanvasLayer.new()
+	add_child(canvas)
+	var background := ColorRect.new()
+	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	canvas.add_child(background)
+	var row := HSplitContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 12
+	row.offset_top = 12
+	row.offset_right = -12
+	row.offset_bottom = -12
+	row.split_offset = 540
+	canvas.add_child(row)
+	_tabs = TabContainer.new()
+	_tabs.custom_minimum_size.x = 420
+	row.add_child(_tabs)
+	var scroll := ScrollContainer.new()
+	_scroll = scroll
+	scroll.name = "Workstation"
+	_tabs.add_child(scroll)
+	_content = VBoxContainer.new()
+	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll.add_child(_content)
+	var inventory_scroll := ScrollContainer.new()
+	inventory_scroll.name = "Inventory"
+	_tabs.add_child(inventory_scroll)
+	_inventory_panel = PlayerInventoryPanel.new()
+	_inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inventory_scroll.add_child(_inventory_panel)
+	_inventory_panel.configure(_remote)
+	var settings_scroll := ScrollContainer.new()
+	settings_scroll.name = "Settings"
+	_tabs.add_child(settings_scroll)
+	var settings := PlayerControlsPanel.new()
+	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	settings_scroll.add_child(settings)
+	_status = Label.new()
+	_status.text = "Connecting to the shared host…"
+	_content.add_child(_status)
+	var theme_selector := OverlayThemeController.new()
+	_content.add_child(theme_selector)
+	var themed: ServiceResult = theme_selector.configure(row, background)
+	if not themed.is_success:
+		push_warning(themed.message)
+	var url: String = OS.get_environment("FRONTIER_HOST_URL")
+	if url.is_empty():
+		url = "ws://127.0.0.1:27840"
+	var connected: ServiceResult = _remote.connect_host(url, OS.get_environment("FRONTIER_INVITE_KEY"))
+	if not connected.is_success:
+		_status.text = connected.message
+	var views := VBoxContainer.new()
+	views.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(views)
+	var help := Label.new()
+	help.text = ""
+	var update_help: Callable = func() -> void:
+		help.text = "Hold %s to look · hold %s for UI · %s: inventory · %s: settings" % [PlayerInputSettings.instance().binding_label("look"), PlayerInputSettings.instance().binding_label("ui_cursor"), PlayerInputSettings.instance().binding_label("inventory"), PlayerInputSettings.instance().binding_label("settings")]
+	PlayerInputSettings.instance().bindings_changed.connect(update_help)
+	update_help.call()
+	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	views.add_child(help)
+	var overview := Button.new()
+	overview.text = "Overview: locate resources and the refinery"
+	overview.pressed.connect(func() -> void: _habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW))
+	views.add_child(overview)
+	for mode in [LocalHabitatCharacter.CameraMode.FIRST_PERSON, LocalHabitatCharacter.CameraMode.THIRD_PERSON]:
+		var button := Button.new()
+		button.text = "First person" if mode == LocalHabitatCharacter.CameraMode.FIRST_PERSON else "Third person"
+		button.pressed.connect(func() -> void: _habitat.activate_character(mode))
+		views.add_child(button)
+	var container := SubViewportContainer.new()
+	container.stretch = true
+	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	views.add_child(container)
+	var viewport := SubViewport.new()
+	viewport.own_world_3d = true
+	viewport.physics_object_picking = true
+	viewport.size = Vector2i(800, 700)
+	container.add_child(viewport)
+	_habitat = ProceduralHabitatPreview.new()
+	viewport.add_child(_habitat)
+	_habitat.focus_production()
+	_habitat.world_inventory.player_facing_labels = true
+	_habitat.world_inventory.pickup_requested.connect(_pickup_world_item)
+	_hands_hud = Label.new()
+	_hands_hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	views.add_child(_hands_hud)
+	_inventory_label = Label.new()
+	_inventory_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_content.add_child(_inventory_label)
+	var pickup := Button.new()
+	pickup.text = "Collect canister from nearby tray"
+	pickup.pressed.connect(_pickup_canister)
+	_content.add_child(pickup)
+	var drop := Button.new()
+	drop.text = "Drop a carried canister onto the nearby tray"
+	drop.pressed.connect(_drop_canister)
+	_content.add_child(drop)
+	var drop_plate := Button.new()
+	drop_plate.text = "Place a carried plate on the nearby tray"
+	drop_plate.pressed.connect(_drop_first_definition.bind("item.plate.prototype"))
+	_content.add_child(drop_plate)
+	var save := Button.new()
+	save.text = "Save shared world now"
+	save.pressed.connect(func() -> void:
+		var command := CheckpointRequest.new()
+		command.command_id = StringName("save-%s" % _remote.next_local_request_id())
+		var queued: ServiceResult = _remote.enqueue_command(command)
+		_status.text = "Checkpoint requested; waiting for disk confirmation…" if queued.is_success else queued.message
+	)
+	_content.add_child(save)
+
+
+func _on_observation(record: Dictionary) -> void:
+	_latest = record
+	_inventory_panel.observe(record)
+	var hand_names: PackedStringArray = []
+	for hand in record["inventory"]["hand_slot_ids"]:
+		var held: String = "Empty"
+		for binding in record["inventory"]["equipped"]:
+			if binding["slot_id"] == hand:
+				for item in record["inventory"]["items"]:
+					if item["item_id"] == binding["item_id"]:
+						held = PlayerInventoryPanel.NAMES.get(item["definition_id"], "Equipment")
+		hand_names.append("%s%s: %s" % ["● " if record["inventory"]["active_hand_slot_id"] == hand else "", hand.replace("hand.", "").capitalize(), held])
+	_hands_hud.text = " · ".join(hand_names) + " · Inventory tab: equip tools and open portable storage"
+	_status.text = "Connected to shared colony · Crew %d" % (_remote.server_slot + 1)
+	if not record.get("persistence", {}).is_empty():
+		_status.text += " · saved tick %d" % record["persistence"]["saved_tick"]
+	if _production_panel == null:
+		_production_panel = LocalProductionPanel.new()
+		_content.add_child(_production_panel)
+		_production_panel.configure(_remote)
+		_production_panel.observation_changed.connect(_habitat.production.observe)
+		_habitat.production.source_selected.connect(_production_panel.select_source)
+		_habitat.production.extraction_requested.connect(_production_panel.extract_source)
+		_habitat.production.workstation_selected.connect(func() -> void:
+			_tabs.current_tab = 0
+			_scroll.ensure_control_visible(_production_panel.refining_focus_control())
+		)
+	if not _body_initialized:
+		var position: Array = record["position"]
+		_habitat.character.position = ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(float(position[0]), maxf(950.0, float(position[1])), float(position[2])) / 1000.0
+		_habitat.character.rotation.y = 0.0
+		_habitat.activate_character(LocalHabitatCharacter.CameraMode.FIRST_PERSON)
+		_last_position = position.duplicate()
+		_body_initialized = true
+		print("Shared host authenticated this client as crew %d." % (_remote.server_slot + 1))
+	_habitat.production.observe(record["production"])
+	if not record["world_items"].is_empty():
+		_habitat.world_inventory.observe(record["world_items"])
+	_inventory_label.text = "Carried mass: %.2f kg · items: %d" % [float(record["inventory"]["mass_milligrams"]) / 1000000.0, record["inventory"]["items"].size()]
+	var visible: Dictionary = {}
+	for player in record.get("players", []):
+		if int(player["slot"]) == _remote.server_slot:
+			continue
+		visible[player["slot"]] = true
+		if not _avatars.has(player["slot"]):
+			var avatar := MeshInstance3D.new()
+			var mesh := CapsuleMesh.new()
+			mesh.radius = 0.3
+			mesh.height = 1.8
+			avatar.mesh = mesh
+			var material := StandardMaterial3D.new()
+			material.albedo_color = Color("#5dba87")
+			avatar.material_override = material
+			_habitat.add_child(avatar)
+			_avatars[player["slot"]] = avatar
+		var coords: Array = player["position"]
+		_avatars[player["slot"]].position = ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(float(coords[0]), maxf(950.0, float(coords[1])), float(coords[2])) / 1000.0
+	for slot in _avatars.keys():
+		if not visible.has(slot):
+			_avatars[slot].queue_free()
+			_avatars.erase(slot)
+
+
+func _process(delta: float) -> void:
+	if _remote == null or not _body_initialized or _movement_pending:
+		return
+	_elapsed += delta
+	if _elapsed < 0.15:
+		return
+	_elapsed = 0.0
+	var point: Vector3 = (_habitat.character.position - ProceduralWorldInventoryPreview.DISPLAY_ORIGIN) * 1000.0
+	var position: Array = [roundi(point.x), roundi(point.y), roundi(point.z)]
+	if position == _last_position:
+		return
+	var command := InventoryDevelopmentCommand.new()
+	command.command_id = StringName("move-%s" % _remote.next_local_request_id())
+	command.operation = "move_to"
+	command.payload = {"position_millimetres": position}
+	var sent: ServiceResult = _remote.enqueue_command(command)
+	if sent.is_success:
+		_movement_id = String(command.command_id)
+		_movement_pending = true
+		_last_position = position
+
+
+func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
+	if String(command.command_id) == _movement_id:
+		_movement_pending = false
+		if not result.is_success and not _latest.is_empty():
+			var position: Array = _latest["position"]
+			_habitat.character.position = ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(float(position[0]), float(position[1]), float(position[2])) / 1000.0
+	_status.text = result.message if not result.is_success else _status.text
+	if command is CheckpointRequest and result.is_success:
+		_status.text = "Shared world checkpoint confirmed on disk."
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _remote == null or PlayerInputSettings.instance().rebinding or event.is_echo():
+		return
+	if event.is_action_pressed("settings"):
+		_tabs.current_tab = 0 if _tabs.current_tab == 2 else 2
+	elif event.is_action_pressed("inventory"):
+		PlayerInputSettings.instance().release_all()
+		_tabs.current_tab = 0 if _tabs.current_tab == 1 else 1
+	elif _tabs.current_tab == 2 or Input.is_action_pressed("ui_cursor"):
+		return
+	elif event.is_action_pressed("switch_hand"):
+		_inventory_panel.switch_active_hand()
+	elif event.is_action_pressed("use_tool"):
+		_inventory_panel.use_active_tool()
+	elif event.is_action_pressed("camera_first"):
+		_habitat.activate_character(LocalHabitatCharacter.CameraMode.FIRST_PERSON)
+	elif event.is_action_pressed("camera_third"):
+		_habitat.activate_character(LocalHabitatCharacter.CameraMode.THIRD_PERSON)
+	elif event.is_action_pressed("camera_overview"):
+		_habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW)
+	else:
+		return
+	get_viewport().set_input_as_handled()
+
+
+func _pickup_canister() -> void:
+	if _latest.is_empty() or _latest["world_items"].is_empty():
+		return
+	for container in _latest["world_items"]["containers"]:
+		for item in container["items"]:
+			if item["definition_id"] == "item.resource-canister.prototype":
+				_pickup_world_item(container["container_id"], item["item_id"])
+				return
+
+
+func _pickup_world_item(container_id: String, item_id: String) -> void:
+	if _latest.is_empty() or _latest["world_items"].is_empty():
+		return
+	var command := InventoryDevelopmentCommand.new()
+	command.command_id = StringName("pickup-%s" % _remote.next_local_request_id())
+	command.operation = "world"
+	command.payload = {"operation": "pickup", "item_id": item_id, "world_container_id": container_id, "destination_container_id": _latest["inventory"]["body_container_id"], "slot_id": "", "expected_revision": _latest["world_items"]["inventory_revision"]}
+	_remote.enqueue_command(command)
+
+
+func _drop_canister() -> void:
+	_drop_first_definition("item.resource-canister.prototype")
+
+
+func _drop_first_definition(definition_id: String) -> void:
+	if _latest.is_empty():
+		return
+	for item in _latest["inventory"]["items"]:
+		if item["definition_id"] == definition_id:
+			var command := InventoryDevelopmentCommand.new()
+			command.command_id = StringName("drop-%s" % _remote.next_local_request_id())
+			command.operation = "world"
+			command.payload = {"operation": "drop", "item_id": item["item_id"], "world_container_id": "world.tray-1", "destination_container_id": "", "slot_id": "", "expected_revision": _latest["world_items"].get("inventory_revision", 0)}
+			_remote.enqueue_command(command)
+			return

@@ -4,12 +4,15 @@ Frontier Systems is a cooperative, persistent engineering simulation set across 
 
 ## Current foundation
 
+**Cooperative first playable source prototype:** extraction into portable containers, transport, refining, physical plate crafting and recycling, with two authenticated clients and restart checkpoints. [Run it](docs/development/first-playable-running.md), review [acceptance evidence](docs/development/first-playable-acceptance.md), or use the [agent handoff](docs/development/FIRST_PLAYABLE_HANDOFF.md). This is a development build, not a packaged Steam release.
+
 - Optional OpenXR PC VR preview with a Quest 3 testing guide. Launch `tools/launch-client.ps1 -VR` for Mobile/Vulkan XR, or omit `-VR` for desktop. See [optional VR setup and current limitations](docs/development/quest-3-vr-testing.md).
 
 - Godot 4.7 Forward+ project with a client/headless bootstrap, server-authoritative fixed-tick runner, component composition, bounded async continuations, and bounded TTL/LRU caching.
 - One headless Godot world-host build is intended to support both community-hosted and official worlds; local headless startup is the first development mode.
 - GodotSteam GDExtension 4.23.1 installed under `addons/godotsteam/` and wrapped by `GodotSteamProvider`.
 - Local airlock prototype with an ideal-gas pressure solver, tick-sampled pressure sensors, door/valve interlocks, fixed-tick commands, and staged electrical/mechanical/combined access bypass jobs.
+- Local [mining-to-crafting gameplay loop](docs/architecture/production-gameplay-loop.md): finite deposits, refining, chemical processing and dispensing, plate printing, wall construction/deconstruction and recycling. Shared materials, energy and reserved batches persist in world snapshots.
 - Manual crowbar commands can move an unlocked, mechanically usable door without controller power; locks, tools, force limits, and airlock interlocks still apply.
 - Versioned world snapshots with pressure and access-control restore contracts for the future PHP persistence boundary.
 - Actor-free command-intent schema and server-local authenticated command context boundary; the local prototype uses a development-only principal.
@@ -20,6 +23,8 @@ Frontier Systems is a cooperative, persistent engineering simulation set across 
 - Control-board replacement plans retain fitted modules and check explicit relocations. Physical mounting and cable attachment allow dormant or unusual configurations; operability is diagnosed separately. The expanded door-board/igniter example is definition data, with construction execution and combustion still future work.
 - Foundation architecture and known limitations are documented in [`docs/architecture/foundations.md`](docs/architecture/foundations.md).
 - Non-fatal component integrity, gas/liquid pressure, docking, EVA, and remote-control invariants are documented in [`docs/design/survival-pressure-and-recovery.md`](docs/design/survival-pressure-and-recovery.md).
+
+The cooperative client also provides a [player inventory and tool panel](docs/architecture/player-inventory-ui.md), nested portable storage, equipment/hand controls and a 1920×1080 default window. New worlds seed handheld extractors; existing worlds keep their saved inventory.
 
 ## PHP control plane
 

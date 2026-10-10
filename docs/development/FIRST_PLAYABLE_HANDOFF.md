@@ -1,0 +1,56 @@
+# First playable agent handoff
+
+## Status and owner decisions
+
+The **cooperative first playable source prototype is implemented and verified on Windows**. The owner explicitly requires shared multiplayer and restart persistence. The priority is environmental extraction → portable container → transport/unload → refine → physical component → recycle/reuse. Do not reopen this scope question. See [acceptance evidence](first-playable-acceptance.md) and [launch instructions](first-playable-running.md).
+
+This is a bounded development prototype, not the full long-term game or a Steam distribution release. Terrain excavation follows this loop. Civ13-informed civilization progression remains a later update.
+
+## Environment
+
+- Workspace: `D:\GitHub\Frontier Systems`; integration branch `dev-master`.
+- Godot console: `D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe`.
+- Read `AGENTS.md`, the milestone and adapter contract before editing authority boundaries.
+- Preserve uncommitted work; commit/push only when requested. Inspect Git status before assuming ownership of changes.
+- Windows runtime support is mandatory: no ReactPHP child processes, pcntl or POSIX orchestration. PHP packages remain PSR-4 and strict_types=1.
+- First-party code and procedural assets are MIT. No SS13/Civ13 source/assets were imported. Reference authorization does not provide MIT redistribution rights; Baystation source must not be supplied to AI.
+
+## Implementation map
+
+- `src/core/production/`: finite 25 kg resource fixture, recipe catalog, energy, timed reservations, chemical vessel bounds, extraction/cargo, factory/recycler transactions and bounded retained receipts. Production owns all resource payload mass.
+- `src/core/inventory/`: physical canisters/plates, owned graph, prospective payload-mass validation and derived load caches. Payload is counted once; stable item identity carries it through transfer/drop/pickup.
+- `src/adapters/network/`: WebSocket host, server-minted authenticated contexts, scoped observations, read-only client production projection and asynchronous checkpoint intent. Socket writes happen outside fixed ticks. Two invite slots map to persistent crew bodies.
+- `src/adapters/persistence/`: alternating checksummed checkpoints, startup restore and worker-thread disk I/O. Capture detached snapshots outside tick callbacks; workers never mutate canonical state.
+- `src/app/first_playable_bootstrap.gd` and `scenes/first_playable.tscn`: dedicated host mode or graphical remote client. Legacy main.tscn is still the standalone laboratory.
+- `src/presentation/production/`: source picking, readable recipe controls and seven-stage session guide. Batch-completion notifications are volatile presentation events, not durable rewards/provenance.
+- `tools/launch-first-playable.ps1`: ignored cryptographic invite keys, named save directories and explicit source-scene launch.
+- `data/production/catalog.v1.json`, production schemas and adapter documentation codify contracts. Existing inventory fixture is preserved; shared.production seeds carriers only in new worlds.
+
+## Verified state
+
+Real two-client acceptance passes: invite isolation, competing extraction, overcapacity/missing-input/power rejection, outage pause/cancellation, refining, physical component creation/recycling, physical-item restore, worker save confirmation, corrupt-slot recovery, active-batch restart and retained retry. The graphical route completes with local physics and authenticated guide commands using Forward+/D3D12 and Compatibility/OpenGL. Six focused inventory/health/control regression suites passed. Exact commands and limits are in acceptance evidence.
+
+## Next development slices
+
+1. Collect human two-player usability feedback and profile this active route before changing tick rates. Recipe ticks currently mean different wall-clock durations at 60/72/90 Hz; migrate/retune deliberately.
+2. Expand durable-storage guarantees if required: transactional/journal persistence and identity binding. Current saves are periodic/manual checkpoints, not per-command durability.
+3. Integrate existing GodotSteam identity/lobby adapter behind transport contracts before Steam distribution; preserve offline community-host mode.
+4. Add sustained extraction/tools, carrier construction, terrain excavation and spatial blueprint transactions after the current loop.
+5. Improve movement collision authority, prediction, reconnect UX and server load limits before wider/public play.
+6. Run Linux CI, standalone export and optional Quest 3 checks when those environments are available. Do not substitute Windows evidence for them.
+
+Platform chat/voice, DiscordPHP/TwitchPHP integration, full survival/medicine, LLM station automation, ships and civilization progression remain staged roadmap work. Existing foundations are not evidence that these complete features already ship.
+
+## Known constraints
+
+Two fixed invite bodies; host binds loopback and remote access needs a TLS proxy. Client collision is local; server enforces region/speed and command reach. Guide progress is session-only. Autosaves every five seconds; sudden termination can lose newer actions. Catalog fingerprint and tick timebase must match saved state. No standalone executable export or public deployment was made. No commit or push was performed for this milestone session.
+
+Production state_revision represents command/material/configuration transactions and output completion; remaining_ticks changes alone do not advance it. Preserve this distinction so network controls can pause/cancel active batches without becoming stale every frame.
+
+## Subsequent player UI implementation (2026-10-10)
+
+PlayerInventoryPanel adds scoped storage browsing, equipment/hand controls, inspection, tray actions and active extractor use. The host opts into inventory observation v3, while local APIs retain v2 by default. New cooperative fixtures seed backpacks/extractors; loaded saves are untouched. The window defaults to 1920×1080 and uses a draggable tabbed sidebar and existing theme controller. See ../architecture/player-inventory-ui.md for contracts and limits. Only editor import/script parsing were performed for this update; prior gameplay acceptance evidence predates it. Next verification should cover both crews, nested mass/capacity/cycle rejection, wrong-hand/tool rejection, tool extraction, restart retention and resized layouts.
+
+## Subsequent controls implementation (2026-10-10)
+
+PlayerInputSettings (PlayerControls autoload) owns named InputMap defaults, bounded local preferences and cursor capture ownership. Left Alt temporarily exposes the cursor; settings and focus loss release navigation. PlayerControlsPanel supports keys/chords, mouse, controller button/axis rebinding, sensitivity and defaults. Cooperative shortcuts and core UI navigation are configurable. Desktop cameras and world selection no longer depend on hard-coded physical keys/buttons. See ../architecture/player-controls.md. Only editor import and script parsing were performed; interactive verification remains pending. OpenXR action-map settings are separate future work.

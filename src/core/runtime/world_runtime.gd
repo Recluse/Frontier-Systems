@@ -12,11 +12,13 @@ const DEFAULT_REGION_ID: StringName = &"local-habitat"
 
 @export var world_id: StringName = DEFAULT_WORLD_ID
 @export var region_id: StringName = DEFAULT_REGION_ID
+@export var resource_carriers_enabled: bool = false
 var _simulation_runner: SimulationRunner
 var _local_request_sequence: int = 0
 var _control_setup_result: ServiceResult
 var _inventory_setup_result: ServiceResult
 var _health_setup_result: ServiceResult
+var _production_setup_result: ServiceResult
 
 
 func _ready() -> void:
@@ -34,7 +36,7 @@ func _ready() -> void:
 	_simulation_runner.add_child(control_system)
 	var inventory_system := InventorySimulationSystem.new()
 	inventory_system.name = "InventorySimulationSystem"
-	_inventory_setup_result = inventory_system.configure_defaults()
+	_inventory_setup_result = inventory_system.configure_defaults(resource_carriers_enabled)
 	_simulation_runner.add_child(inventory_system)
 	var health_system := HealthSimulationSystem.new()
 	health_system.name = "HealthSimulationSystem"
@@ -46,11 +48,17 @@ func _ready() -> void:
 	if _health_setup_result.is_success:
 		_health_setup_result = inventory_system.bind_health(health_system)
 	_simulation_runner.add_child(health_system)
+	var production_system := ProductionSimulationSystem.new()
+	production_system.name = "ProductionSimulationSystem"
+	_production_setup_result = production_system.configure(inventory_system)
+	_simulation_runner.add_child(production_system)
 	_simulation_runner.external_command_completed.connect(_on_external_command_completed)
 	add_child(_simulation_runner)
 
 
 func start_simulation() -> ServiceResult:
+	if _production_setup_result == null or not _production_setup_result.is_success:
+		return ServiceResult.failure(&"production_setup_failed", "The production catalog and stores must initialize before starting.")
 	if _health_setup_result == null or not _health_setup_result.is_success:
 		return ServiceResult.failure(&"health_setup_failed", "Health body owners must initialize before starting.")
 	if _inventory_setup_result == null or not _inventory_setup_result.is_success:
@@ -150,6 +158,13 @@ func own_health_observation(context: AuthenticatedCommandContext) -> ServiceResu
 		"parts": injuries.value["parts"], "oxygen_damage_permille": injuries.value["oxygen_damage_permille"]})
 
 
+func production_observation(context: AuthenticatedCommandContext) -> ServiceResult:
+	if context == null or not context.is_valid_for(world_id, region_id):
+		return ServiceResult.failure(&"production_scope_denied", "Current world identity is required.")
+	var production := get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem
+	return production.observation(context) if production != null else ServiceResult.failure(&"production_unavailable", "Production is unavailable.")
+
+
 func pressure_snapshot(airlock_id: StringName = PROTOTYPE_AIRLOCK_ID) -> ServiceResult:
 	var pressure_system := get_simulation_system(PressureSystem.SYSTEM_ID) as PressureSystem
 	if pressure_system == null:
@@ -244,6 +259,11 @@ func restore_world_snapshot(snapshot: WorldSnapshot) -> ServiceResult:
 		if not migrated.is_success:
 			return migrated
 		system_records["health"] = migrated.value
+	if not system_records.has("production"):
+		var production := get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem
+		if production == null:
+			return ServiceResult.failure(&"production_migration_failed", "Production migration requires its trusted catalog.")
+		system_records["production"] = production.initial_record(normalized.tick_number)
 	var link_validation: ServiceResult = _validate_cross_system_state(system_records, normalized.tick_number)
 	if not link_validation.is_success:
 		return link_validation
@@ -300,4 +320,10 @@ func _validate_cross_system_state(system_records: Dictionary, snapshot_tick_numb
 			return ServiceResult.failure(&"invalid_health_links", "A health body must reference a registered inventory body.")
 	if health_record["entries"].size() != known_bodies.size():
 		return ServiceResult.failure(&"invalid_health_links", "Every current inventory body requires one health owner.")
-	return ServiceResult.success()
+	var production := get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem
+	if production == null or typeof(system_records.get("production")) != TYPE_DICTIONARY:
+		return ServiceResult.failure(&"invalid_production_links", "Production and its inventory associations are required.")
+	var valid_production: ServiceResult = production.validate_snapshot_record(system_records["production"], snapshot_tick_number)
+	if not valid_production.is_success:
+		return valid_production
+	return production.validate_inventory_links(valid_production.value, inventory_record)

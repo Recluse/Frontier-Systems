@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "materials": ["ore.iron", "ice", "regolith", "iron", "tailings", "water", "hydrogen", "oxygen", "salts", "silicate", "nutrient-solution", "plate"],
+  "dispensable": ["water", "hydrogen", "oxygen", "nutrient-solution"],
+  "deposits": {"deposit.iron": {"material": "ore.iron", "mass_milligrams": 10000000}, "deposit.ice": {"material": "ice", "mass_milligrams": 5000000}, "deposit.regolith": {"material": "regolith", "mass_milligrams": 10000000}},
+  "recipes": {
+    "refine.iron": {"station": "refinery", "inputs": {"ore.iron": 1000000}, "outputs": {"iron": 600000, "tailings": 400000}, "duration_ticks": 120, "energy_joules": 1000},
+    "refine.ice": {"station": "refinery", "inputs": {"ice": 1000000}, "outputs": {"water": 1000000}, "duration_ticks": 60, "energy_joules": 500},
+    "refine.regolith": {"station": "refinery", "inputs": {"regolith": 1000000}, "outputs": {"salts": 200000, "silicate": 400000, "tailings": 400000}, "duration_ticks": 120, "energy_joules": 1000},
+    "chemical.electrolysis": {"station": "chemical", "inputs": {"water": 1000000}, "outputs": {"hydrogen": 111000, "oxygen": 889000}, "duration_ticks": 180, "energy_joules": 2000},
+    "chemical.nutrients": {"station": "chemical", "inputs": {"water": 900000, "salts": 100000}, "outputs": {"nutrient-solution": 1000000}, "duration_ticks": 120, "energy_joules": 500},
+    "craft.plate": {"station": "printer", "inputs": {"iron": 1000000}, "outputs": {"plate": 1000000}, "duration_ticks": 120, "energy_joules": 1000},
+    "salvage.plate": {"station": "recycler", "inputs": {"plate": 1000000}, "outputs": {"iron": 1000000}, "duration_ticks": 60, "energy_joules": 500}
+  }
+}

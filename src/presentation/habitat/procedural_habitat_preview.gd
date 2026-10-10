@@ -5,6 +5,7 @@ class_name ProceduralHabitatPreview
 var camera: HabitatInspectionCamera
 var character: LocalHabitatCharacter
 var world_inventory: ProceduralWorldInventoryPreview
+var production: ProceduralProductionPreview
 var _door_shapes: Dictionary = {}
 var _doors: Dictionary = {}
 var _targets: Dictionary = {"inner": 1.2, "outer": 1.2}
@@ -12,6 +13,7 @@ var _pressure_label: Label3D
 
 
 func _ready() -> void:
+	add_child(WorldSelectionInput.new())
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
 	environment.background_color = Color("#141e2a")
@@ -46,6 +48,8 @@ func _ready() -> void:
 	add_child(_pressure_label)
 	world_inventory = ProceduralWorldInventoryPreview.new()
 	add_child(world_inventory)
+	production = ProceduralProductionPreview.new()
+	add_child(production)
 	camera = HabitatInspectionCamera.new()
 	add_child(camera)
 	character = LocalHabitatCharacter.new()
@@ -53,6 +57,11 @@ func _ready() -> void:
 	character.rotation.y = -PI / 2.0
 	add_child(character)
 	camera.make_current()
+
+
+func focus_production() -> void:
+	if _pressure_label != null:
+		_pressure_label.visible = false
 
 
 func observe_snapshot(snapshot: Dictionary) -> ServiceResult:

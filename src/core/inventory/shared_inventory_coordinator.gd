@@ -141,6 +141,14 @@ func apply_world(request: Dictionary) -> ServiceResult:
 	return _commit_candidate(candidate, request["request_id"], fingerprint)
 
 
+## Refresh derived load caches after a prevalidated external payload commit.
+func refresh_payload_loads() -> ServiceResult:
+	var validated: ServiceResult = from_record(to_record(), _profiles, _catalog)
+	if validated.is_success:
+		_ledger = validated.value._ledger
+	return validated
+
+
 func to_record() -> Dictionary:
 	return _record.duplicate(true)
 
