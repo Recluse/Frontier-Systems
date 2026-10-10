@@ -62,3 +62,5 @@ composer phpacker
 The extension source and platform binaries are pinned in `addons/godotsteam/` to release 4.23.1. Run the project with Godot 4.7 and Steam installed for Steam API initialization. Use `GodotSteamProvider.initialize(app_id)` during startup; do not initialize Steam or call integrations from a simulation tick. Exported builds should use Godot's standard export templates for the GDExtension.
 
 The `steamInitEx` call is wrapped by a project-owned adapter so gameplay code can later target a fake provider in offline development. Do not put a real app ID or secrets in source control.
+
+Manufactured extractors now support [physical component manufacturing, replacement and upgrades](docs/development/tool-parts-milestone.md), including shared inventory storage and conserved recycling. Sustained extraction and controller-driven automation remain planned.

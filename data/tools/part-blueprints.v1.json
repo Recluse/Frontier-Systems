@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "blueprints": {
+    "part.frame.space": {"definition_id":"part.frame","material_id":"grade.iron.space","fabrication_energy_joules":300,"salvage_energy_joules":100},
+    "part.head.basic": {"definition_id":"part.head.multipurpose","material_id":"grade.iron.basic","fabrication_energy_joules":450,"salvage_energy_joules":100},
+    "part.head.space": {"definition_id":"part.head.multipurpose","material_id":"grade.iron.space","fabrication_energy_joules":900,"salvage_energy_joules":100},
+    "part.head.ceramic": {"definition_id":"part.head.multipurpose","material_id":"grade.ceramic.space","fabrication_energy_joules":1200,"salvage_energy_joules":100},
+    "part.drive.space": {"definition_id":"part.drive","material_id":"grade.iron.space","fabrication_energy_joules":600,"salvage_energy_joules":100},
+    "part.controller.space": {"definition_id":"part.controller","material_id":"grade.iron.space","fabrication_energy_joules":500,"salvage_energy_joules":100},
+    "part.lever.space": {"definition_id":"part.lever","material_id":"grade.iron.space","fabrication_energy_joules":800,"salvage_energy_joules":100}
+  }
+}

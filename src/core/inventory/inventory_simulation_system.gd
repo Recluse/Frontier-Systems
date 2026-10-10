@@ -162,11 +162,11 @@ func factory_definition(id: String) -> ServiceResult:
 
 
 ## Trusted owner chooses the catalog definition; client output records are never accepted.
-func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: String, item_id: String, create: bool, masses: Dictionary, definition_id: String) -> ServiceResult:
+func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: String, item_id: String, create: bool, masses: Dictionary, definition_id: String, owner_record: Dictionary = {}) -> ServiceResult:
 	var authorized: ServiceResult = authorize(context, true)
 	if not authorized.is_success or not ControlContractValidation.is_id(item_id):
 		return _failure("A capable bound actor and stable component identity are required.")
-	var candidate: Dictionary = _owner.to_record()
+	var candidate: Dictionary = _owner.to_record() if owner_record.is_empty() else owner_record.duplicate(true)
 	if int(candidate["state_revision"]) >= MAX_EXACT_INTEGER or int(candidate["ledger"]["state_revision"]) >= MAX_EXACT_INTEGER:
 		return _failure("Inventory revisions are exhausted.")
 	var body_index: int = -1

@@ -23,10 +23,16 @@ var _pending: String = ""
 var _view_key: String = ""
 var _tools: Dictionary = {}
 var _tool_parts := OptionButton.new()
+var _tool_mounts := OptionButton.new()
+var _loose_parts := OptionButton.new()
+var _part_blueprints := OptionButton.new()
 
 
 func configure(remote: RemoteWorldRuntime) -> void:
 	_remote = remote
+	for picker in [_source, _destination, _slot, _deposit, _carrier, _tool_parts, _tool_mounts, _loose_parts, _part_blueprints]:
+		picker.fit_to_longest_item = false
+		picker.clip_text = true
 	add_theme_constant_override("separation", 10)
 	_label("Inventory · portable storage · tools")
 	for label in [_summary, _equipment, _details, _result]:
@@ -69,6 +75,15 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_label("Tool component maintenance · select a tool above, then a component")
 	add_child(_tool_parts)
 	_button(self, "Maintain selected component at workstation", _repair_component)
+	_label("Tool parts · manufacture from workstation materials")
+	add_child(_part_blueprints)
+	_button(self, "Manufacture selected part", _part_action.bind("fabricate_tool_part"))
+	_label("Owned loose part · use an equipment mount to replace or upgrade")
+	add_child(_loose_parts)
+	add_child(_tool_mounts)
+	_button(self, "Fit loose part in selected tool mount", _part_action.bind("fit_tool_part"))
+	_button(self, "Detach selected tool mount into inventory", _part_action.bind("detach_tool_part"))
+	_button(self, "Recycle selected loose part", _part_action.bind("recycle_tool_part"))
 	_label("Equip the extractor in a hand, make that hand active, carry a canister and approach the source. Mounted extraction remains available through Workstation. Crowbar world interactions are a later integration.")
 	add_child(_result)
 	remote.command_completed.connect(_completed)
@@ -87,6 +102,16 @@ func observe(frame: Dictionary) -> void:
 	_production = frame["production"]
 	_nearby = frame["world_items"]
 	_tools = frame.get("tools", {})
+	var loose_ids: Array = []
+	for part in _tools.get("loose_parts", []): loose_ids.append(part["part_id"])
+	_fill_picker(_loose_parts, loose_ids)
+	var previous_blueprint: String = str(_part_blueprints.get_item_metadata(_part_blueprints.selected)) if _part_blueprints.selected >= 0 else ""
+	_part_blueprints.clear()
+	for id in _tools.get("part_blueprints", {}):
+		var blueprint: Dictionary = _tools["part_blueprints"][id]
+		_part_blueprints.add_item("%s · %d J" % [blueprint["name"], blueprint["fabrication_energy_joules"]])
+		_part_blueprints.set_item_metadata(_part_blueprints.item_count - 1, id)
+		if id == previous_blueprint: _part_blueprints.select(_part_blueprints.item_count - 1)
 	var world_containers: Array = []
 	for container in _nearby.get("containers", []):
 		world_containers.append(container["container_id"])
@@ -130,7 +155,7 @@ func _fill_picker(picker: OptionButton, ids: Array, all_items: bool = false) -> 
 		picker.add_item("All carried items")
 		picker.set_item_metadata(0, "*")
 	for id in ids:
-		picker.add_item(_slot_name(id) if picker == _slot else _container_name(id))
+		picker.add_item(_item_name(id) if picker == _loose_parts else (_slot_name(id) if picker == _slot else _container_name(id)))
 		picker.set_item_metadata(picker.item_count - 1, id)
 		if previous == id:
 			picker.select(picker.item_count - 1)
@@ -145,7 +170,7 @@ func _fill_items() -> void:
 	for item in _record["items"]:
 		if source != "*" and item["container_id"] != source:
 			continue
-		var name: String = str(NAMES.get(item["definition_id"], "Equipment"))
+		var name: String = _item_name(item["item_id"])
 		_items.add_item("%s · %s" % [name, _container_name(item["container_id"])])
 		_items.set_item_metadata(_items.item_count - 1, item)
 		if item["item_id"] == selected:
@@ -157,6 +182,8 @@ func _inspect() -> void:
 	_details.text = "Select an item to inspect its condition, mass and contents."
 	var selected_part: String = str(_tool_parts.get_item_metadata(_tool_parts.selected)) if _tool_parts.selected >= 0 else ""
 	_tool_parts.clear()
+	var previous_mount: String = str(_tool_mounts.get_item_metadata(_tool_mounts.selected)) if _tool_mounts.selected >= 0 else ""
+	_tool_mounts.clear()
 	for detail in _record.get("item_details", []):
 		if detail["item"]["item_id"] != id:
 			continue
@@ -174,6 +201,10 @@ func _inspect() -> void:
 				_details.text += " %s %.2f kg" % [material, float(_production["structures"][id]["materials"][material]) / 1000000.0]
 	for assembly in _tools.get("assemblies", []):
 		if assembly["assembly_id"] != id: continue
+		for slot in assembly["slots"]:
+			_tool_mounts.add_item("%s · %s" % [slot, "empty" if assembly["slots"][slot] == "" else "installed"])
+			_tool_mounts.set_item_metadata(_tool_mounts.item_count - 1, slot)
+			if slot == previous_mount: _tool_mounts.select(_tool_mounts.item_count - 1)
 		_details.text += "\nComponent condition (authoritative):"
 		for part in assembly["parts"]:
 			var text: String = "%s · %s · %.4f%%" % [part["name"], part["material_name"], float(part["integrity_ppm"]) / 10000.0]
@@ -183,6 +214,11 @@ func _inspect() -> void:
 			if part["part_id"] == selected_part: _tool_parts.select(_tool_parts.item_count - 1)
 		for action in assembly["actions"]:
 			_details.text += "\n%s: %s" % [action, "available" if assembly["actions"][action]["available"] else "missing " + ", ".join(PackedStringArray(assembly["actions"][action]["missing_functions"]))]
+	for part in _tools.get("loose_parts", []):
+		if part["part_id"] != id: continue
+		_details.text += "\n%s · %s · component %.4f%%" % [part["name"], part["material_name"], float(part["integrity_ppm"]) / 10000.0]
+		_tool_parts.add_item(part["name"])
+		_tool_parts.set_item_metadata(0, part["part_id"])
 
 
 func _open_storage(index: int) -> void:
@@ -248,6 +284,26 @@ func _repair_component() -> void:
 	_submit("repair_tool_component", {"part_id": _tool_parts.get_item_metadata(_tool_parts.selected), "amount_ppm": 1000000, "expected_revision": _production["state_revision"], "expected_tool_revision": _tools["state_revision"]}, true)
 
 
+func _part_action(operation: String) -> void:
+	if _tools.is_empty() or _production.is_empty(): return
+	var payload: Dictionary = {"expected_revision": _production["state_revision"], "expected_tool_revision": _tools["state_revision"]}
+	if operation == "fabricate_tool_part":
+		if _part_blueprints.selected < 0: return
+		payload["blueprint_id"] = _part_blueprints.get_item_metadata(_part_blueprints.selected)
+	if operation in ["fit_tool_part", "recycle_tool_part"]:
+		if _loose_parts.selected < 0:
+			_result.text = "Select an owned loose part first."
+			return
+		payload["part_id"] = _loose_parts.get_item_metadata(_loose_parts.selected)
+	if operation in ["fit_tool_part", "detach_tool_part"]:
+		if _tool_mounts.selected < 0:
+			_result.text = "Inspect a manufactured tool and select its mount."
+			return
+		payload["item_id"] = _selected_id(_items)
+		payload["slot_id"] = _tool_mounts.get_item_metadata(_tool_mounts.selected)
+	_submit(operation, payload, true)
+
+
 func use_active_tool() -> void:
 	_use_tool()
 
@@ -302,6 +358,8 @@ static func _selected_id(list: ItemList) -> String:
 
 
 func _item_name(id: String) -> String:
+	for part in _tools.get("loose_parts", []):
+		if part["part_id"] == id: return part["name"] + " · " + part["material_name"]
 	for item in _record.get("items", []):
 		if item["item_id"] == id:
 			return NAMES.get(item["definition_id"], "Equipment")

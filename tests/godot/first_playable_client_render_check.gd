@@ -44,7 +44,12 @@ func _run() -> void:
 		quit(1)
 		return
 	var equipment_route: bool = OS.get_cmdline_user_args().has("--equipment-fabrication")
-	if equipment_route:
+	var tool_parts_route: bool = OS.get_cmdline_user_args().has("--tool-parts")
+	if tool_parts_route:
+		if not await _tool_parts_route(client):
+			quit(1)
+			return
+	elif equipment_route:
 		if not await _equipment_route(client):
 			quit(1)
 			return
@@ -59,6 +64,7 @@ func _run() -> void:
 	await RenderingServer.frame_post_draw
 	var image: Image = root.get_texture().get_image()
 	var directory: String = "res://reports/equipment-fabrication" if equipment_route else "res://reports/first-playable"
+	if tool_parts_route: directory = "res://reports/tool-parts"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
 	var error: Error = image.save_png(directory.path_join("client.png"))
 	print("First playable graphical client completed its seven-step loop using local physics and authenticated guide commands; screenshot result: %d" % error)
@@ -66,6 +72,54 @@ func _run() -> void:
 	host.free()
 	world.free()
 	quit(0 if error == OK else 1)
+
+
+func _tool_parts_route(client: FirstPlayableBootstrap) -> bool:
+	var production: LocalProductionPanel = client._production_panel
+	production._send("materialize_plate", {})
+	await create_timer(0.5).timeout
+	var components: Array = client._latest["production"]["components"]
+	if components.is_empty(): return false
+	production._send("recycle_component", {"item_id": components[0]})
+	await create_timer(0.5).timeout
+	for _batch in range(3):
+		if not await _walk(client, Vector3(-9.0, 0.95, 1.0)): return false
+		production._send("extract", {"deposit_id":"deposit.iron", "carrier_id":"resource-canister-1", "amount_milligrams":1000000})
+		await create_timer(0.5).timeout
+		if not await _walk(client, Vector3(-6.0, 0.95, 2.0)): return false
+		production._send("unload_cargo", {"carrier_id":"resource-canister-1", "material":"ore.iron", "amount_milligrams":1000000})
+		await create_timer(0.5).timeout
+		production._send("process", {"recipe_id":"refine.iron"})
+		await create_timer(2.5).timeout
+	production._send("fabricate_equipment", {"blueprint_id":"equipment.extractor"})
+	await create_timer(0.5).timeout
+	var tool: String = client._latest["production"]["structures"].keys()[0]
+	client._tabs.current_tab = 1
+	var panel: PlayerInventoryPanel = client._inventory_panel
+	for blueprint in ["part.head.basic", "part.controller.space"]:
+		for index in range(panel._part_blueprints.item_count):
+			if panel._part_blueprints.get_item_metadata(index) == blueprint: panel._part_blueprints.select(index)
+		panel._part_action("fabricate_tool_part")
+		await create_timer(0.5).timeout
+		for index in range(panel._items.item_count):
+			if panel._items.get_item_metadata(index)["item_id"] == tool: panel._items.select(index)
+		panel._inspect()
+		var mount: String = "head" if blueprint == "part.head.basic" else "module"
+		for index in range(panel._tool_mounts.item_count):
+			if panel._tool_mounts.get_item_metadata(index) == mount: panel._tool_mounts.select(index)
+		var incoming: String = ""
+		for part in client._latest["tools"]["loose_parts"]:
+			if (mount == "head" and part["material_id"] == "grade.iron.basic") or (mount == "module" and part["definition_id"] == "part.controller"): incoming = part["part_id"]
+		for index in range(panel._loose_parts.item_count):
+			if panel._loose_parts.get_item_metadata(index) == incoming: panel._loose_parts.select(index)
+		panel._part_action("fit_tool_part")
+		await create_timer(0.5).timeout
+		panel._inspect()
+	if panel._tool_parts.item_count != 4 or not panel._details.text.contains("action.scan: available") or client._latest["tools"]["loose_parts"].size() != 1:
+		push_error("Graphical part fabrication/replacement/upgrade failed: " + panel._result.text)
+		return false
+	print("Graphical tool parts: manufacture, replace head, retain old part and fit controller through inventory controls passed.")
+	return true
 
 
 func _equipment_route(client: FirstPlayableBootstrap) -> bool:

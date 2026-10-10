@@ -1,0 +1,58 @@
+{
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "maxLength": 128
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:tool-part-blueprints:v1",
+  "properties": {
+    "blueprints": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "fabrication_energy_joules": {
+            "type": "integer",
+            "maximum": 100000,
+            "minimum": 1
+          },
+          "material_id": {
+            "$ref": "#/$defs/id"
+          },
+          "definition_id": {
+            "$ref": "#/$defs/id"
+          },
+          "salvage_energy_joules": {
+            "type": "integer",
+            "maximum": 100000,
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "definition_id",
+          "material_id",
+          "fabrication_energy_joules",
+          "salvage_energy_joules"
+        ]
+      },
+      "maxProperties": 32,
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "schema_version": {
+      "const": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "blueprints"
+  ],
+  "additionalProperties": false,
+  "type": "object"
+}

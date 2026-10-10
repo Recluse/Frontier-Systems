@@ -28,6 +28,7 @@
 - All runtime systems must run on Windows as well as Linux. Do not use ReactPHP child processes, `pcntl`, POSIX-only APIs, or shell-based runtime orchestration; prefer event-loop I/O and platform-neutral service protocols. Include Windows in CI for PHP and Godot changes.
 - Runtime PHP platform restrictions and production dependencies are checked by `tools/check-windows-runtime-policy.php`; keep the scan focused on runtime `src/` code and production requirements so development tooling remains usable.
 - Use `dev-master` as the integration branch. Optional feature branches should target it by pull request, and the checks in `.github/workflows/ci.yml` must pass before merge.
+- The owner authorizes committing and pushing milestone progress to `origin/dev-master` before each milestone progress report. Report the pushed commit and its verification scope; continue the roadmap without asking for repeat approval.
 - Do not place secrets in the repository. Use ignored `.env` files locally and document required variables in `.env.example`.
 
 ## AI-assisted development

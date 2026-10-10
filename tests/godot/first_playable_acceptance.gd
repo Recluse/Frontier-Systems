@@ -129,6 +129,25 @@ func _run() -> void:
 	await _production(clients[1 - winner], 1 - winner, "salvage_equipment", {"item_id": fabricated})
 	await create_timer(0.25).timeout
 	_check(_observations[winner]["production"]["store"]["iron"] == 1200000 and _observations[1 - winner]["production"]["structures"].is_empty(), "new owner salvages shell and contents without material loss")
+	await _production(clients[winner], winner, "fabricate_tool_part", {"blueprint_id": "part.head.space", "expected_tool_revision": _observations[winner]["tools"]["state_revision"]})
+	await create_timer(0.25).timeout
+	var physical_part: String = _observations[winner]["tools"]["loose_parts"][0]["part_id"]
+	_check(_observations[1 - winner]["tools"]["loose_parts"].is_empty(), "physical component observations are private")
+	await _reject(clients[1 - winner], 1 - winner, "production", "recycle_tool_part", {"part_id": physical_part, "expected_tool_revision": _observations[1 - winner]["tools"]["state_revision"]})
+	await _inventory_transfer(clients[winner], winner, "drop", physical_part)
+	await _inventory_transfer(clients[1 - winner], 1 - winner, "pickup", physical_part)
+	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
+	await _send(clients[1 - winner], "world", "checkpoint", {})
+	var part_save: ServiceResult = LocalWorldSaveStore.read_latest(directory)
+	var part_restore := WorldRuntime.new()
+	part_restore.resource_carriers_enabled = true
+	root.add_child(part_restore)
+	_check(part_save.is_success and part_restore.restore_world_snapshot_json(part_save.value["snapshot_json"]).is_success, "disk checkpoint restores transferred independent tool part")
+	_check((part_restore.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem).payload_mass(physical_part) == 900000, "restored physical part has its exact conserved mass")
+	part_restore.free()
+	await _production(clients[1 - winner], 1 - winner, "recycle_tool_part", {"part_id": physical_part, "expected_tool_revision": _observations[1 - winner]["tools"]["state_revision"]})
+	await create_timer(0.25).timeout
+	_check(_observations[winner]["production"]["store"]["iron"] == 1200000 and _observations[1 - winner]["tools"]["loose_parts"].is_empty(), "new owner recycles transferred part without matter loss")
 	await _production(clients[winner], winner, "process", {"recipe_id": "craft.plate"})
 	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
 	await _send(clients[winner], "world", "checkpoint", {})

@@ -27,7 +27,11 @@
         "tool_extract",
         "fabricate_equipment",
         "salvage_equipment",
-        "repair_tool_component"
+        "repair_tool_component",
+        "detach_tool_part",
+        "fit_tool_part",
+        "fabricate_tool_part",
+        "recycle_tool_part"
       ]
     },
     "payload": {
@@ -386,6 +390,142 @@
               "amount_ppm",
               "expected_tool_revision"
             ]
+          }
+        }
+      }
+    },
+    {
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "expected_tool_revision",
+              "item_id",
+              "slot_id"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "slot_id": {
+                "$ref": "#/$defs/id"
+              },
+              "item_id": {
+                "$ref": "#/$defs/id"
+              },
+              "expected_tool_revision": {
+                "type": "integer",
+                "maximum": 9007199254740000,
+                "minimum": 0
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "detach_tool_part"
+          }
+        }
+      }
+    },
+    {
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "expected_tool_revision",
+              "item_id",
+              "slot_id",
+              "part_id"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "slot_id": {
+                "$ref": "#/$defs/id"
+              },
+              "part_id": {
+                "$ref": "#/$defs/id"
+              },
+              "item_id": {
+                "$ref": "#/$defs/id"
+              },
+              "expected_tool_revision": {
+                "type": "integer",
+                "maximum": 9007199254740000,
+                "minimum": 0
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "fit_tool_part"
+          }
+        }
+      }
+    },
+    {
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "expected_tool_revision",
+              "blueprint_id"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "blueprint_id": {
+                "$ref": "#/$defs/id"
+              },
+              "expected_tool_revision": {
+                "type": "integer",
+                "maximum": 9007199254740000,
+                "minimum": 0
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "fabricate_tool_part"
+          }
+        }
+      }
+    },
+    {
+      "then": {
+        "properties": {
+          "payload": {
+            "required": [
+              "expected_tool_revision",
+              "part_id"
+            ],
+            "properties": {
+              "expected_revision": {},
+              "part_id": {
+                "$ref": "#/$defs/id"
+              },
+              "expected_tool_revision": {
+                "type": "integer",
+                "maximum": 9007199254740000,
+                "minimum": 0
+              }
+            },
+            "unevaluatedProperties": false
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "recycle_tool_part"
           }
         }
       }

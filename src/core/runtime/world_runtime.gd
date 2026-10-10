@@ -344,4 +344,4 @@ func _validate_cross_system_state(system_records: Dictionary, snapshot_tick_numb
 	if tools == null or typeof(system_records.get("tools")) != TYPE_DICTIONARY:
 		return ServiceResult.failure(&"invalid_tool_links", "World snapshots require tool condition ownership.")
 	var valid_tools: ServiceResult = tools.validate_snapshot_record(system_records["tools"], snapshot_tick_number)
-	return tools.validate_inventory_links(valid_tools.value, inventory_record["owner"], valid_production.value["structures"]) if valid_tools.is_success else valid_tools
+	return tools.validate_inventory_links(valid_tools.value, inventory_record["owner"], valid_production.value["structures"], valid_production.value["loose_parts"]) if valid_tools.is_success else valid_tools

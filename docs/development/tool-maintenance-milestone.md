@@ -33,3 +33,8 @@ CI now runs the live tool check on Windows and Ubuntu. These local results do no
 ## Next implementation slice
 
 Make component parts physical inventory entities with independently conserved material records and blueprint manufacturing/recycling. Prepare detach, fit and replace transactions across all owners, retaining removed parts. Support changed material grades/functions without silently rewriting pinned definitions or duplicating structural mass. Then add sustained extraction with interruption/restart recovery and finally terrain excavation.
+
+
+## Follow-up
+
+The [physical parts milestone](tool-parts-milestone.md) now adds independent manufactured parts, retained detach/replacement, material/module upgrades and recycling. Production v4 and tool observation v2 supersede the live versions described above; these notes retain the original milestone's scope and evidence.

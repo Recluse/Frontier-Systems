@@ -6,7 +6,7 @@ Every tool must be composed from separately identifiable components that can be 
 
 ## Implemented domain foundation
 
-`src/core/tools/` provides ToolComponentCatalog, independent ToolPartState and ToolAssemblyLedger. These are reusable RefCounted domain types with exact versioned records and detached transaction plans. ToolSimulationSystem now registers their live inventory associations and component condition. See [live condition and maintenance](../development/tool-maintenance-milestone.md) for ownership, energy settlement, inspection, completed-work wear and migration. Physical part inventory, live replacement/upgrades and sustained extraction remain pending.
+`src/core/tools/` provides ToolComponentCatalog, independent ToolPartState and ToolAssemblyLedger. These are reusable RefCounted domain types with exact versioned records and detached transaction plans. ToolSimulationSystem now registers their live inventory associations and component condition. See [live condition and maintenance](../development/tool-maintenance-milestone.md) for ownership, energy settlement, inspection, completed-work wear and migration. Physical part inventory and live replacement/upgrades are now implemented for manufactured extractors; see [physical parts milestone](../development/tool-parts-milestone.md). Sustained extraction remains pending.
 
 The trusted `data/tools/catalog.v1.json` defines:
 

@@ -29,6 +29,7 @@ func _run() -> void:
 	bad_blueprint["blueprints"]["equipment.canister"]["materials"]["iron"] = -1
 	_check(not EquipmentBlueprintCatalog.new().configure(bad_blueprint, _inventory, _production.observation(_context).value["store"].keys()).is_success, "negative blueprint materials reject at startup")
 	var legacy: Dictionary = JSON.parse_string(_world.capture_world_snapshot_json().value)
+	legacy["systems"]["production"].erase("loose_parts")
 	legacy["systems"]["production"]["schema_version"] = 2
 	legacy["systems"]["production"].erase("structures")
 	var clone := WorldRuntime.new()
