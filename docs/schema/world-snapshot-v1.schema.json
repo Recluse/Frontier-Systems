@@ -15,7 +15,10 @@
       "minProperties": 1,
       "properties": {
         "pressure": { "$ref": "#/$defs/pressureSystem" },
-        "health": { "$ref": "urn:frontier-systems:schema:health-system:v1" },
+        "health": { "oneOf": [
+          { "$ref": "urn:frontier-systems:schema:health-system:v1" },
+          { "$ref": "urn:frontier-systems:schema:health-system:v2" }
+        ] },
         "access_control": { "$ref": "urn:frontier-systems:schema:access-control-system:v1" },
         "machine_control": { "oneOf": [
           { "$ref": "urn:frontier-systems:schema:machine-control-system:v1" },

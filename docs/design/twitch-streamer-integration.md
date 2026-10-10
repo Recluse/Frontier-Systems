@@ -6,6 +6,8 @@ Allow a streamer to link a Twitch channel to an authorized Frontier Systems serv
 
 The initial MIT/PSR-4 package `packages/twitch` implements asynchronous **outgoing chat** through an injectable HTTP boundary and ReactPHP adapter. Live account linking, token management, incoming EventSub, server telemetry publication, Extension frontend/backend and gameplay event bindings are not implemented. No live Twitch account is connected, message sent or panel published by this change.
 
+The [public-status foundation](../architecture/public-server-status.md) now adds exact public observation schemas, a bounded shared PHP repository and Twitch channel projections. Use existing TwitchPHP/TwitchPHP-Http as preferred providers for further OAuth/Helix/EventSub work; the source review identifies the PHP 8.4 framework boundary and non-idempotent write-retry requirements. Those libraries have not been installed/wired into Frontier yet.
+
 Twitch currently recommends EventSub plus its HTTP API for chat, rather than relying on its more limited IRC interface: [chat documentation](https://dev.twitch.tv/docs/chat/). Use EventSub for incoming messages, deletions/moderation events and eligible channel events; use Helix for supported outbound actions. Verify endpoint scopes and versioned subscription requirements when each feature is implemented.
 
 ## Server/channel linking and authorization

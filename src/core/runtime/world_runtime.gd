@@ -125,6 +125,31 @@ func capture_profiling_json(limit: int = 120) -> ServiceResult:
 	return ServiceResult.success(JSON.stringify(capture.value, "", true, true))
 
 
+## Local development projection only. Body identity comes from the server binding,
+## never a requested target; internal causes, receipts and queues stay private.
+func own_health_observation(context: AuthenticatedCommandContext) -> ServiceResult:
+	if context == null or not context.is_valid_for(world_id, region_id):
+		return ServiceResult.failure(&"health_scope_denied", "A current local world identity is required.")
+	var inventory := get_simulation_system(InventorySimulationSystem.SYSTEM_ID) as InventorySimulationSystem
+	var health := get_simulation_system(HealthSimulationSystem.SYSTEM_ID) as HealthSimulationSystem
+	if inventory == null or health == null:
+		return ServiceResult.failure(&"health_unavailable", "Body services are unavailable.")
+	var authorized: ServiceResult = inventory.authorize(context)
+	if not authorized.is_success:
+		return authorized
+	var body: ServiceResult = health.body_observation(authorized.value)
+	var injuries: ServiceResult = health.injury_observation(authorized.value)
+	if not body.is_success or not injuries.is_success:
+		return ServiceResult.failure(&"health_unavailable", "This body has no health state.")
+	var state: Dictionary = body.value["state"]
+	return ServiceResult.success({"schema_version": 1, "body_id": authorized.value,
+		"tick_number": current_tick_number(), "consciousness": state["state"],
+		"last_assessed_tick": state["last_assessed_tick"], "recovering": state["recovery_since_tick"] >= 0,
+		"voluntary_actions_available": health.consciousness_allows_actions(authorized.value),
+		"injury_revision": injuries.value["state_revision"], "injury_changed_tick": injuries.value["last_changed_tick"],
+		"parts": injuries.value["parts"], "oxygen_damage_permille": injuries.value["oxygen_damage_permille"]})
+
+
 func pressure_snapshot(airlock_id: StringName = PROTOTYPE_AIRLOCK_ID) -> ServiceResult:
 	var pressure_system := get_simulation_system(PressureSystem.SYSTEM_ID) as PressureSystem
 	if pressure_system == null:

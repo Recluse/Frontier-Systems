@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:own-health-observation:v1",
+  "title": "Local own-body health observation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "body_id", "tick_number", "consciousness", "last_assessed_tick", "recovering", "voluntary_actions_available", "injury_revision", "injury_changed_tick", "parts", "oxygen_damage_permille"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "body_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "tick_number": {"$ref": "#/$defs/integer"},
+    "consciousness": {"enum": ["alert", "impaired", "unconscious"]},
+    "last_assessed_tick": {"$ref": "#/$defs/integer"},
+    "recovering": {"type": "boolean"},
+    "voluntary_actions_available": {"type": "boolean"},
+    "injury_revision": {"$ref": "#/$defs/integer"},
+    "injury_changed_tick": {"$ref": "#/$defs/integer"},
+    "parts": {"$ref": "body-injury-state-v1.schema.json#/properties/parts"},
+    "oxygen_damage_permille": {"type": "integer", "minimum": 0, "maximum": 1000}
+  },
+  "$defs": {
+    "integer": {"type": "integer", "minimum": 0, "maximum": 9007199254740990}
+  },
+  "description": "Read-only local projection, not a save record or network endpoint. Voluntary actions reflect the last committed consciousness assessment; injury changes may await assessment."
+}

@@ -1,0 +1,4 @@
+[
+  {"schema_version": 1, "definition_id": "medical.trauma-dressing.prototype", "revision": 1, "injury_kind": "blunt", "healing_permille": 200, "charge_cost": 1},
+  {"schema_version": 1, "definition_id": "medical.burn-dressing.prototype", "revision": 1, "injury_kind": "burn", "healing_permille": 200, "charge_cost": 1}
+]

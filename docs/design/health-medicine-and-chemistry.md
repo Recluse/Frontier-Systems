@@ -4,7 +4,9 @@
 
 Health and medicine should eventually provide the depth of play the project owner associates with Baystation: diagnosis, stabilization, treatment and chemistry as cooperative crew work. This is an independently authored design requirement, not a specification extracted from upstream source. Follow the repository's Baystation source-use policy; first-party implementation, definitions and assets must remain distributable under MIT.
 
-**Partial runtime foundation:** the [consciousness foundation](../architecture/consciousness-foundation.md) and [atomic owner](../architecture/consciousness-ownership.md) now compose into [world health scheduling and checkpoints](../architecture/health-runtime.md). Trusted retained sources drive bounded assessment and saved recovery. Injuries, finite chemistry and body-control enforcement remain pending. Other contracts below remain planned. Balance values are fictional game tuning, not real treatment instructions.
+**Partial runtime foundation:** the [consciousness foundation](../architecture/consciousness-foundation.md) and [atomic owner](../architecture/consciousness-ownership.md) compose into [world health scheduling and checkpoints](../architecture/health-runtime.md). Trusted retained sources and prototype injuries drive bounded assessment and saved recovery. Full physiology, finite chemistry and wider body-control enforcement remain pending. Other contracts below remain planned. Balance values are fictional game tuning, not real treatment instructions.
+
+[Localized injury records](../architecture/localized-injuries.md) now track human part damage and oxygen injury, with queued trusted changes, saved v2 health state and derived knockout effects. Inventory incapacity is enforced. Physics-originated damage, finite treatment resources, full organs/species physiology and wider player controls remain pending.
 
 ## Gameplay requirements
 

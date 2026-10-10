@@ -1,5 +1,9 @@
 # Implementation Readiness Review
 
+Basic injury update: [localized body damage](../architecture/localized-injuries.md) now stores six human prototype parts plus systemic oxygen injury, validates pure damage/heal plans and applies bounded trusted changes on fixed ticks. Head/oxygen effects feed canonical consciousness and existing inventory incapacity. V2 checkpoints and v1 migration are documented/tested. Physical damage sources, treatment resource transactions, broader body control and UI remain pending.
+
+Public status update: [bounded server/card projections](../architecture/public-server-status.md) now validate exact public fields, authenticated host scope, freshness/order, finite cache retention and Twitch binding generations. Offline checks cover private-field rejection and stale/rebound views. Existing local TwitchPHP/HTTP libraries are recorded as preferred providers, with PHP 8.4 and write-retry boundaries explicitly identified. Live publication/OAuth/Extension deployment remain pending.
+
 Twitch foundation update: [optional streamer integration](../design/twitch-streamer-integration.md) adds independent PSR-4 chat/HTTP boundaries, bounded ReactPHP sends and source-only app-token delivery with sanitized failures. Offline Windows mocks pass. OAuth/service wiring, incoming EventSub and public status/panel deployment remain pending; no live account/chat/panel action performed. Basic gameplay priority is retained.
 
 Basic gameplay priority update: [inventory consciousness capabilities](../architecture/inventory-consciousness-capabilities.md) now bind health to actor command checks, interrupt voluntary jobs/grips and revoke scoped search views on incapacity. Conscious actors can still interact with unconscious targets under existing physical rules; restored/recovered state controls availability. Basic gameplay is prioritized before away missions/procedural planets. Wider body-control, injury and chemical integration remain pending.

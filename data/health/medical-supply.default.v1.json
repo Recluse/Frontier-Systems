@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "supply_id": "supply.trauma-dressing-1",
+  "definition_id": "medical.trauma-dressing.prototype",
+  "state_revision": 0,
+  "last_changed_tick": 0,
+  "charges_remaining": 4
+}

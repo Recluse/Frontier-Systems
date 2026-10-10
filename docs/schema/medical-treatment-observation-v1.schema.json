@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:medical-treatment-observation:v1",
+  "title": "Trusted treatment capability observation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "actor_body_id", "target_body_id", "supply_id", "tick_number", "actor_can_act", "manipulator_available", "reachable", "target_accessible", "target_resisting", "supply_accessible"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "actor_body_id": {"$ref": "#/$defs/id"},
+    "target_body_id": {"$ref": "#/$defs/id"},
+    "supply_id": {"$ref": "#/$defs/id"},
+    "tick_number": {"type": "integer", "minimum": 1, "maximum": 9007199254740990},
+    "actor_can_act": {"type": "boolean"},
+    "manipulator_available": {"type": "boolean"},
+    "reachable": {"type": "boolean"},
+    "target_accessible": {"type": "boolean"},
+    "target_resisting": {"type": "boolean"},
+    "supply_accessible": {"type": "boolean"}
+  },
+  "$defs": {
+    "id": {"type": "string", "minLength": 1, "maxLength": 128}
+  },
+  "description": "Internal server observation only, never a player/LLM payload. Runtime must derive capabilities and require the current commit tick."
+}

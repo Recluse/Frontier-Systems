@@ -27,4 +27,6 @@ Token-bearing adapter instances must never be serialized into caches/world data 
 
 Package installation: `composer install`, then `composer unit`. For development using existing workspace dependencies, run `C:\php\php.exe services/control-plane/vendor/phpunit/phpunit/phpunit --bootstrap packages/twitch/tests/bootstrap.php packages/twitch/tests` from the repository root. The test-only bootstrap supports both locations; production uses normal Composer PSR-4 autoloading.
 
-Incoming EventSub, OAuth, public status schemas/caching, panel frontend/EBS, viewer gameplay and service wiring are pending. This package performs no actions until a caller explicitly constructs/configures it and sends a message. No live account connection was tested.
+Incoming EventSub, OAuth, panel frontend/EBS, viewer gameplay and service wiring are pending. This package performs no platform actions until explicitly configured and invoked. No live account connection was tested.
+
+Public status schemas/caching are now supplied by `frontier-systems/server-status`; `Status\ChannelStatusProvider` adds bounded operator-approved channel mappings and rejects late results after unlink/rebind. Live host publication and panel UI remain pending. See [the status contract](../../docs/architecture/public-server-status.md), including the preferred TwitchPHP/HTTP providers and their PHP-version/retry boundaries.

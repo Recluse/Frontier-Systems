@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:medical-treatment-definition:v1",
+  "title": "Trusted localized medical treatment definition v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "definition_id", "revision", "injury_kind", "healing_permille", "charge_cost"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "definition_id": {"type": "string", "minLength": 1, "maxLength": 128},
+    "revision": {"type": "integer", "minimum": 1, "maximum": 9007199254740990},
+    "injury_kind": {"enum": ["blunt", "burn"]},
+    "healing_permille": {"type": "integer", "minimum": 1, "maximum": 1000},
+    "charge_cost": {"type": "integer", "minimum": 1, "maximum": 1000}
+  },
+  "description": "Loaded from a trusted catalog; player intent cannot declare healing strength or supply cost. Prototype tuning, not physiology."
+}

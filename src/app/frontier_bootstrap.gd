@@ -248,6 +248,11 @@ func _create_client_status_view() -> void:
 	var inventory_panel_result: ServiceResult = _inventory_panel.configure(_world_runtime)
 	if not inventory_panel_result.is_success:
 		push_warning("Inventory panel setup failed: %s" % inventory_panel_result.error_code)
+	var health_panel := LocalHealthPanel.new()
+	_inventory_panel.add_child(health_panel)
+	var health_panel_result: ServiceResult = health_panel.configure(_world_runtime)
+	if not health_panel_result.is_success:
+		push_warning("Health panel setup failed: %s" % health_panel_result.error_code)
 	_register_overlay_section("hud.status", "Pressure and alarms", [_pressure_status_label, _alarm_indicator], false)
 	_register_overlay_section("hud.airlock", "Airlock controls", [actions])
 	var inventory_section: ServiceResult = _overlay_section_stack.register_section("hud.inventory", "Local inventory demo", _inventory_panel)

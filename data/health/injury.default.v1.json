@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "body_id": "body.human-2",
+  "state_revision": 0,
+  "last_changed_tick": 0,
+  "parts": {
+    "head": {"blunt": 0, "burn": 0},
+    "torso": {"blunt": 0, "burn": 0},
+    "arm.left": {"blunt": 0, "burn": 0},
+    "arm.right": {"blunt": 0, "burn": 0},
+    "leg.left": {"blunt": 0, "burn": 0},
+    "leg.right": {"blunt": 0, "burn": 0}
+  },
+  "oxygen_damage_permille": 0
+}

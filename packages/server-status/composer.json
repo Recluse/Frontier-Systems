@@ -1,0 +1,9 @@
+{
+  "name": "frontier-systems/server-status",
+  "description": "Bounded public server status contracts and asynchronous cache for external presentation.",
+  "type": "library", "license": "MIT",
+  "require": {"php": "^8.3", "react/promise": "^3.0", "frontier-systems/world-contracts": "^0.1@dev"},
+  "repositories": [{"type": "path", "url": "../world-contracts", "options": {"symlink": false, "versions": {"frontier-systems/world-contracts": "0.1.x-dev"}}}],
+  "minimum-stability": "dev", "prefer-stable": true,
+  "autoload": {"psr-4": {"Frontier\\ServerStatus\\": "src/"}}
+}

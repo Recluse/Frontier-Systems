@@ -46,7 +46,8 @@
       "phpdoc run --directory=../../packages/world-contracts/src --target=../../docs/generated/php-api/world-contracts",
       "phpdoc run --directory=../../packages/profiling/src --target=../../docs/generated/php-api/profiling",
       "phpdoc run --directory=../../packages/profiling-http/src --target=../../docs/generated/php-api/profiling-http",
-      "phpdoc run --directory=../../packages/twitch/src --target=../../docs/generated/php-api/twitch"
+      "phpdoc run --directory=../../packages/twitch/src --target=../../docs/generated/php-api/twitch",
+      "phpdoc run --directory=../../packages/server-status/src --target=../../docs/generated/php-api/server-status"
     ],
     "phar": "@php -d phar.readonly=0 build/build-phar.php",
     "phpacker": [

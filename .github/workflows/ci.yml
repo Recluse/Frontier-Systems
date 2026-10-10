@@ -87,7 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        package: [profiling, profiling-http, twitch]
+        package: [profiling, profiling-http, twitch, server-status]
     defaults:
       run:
         working-directory: packages/${{ matrix.package }}
@@ -200,6 +200,12 @@ jobs:
 
       - name: Check inventory incapacity and recovery capabilities
         run: godot --headless --xr-mode off --path . --script res://tests/godot/inventory_consciousness_test.gd
+
+      - name: Check localized injuries and health snapshot migration
+        run: godot --headless --xr-mode off --path . --script res://tests/godot/body_injury_runtime_test.gd
+
+      - name: Check scoped local health display and lifecycle
+        run: godot --headless --xr-mode off --path . --script res://tests/godot/local_health_panel_test.gd
 
       - name: Check hand traversal and cooperative physical interaction policy
         run: godot --headless --path . --script res://tests/godot/physical_interaction_policy_test.gd

@@ -2,6 +2,8 @@
 
 ## Implemented scope
 
+[Localized injuries](localized-injuries.md) now add body-owned part damage and accumulated oxygen injury, composing their derived causes with retained sources. Health snapshots write v2 and migrate v1 without inventing wounds. The details below describe the original scheduling foundation; injury/treatment resource and physics adapters remain pending.
+
 `HealthSimulationSystem` registers in `WorldRuntime` at priority 100, ahead of inventory priority 200. It owns one `ConsciousnessOwner` per current logical inventory body. Both default humans start alert. Wounds, finite drug quantities/metabolism, organ physiology and player-action enforcement remain pending; this is not finished knockout gameplay.
 
 The registry is configured once and bounded to 64 bodies. World checkpoint validation requires exactly one health entry per current inventory body and rejects missing/orphaned entries. Future species applicability and body creation/removal need explicit lifecycle contracts.
@@ -26,4 +28,4 @@ World snapshots include `systems.health`; the outer envelope stays v1. Restore v
 
 Bounded counters expose bodies, last assessments, overdue bodies, pending observations and failures. No service/file I/O or promise waits occur in ticks. Windows checks cover queued versus applied state, stale revision/tick rejection, pending checkpoint refusal, phases, sustained recovery, JSON continuation, invalid schedules/body links, migration, 64-body cap/backlog drainage, reconfiguration and timebase mismatch. Inventory, grip, control, XR and motion regressions passed; Windows/Linux CI includes the focused script.
 
-The [inventory capability bridge](inventory-consciousness-capabilities.md) now blocks unconscious actors and cancels inventory work/grips. Next add canonical injuries/physiology and finite chemical exposure, then bind combat, machine controls, desktop/VR and agents to authoritative bodies. Those wider action systems remain pending.
+The [inventory capability bridge](inventory-consciousness-capabilities.md) blocks unconscious actors and cancels inventory work/grips. [Localized injuries](localized-injuries.md) provide canonical damage and a v2 health snapshot. The [local health display](local-health-panel.md) exposes a scoped, read-only desktop projection. [Finite treatment planning](medical-treatment-planning.md) now produces paired injury and supply candidates; atomic inventory/runtime integration remains required before player treatment. Physiology, finite chemical exposure and binding combat, machine controls, desktop/VR and agents to authoritative bodies remain pending.

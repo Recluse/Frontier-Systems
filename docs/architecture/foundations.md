@@ -1,5 +1,9 @@
 # Runtime foundations
 
+[Localized injuries](localized-injuries.md) now provide part-specific blunt/burn records, oxygen injury, trusted queued changes and derived knockout causes connected to inventory incapacity. V2 health snapshots preserve damage and migrate v1 sources; physical impact, finite treatment resources and player UI remain pending.
+
+[Public server status](public-server-status.md) now has a separate bounded promise-based PHP cache and safe Twitch channel projections, with freshness, source scope and rebind-race checks. TwitchPHP is the preferred future OAuth/Helix/EventSub provider; live service/panel wiring remains pending.
+
 [Optional Twitch integration](../design/twitch-streamer-integration.md) now has a separate MIT/PSR-4 asynchronous outgoing chat adapter. Incoming EventSub, OAuth, public server-status projection and a streamer Panel Extension are staged future integration; ticks never depend on Twitch responses.
 
 [Basic inventory consciousness capabilities](inventory-consciousness-capabilities.md) now reject unconscious actor commands, cancel voluntary work/grips and revoke external search views, while retaining passive-target interaction and recovery. Basic gameplay has priority; away missions and planetary streaming remain future work.
