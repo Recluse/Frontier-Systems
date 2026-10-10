@@ -22,10 +22,14 @@ return (new Config())
             ->in(__DIR__ . '/../../packages/twitch/src')
             ->in(__DIR__ . '/../../packages/twitch/tests')
             ->in(__DIR__ . '/../../packages/server-status/src')
+            ->in(__DIR__ . '/../../packages/event-logging/src')
+            ->in(__DIR__ . '/../../packages/event-logging/tests')
+            ->in(__DIR__ . '/../../packages/event-logging/examples')
             ->append([
                 __DIR__ . '/bin/control-plane.php',
                 __DIR__ . '/build/build-phar.php',
                 __DIR__ . '/../../tools/check-windows-runtime-policy.php',
                 __DIR__ . '/../../tools/run-profiling-receiver.php',
+                __DIR__ . '/../../tools/run-event-receiver.php',
             ]),
     );

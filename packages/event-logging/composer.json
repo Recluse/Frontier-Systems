@@ -1,0 +1,12 @@
+{
+  "name":"frontier-systems/event-logging", "description":"Bounded privacy-aware game event routing through DiscordPHP's Monolog logger.",
+  "type":"library", "license":"MIT",
+  "require":{"php":"^8.3","monolog/monolog":"^3.0","react/event-loop":"^1.2","react/promise":"^3.0","react/http":"^1.9","frontier-systems/profiling-http":"^0.1@dev"},
+  "suggest":{"team-reflex/discord-php":"Provides the existing Discord client/logger and asynchronous channel sender; attach to an operator-owned bot."},
+  "repositories":[{"type":"path","url":"../*","options":{"symlink":false,"versions":{"frontier-systems/profiling-http":"0.1.x-dev","frontier-systems/profiling":"0.1.x-dev","frontier-systems/world-contracts":"0.1.x-dev"}}}],
+  "minimum-stability":"dev", "prefer-stable":true,
+  "autoload":{"psr-4":{"Frontier\\EventLogging\\":"src/"}},
+  "autoload-dev":{"psr-4":{"Frontier\\EventLogging\\Tests\\":"tests/"}},
+  "require-dev":{"phpunit/phpunit":"^11.5"},
+  "scripts":{"unit":"phpunit --bootstrap tests/bootstrap.php tests","cs":"php ../../services/control-plane/vendor/friendsofphp/php-cs-fixer/php-cs-fixer fix --config=../../services/control-plane/.php-cs-fixer.dist.php","phpacker":"@composer --working-dir=../../services/control-plane phpacker"}
+}

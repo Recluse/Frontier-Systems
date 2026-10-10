@@ -1,0 +1,9 @@
+{
+  "guild_id": "REPLACE_WITH_GUILD_ID",
+  "world_id": "development-world",
+  "region_id": "local-habitat",
+  "staff_role_ids": [],
+  "staff_user_ids": [],
+  "conversations": {},
+  "channels": {}
+}

@@ -20,6 +20,7 @@ var _inventory_setup_result: ServiceResult
 var _health_setup_result: ServiceResult
 var _production_setup_result: ServiceResult
 var _tool_setup_result: ServiceResult
+var event_outbox: WorldEventOutbox
 
 
 func _ready() -> void:
@@ -59,6 +60,11 @@ func _ready() -> void:
 	_simulation_runner.add_child(production_system)
 	_simulation_runner.external_command_completed.connect(_on_external_command_completed)
 	add_child(_simulation_runner)
+	event_outbox = WorldEventOutbox.new()
+	event_outbox.name = "WorldEventOutbox"
+	add_child(event_outbox)
+	var event_setup: ServiceResult = event_outbox.configure(self, OS.get_environment("FRONTIER_EVENT_URL"), OS.get_environment("FRONTIER_EVENT_TOKEN"))
+	if not event_setup.is_success: push_warning(event_setup.message)
 
 
 func start_simulation() -> ServiceResult:

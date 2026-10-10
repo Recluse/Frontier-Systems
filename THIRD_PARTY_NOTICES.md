@@ -14,6 +14,7 @@ First-party game code, schemas, and created assets are licensed under MIT. This 
 |---|---|---|---|
 | Godot Engine 4.7 | Game runtime and editor | MIT; https://godotengine.org/license/ | Project configured for 4.7. |
 | GodotSteam GDExtension | Steamworks API and Steam multiplayer adapter | MIT project; https://codeberg.org/godotsteam/godotsteam | `addons/godotsteam/`, Asset Library release 4.23.1, source commit `87e9456ed0922d861d352cda823ee1bde682c987`, Steamworks SDK 1.65. The release targets Godot 4.4+ and includes platform binaries. Valve's Steamworks SDK terms remain separate. |
+| Monolog 3.12.1 | Shared DiscordPHP game-event logging adapter | MIT; https://github.com/Seldaek/monolog | Runtime dependency pinned in services/control-plane/composer.lock; vendor license retained by Composer/PHAR packaging. |
 | ReactPHP components | PHP event loop, promises, HTTP, sockets, and cache | MIT components; https://reactphp.org/ | Installed in `services/control-plane/composer.lock`. |
 | DiscordPHP | Discord Social SDK integration and application-side Discord services | MIT; https://github.com/discord-php/DiscordPHP | Existing project maintained by the project owner; integration is a separate adapter package. |
 | TwitchPHP | Preferred future OAuth, Helix and EventSub provider | MIT; https://github.com/Valgorithms/TwitchPHP | Reviewed local source revision `26a6c39202c951030bdb436d04af9e064a9b4e3f`; framework requires PHP 8.4. Not bundled/installed into Frontier yet. |

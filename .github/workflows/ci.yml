@@ -94,7 +94,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        package: [profiling, profiling-http, twitch, server-status]
+        package: [profiling, profiling-http, twitch, server-status, event-logging]
     defaults:
       run:
         working-directory: packages/${{ matrix.package }}
@@ -296,3 +296,7 @@ jobs:
       - name: Check default local profiling configuration end to end
         shell: pwsh
         run: ./tools/test-local-profiling.ps1
+
+      - name: Check authenticated game event ingestion without Discord sends
+        shell: pwsh
+        run: ./tools/test-event-logging.ps1

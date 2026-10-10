@@ -13,9 +13,15 @@ $output = $serviceRoot . '/bin/build/control-plane.phar';
 $stagingRoot = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'frontier-control-plane-' . bin2hex(random_bytes(6));
 $stagingService = $stagingRoot . '/services/control-plane';
 
-$remove = static function (string $path) use (&$remove): void {
+$remove = static function (string $path) use (&$remove, $stagingRoot): void {
     if (!is_dir($path)) {
         return;
+    }
+    $resolved = realpath($path);
+    $resolvedRoot = realpath($stagingRoot);
+    if ($resolved === false || $resolvedRoot === false || (strtolower($resolved) !== strtolower($resolvedRoot)
+        && !str_starts_with(strtolower($resolved), strtolower($resolvedRoot . DIRECTORY_SEPARATOR)))) {
+        throw new RuntimeException('Refusing cleanup outside the checked build staging directory.');
     }
 
     $items = new RecursiveIteratorIterator(
@@ -43,6 +49,11 @@ $copy = static function (string $source, string $destination) use (&$copy): void
         if ($item->isDot()) {
             continue;
         }
+        if (in_array($item->getFilename(), ['vendor', 'var', '.git', 'node_modules'], true)
+            || str_starts_with($item->getFilename(), '.env')
+            || (basename($source) === 'bin' && $item->getFilename() === 'build')) {
+            continue;
+        }
 
         $target = $destination . DIRECTORY_SEPARATOR . $item->getFilename();
         if ($item->isDir() && !$item->isLink()) {
@@ -62,7 +73,22 @@ try {
     mkdir($stagingService . '/src', 0777, true);
     $copy($serviceRoot . '/src', $stagingService . '/src');
     $copy($serviceRoot . '/bin', $stagingService . '/bin');
-    $copy($repositoryRoot . '/packages/php-foundation', $stagingRoot . '/packages/php-foundation');
+    foreach (['LICENSE', 'THIRD_PARTY_NOTICES.md'] as $notice) {
+        copy($repositoryRoot . '/' . $notice, $stagingService . '/' . $notice);
+    }
+    $locked = json_decode(file_get_contents($serviceRoot . '/composer.lock'), true, flags: JSON_THROW_ON_ERROR);
+    foreach ($locked['packages'] as $package) {
+        if (($package['dist']['type'] ?? null) !== 'path') {
+            continue;
+        }
+        $source = realpath($serviceRoot . '/' . $package['dist']['url']);
+        $workspacePackages = realpath($repositoryRoot . '/packages');
+        if ($source === false || $workspacePackages === false
+            || !str_starts_with(strtolower($source), strtolower($workspacePackages . DIRECTORY_SEPARATOR))) {
+            throw new RuntimeException('Locked local dependencies must resolve inside workspace packages.');
+        }
+        $copy($source, $stagingRoot . '/packages/' . basename($source));
+    }
 
     foreach (['composer.json', 'composer.lock'] as $file) {
         if (is_file($serviceRoot . '/' . $file)) {

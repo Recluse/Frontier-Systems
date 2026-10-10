@@ -10,7 +10,8 @@
     "react/event-loop": "^1.2",
     "react/http": "^1.9",
     "react/promise": "^3.0",
-    "react/socket": "^1.9"
+    "react/socket": "^1.9",
+    "frontier-systems/event-logging": "^0.1@dev"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "^3",
@@ -28,6 +29,19 @@
           "frontier-systems/php-foundation": "0.1.x-dev"
         }
       }
+    },
+    {
+      "url": "../../packages/*",
+      "options": {
+        "symlink": false,
+        "versions": {
+          "frontier-systems/event-logging": "0.1.x-dev",
+          "frontier-systems/world-contracts": "0.1.x-dev",
+          "frontier-systems/profiling": "0.1.x-dev",
+          "frontier-systems/profiling-http": "0.1.x-dev"
+        }
+      },
+      "type": "path"
     }
   ],
   "minimum-stability": "dev",
@@ -40,14 +54,18 @@
   "scripts": {
     "cs": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
     "cs-check": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff",
-    "unit": "phpunit --testdox",
+    "unit": [
+      "phpunit --testdox",
+      "php vendor/phpunit/phpunit/phpunit --bootstrap ../../packages/event-logging/tests/bootstrap.php ../../packages/event-logging/tests"
+    ],
     "docs": [
       "phpdoc run --directory=src --target=../../docs/generated/php-api/control-plane",
       "phpdoc run --directory=../../packages/world-contracts/src --target=../../docs/generated/php-api/world-contracts",
       "phpdoc run --directory=../../packages/profiling/src --target=../../docs/generated/php-api/profiling",
       "phpdoc run --directory=../../packages/profiling-http/src --target=../../docs/generated/php-api/profiling-http",
       "phpdoc run --directory=../../packages/twitch/src --target=../../docs/generated/php-api/twitch",
-      "phpdoc run --directory=../../packages/server-status/src --target=../../docs/generated/php-api/server-status"
+      "phpdoc run --directory=../../packages/server-status/src --target=../../docs/generated/php-api/server-status",
+      "phpdoc run --directory=../../packages/event-logging/src --target=../../docs/generated/php-api/event-logging"
     ],
     "phar": "@php -d phar.readonly=0 build/build-phar.php",
     "phpacker": [

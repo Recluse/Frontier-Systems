@@ -64,3 +64,5 @@ The extension source and platform binaries are pinned in `addons/godotsteam/` to
 The `steamInitEx` call is wrapped by a project-owned adapter so gameplay code can later target a fake provider in offline development. Do not put a real app ID or secrets in source control.
 
 Manufactured extractors now support [physical component manufacturing, replacement and upgrades](docs/development/tool-parts-milestone.md), including shared inventory storage and conserved recycling. Sustained extraction and controller-driven automation remain planned.
+
+Opt-in [game event logging](packages/event-logging/README.md) routes through the existing DiscordPHP Monolog logger with separate public, staff and conversation scopes. Configure channel permissions and host credentials before enabling it.

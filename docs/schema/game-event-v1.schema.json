@@ -1,0 +1,78 @@
+{
+  "type": "object",
+  "$id": "urn:frontier-systems:schema:game-event:v1",
+  "description": "Receiver also enforces its server-owned exact kind/audience/field policy, authenticated world scope, UTF-8 byte bounds, private scopes and 16 KiB encoded bound. Default contracts are documented in packages/event-logging/README.md.",
+  "title": "Classified game event v1",
+  "additionalProperties": false,
+  "properties": {
+    "tick_number": {
+      "maximum": 9007199254740000,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "world_id": {
+      "$ref": "#/$defs/id"
+    },
+    "region_id": {
+      "$ref": "#/$defs/id"
+    },
+    "kind": {
+      "$ref": "#/$defs/id"
+    },
+    "audience": {
+      "enum": [
+        "public",
+        "staff",
+        "private"
+      ]
+    },
+    "scope_id": {
+      "type": "string",
+      "maxLength": 128
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "data": {
+      "maxProperties": 8,
+      "type": "object",
+      "additionalProperties": {
+        "oneOf": [
+          {
+            "type": "string",
+            "maxLength": 8192
+          },
+          {
+            "type": "integer"
+          },
+          {
+            "type": "boolean"
+          }
+        ]
+      }
+    },
+    "event_id": {
+      "$ref": "#/$defs/id"
+    }
+  },
+  "$defs": {
+    "id": {
+      "pattern": "\\S",
+      "maxLength": 128,
+      "type": "string",
+      "minLength": 1
+    }
+  },
+  "required": [
+    "schema_version",
+    "event_id",
+    "world_id",
+    "region_id",
+    "tick_number",
+    "kind",
+    "audience",
+    "scope_id",
+    "data"
+  ],
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}
