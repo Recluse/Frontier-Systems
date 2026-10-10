@@ -14,6 +14,11 @@ var _source_labels: Dictionary = {}
 const SOURCE_NAMES: Dictionary = {"deposit.iron": "Iron ore", "deposit.ice": "Ice", "deposit.regolith": "Regolith"}
 
 
+func set_labels_visible(enabled: bool) -> void:
+	if _label != null: _label.visible = enabled
+	for label in _source_labels.values(): label.visible = enabled
+
+
 func _ready() -> void:
 	var ids: Array[String] = ["deposit.iron", "deposit.ice", "deposit.regolith"]
 	var colors: Array[Color] = [Color("#b36643"), Color("#9bd9ef"), Color("#967951")]

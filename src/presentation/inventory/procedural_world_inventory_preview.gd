@@ -12,6 +12,8 @@ var _visible_items: Dictionary = {}
 var _selected_key: String = ""
 var _rebuilds: int = 0
 var player_facing_labels: bool = false
+var skip_machine_roots: bool = false
+var labels_visible: bool = true
 
 
 func observe(record: Dictionary) -> ServiceResult:
@@ -39,6 +41,8 @@ func _rebuild() -> void:
 	_visible_items.clear()
 	_rebuilds += 1
 	for container in _record["containers"]:
+		# The machinery adapter renders these physical roots as assemblies, not trays.
+		if skip_machine_roots and String(container["container_id"]).begins_with("machine-root-"): continue
 		var coords: Array = container["position_millimetres"]
 		var origin: Vector3 = DISPLAY_ORIGIN + Vector3(float(coords[0]), float(coords[1]), float(coords[2])) / 1000.0
 		_box(_rendered, Vector3(1.0, 0.08, 0.6), origin + Vector3(0, 0.7, 0), Color("#788a96"))
@@ -52,6 +56,7 @@ func _rebuild() -> void:
 		if container["items"].size() > MAX_VISIBLE_ITEMS_PER_CONTAINER:
 			label.text += "\n%d more items available in overlay" % (container["items"].size() - MAX_VISIBLE_ITEMS_PER_CONTAINER)
 		_rendered.add_child(label)
+		label.visible = labels_visible
 		for index in range(mini(container["items"].size(), MAX_VISIBLE_ITEMS_PER_CONTAINER)):
 			var item: Dictionary = container["items"][index]
 			var dimensions := Vector3(0.15, 0.15, 0.15)

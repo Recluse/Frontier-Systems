@@ -155,6 +155,16 @@ func _start_client() -> void:
 	viewport.add_child(_habitat)
 	_machinery_preview = MachineryPreview.new()
 	_habitat.add_child(_machinery_preview)
+	_machinery_preview.machine_selected.connect(func(id: String) -> void:
+		_machinery_panel.select_machine(id)
+		_tabs.current_tab = 3
+	)
+	_habitat.world_inventory.skip_machine_roots = true
+	_tabs.tab_changed.connect(func(index: int) -> void:
+		_habitat.production.set_labels_visible(index != 3)
+		_habitat.world_inventory.labels_visible = index != 3
+		for label in _habitat.world_inventory.find_children("*", "Label3D", true, false): label.visible = index != 3
+	)
 	_habitat.focus_production()
 	_habitat.world_inventory.player_facing_labels = true
 	_habitat.world_inventory.pickup_requested.connect(_pickup_world_item)

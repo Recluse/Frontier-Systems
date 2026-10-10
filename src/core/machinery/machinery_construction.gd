@@ -36,11 +36,12 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 	var changed: bool = false
 	if operation in ["machine_craft", "machine_print"]:
 		var kind: String = String(payload["kind"])
-		var is_canister: bool = operation == "machine_print" and kind == "equipment.canister"
-		if (not MachineryWorkshop.KINDS.has(kind) and not is_canister) or workshop["parts"].size() >= 128 or state["structures"].size() >= 32: return failure("Select a known part; the physical registries are bounded.")
-		var blueprint: Dictionary = production.machine_blueprint(kind).value if is_canister else {}
-		var bill: Dictionary = blueprint["materials"].duplicate(true) if is_canister else {"iron": int(MachineryWorkshop.KINDS[kind])}
-		var print_energy: int = int(blueprint["fabrication_energy_joules"]) if is_canister else 500
+		var equipment: ServiceResult = production.machine_blueprint(kind)
+		var is_equipment: bool = operation == "machine_print" and equipment.is_success
+		if (not MachineryWorkshop.KINDS.has(kind) and not is_equipment) or (not is_equipment and workshop["parts"].size() >= 128) or (is_equipment and state["structures"].size() >= 32): return failure("Select a known part; its physical registry must have capacity.")
+		var blueprint: Dictionary = equipment.value if is_equipment else {}
+		var bill: Dictionary = blueprint["materials"].duplicate(true) if is_equipment else {"iron": int(MachineryWorkshop.KINDS[kind])}
+		var print_energy: int = int(blueprint["fabrication_energy_joules"]) if is_equipment else 500
 		if operation == "machine_craft":
 			# Manual bootstrap construction deliberately has no grid dependency.
 			if not inventory.production_capability(context, true).is_success: return failure("Approach the workbench for manual construction.")
@@ -48,16 +49,16 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 			state["store"]["iron"] -= int(bill["iron"])
 		else:
 			if not MachineryWorkshop.operational(workshop, owner, machine, "printhead"): return failure("Fit a controller, power connector and printhead, then deploy the printer.")
-			if kind in ["frame", "printhead", "refinery", "solar", "equipment.canister"] and not MachineryWorkshop.modules(workshop, owner, machine).has("expander"): return failure("Large prints require an installed expansion module.")
+			if (is_equipment or kind in ["frame", "printhead", "refinery", "solar"]) and not MachineryWorkshop.modules(workshop, owner, machine).has("expander"): return failure("Large prints require an installed expansion module.")
 			var transfer: ServiceResult = transfer_plan(state, owner, machine, bill, {})
 			if not transfer.is_success: return transfer
 			if int(workshop["placements"][machine]["energy"]) < print_energy: return failure("The printer buffer has insufficient energy from the grid.")
 			workshop["placements"][machine]["energy"] -= print_energy
 			state["cargo"] = transfer.value
 		id = "machine-part-%s" % request.sha256_text().substr(0, 24)
-		if is_canister: state["structures"][id] = {"blueprint_id": kind, "fingerprint": blueprint["fingerprint"], "materials": bill.duplicate(true)}
+		if is_equipment: state["structures"][id] = {"blueprint_id": kind, "fingerprint": blueprint["fingerprint"], "materials": bill.duplicate(true)}
 		else: workshop["parts"][id] = {"kind": kind}
-		var physical: Dictionary = {"item_id": id, "definition_id": blueprint["definition_id"] if is_canister else MachineryWorkshop.definition(kind), "definition_revision": 1, "condition_permille": 1000, "container_id": body_root if operation == "machine_craft" else MachineryWorkshop.container(owner, machine)}
+		var physical: Dictionary = {"item_id": id, "definition_id": blueprint["definition_id"] if is_equipment else MachineryWorkshop.definition(kind), "definition_revision": 1, "condition_permille": 1000, "container_id": body_root if operation == "machine_craft" else MachineryWorkshop.container(owner, machine)}
 		owner["ledger"]["items"].append(physical)
 		var definition: ServiceResult = inventory.factory_definition(physical["definition_id"])
 		if not definition.is_success: return definition

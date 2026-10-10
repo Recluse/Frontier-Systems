@@ -1,18 +1,26 @@
 extends Node3D
 class_name MachineryPreview
+signal machine_selected(machine_id: String)
 
 ## Settled machinery uses one static compound body per physical frame. Its modules
 ## and canisters are child visuals, not independently simulated rigid bodies.
 var _signature: String = ""
+var _labels: Dictionary = {}
+var _socket_labels: Dictionary = {}
+const ROLES: Dictionary = {"solar": "SOLAR GENERATOR", "printhead": "3D PRINTER", "refinery": "REFINERY", "extractor": "RESOURCE EXTRACTOR", "router": "POWER ROUTER"}
 
 
 func observe(record: Dictionary) -> void:
 	var workshop: Dictionary = record["machinery"]
 	var poses: Dictionary = {}
 	for id in workshop["placements"]: poses[id] = workshop["placements"][id]["position"]
-	var signature: String = JSON.stringify([poses, workshop["mounts"], workshop["links"]], "", true)
-	if signature == _signature: return
+	var signature: String = JSON.stringify([poses, workshop["mounts"], workshop["links"], workshop["inventory_items"]], "", true)
+	if signature == _signature:
+		_update_labels(workshop)
+		return
 	_signature = signature
+	_labels.clear()
+	_socket_labels.clear()
 	for child in get_children():
 		remove_child(child)
 		child.queue_free()
@@ -20,24 +28,76 @@ func observe(record: Dictionary) -> void:
 		var body := StaticBody3D.new()
 		body.position = _position(poses[id]) + Vector3(0, 0.4, 0)
 		add_child(body)
+		body.input_event.connect(func(_camera: Node, event: InputEvent, _position: Vector3, _normal: Vector3, _shape: int) -> void:
+			if PlayerInputSettings.instance().accepts_gameplay_input() and event.is_action_pressed("world_select"): machine_selected.emit(id)
+		)
 		_box(body, Vector3(0.7, 0.8, 0.6), Color(0.22, 0.29, 0.35), Vector3.ZERO)
 		var collision := CollisionShape3D.new()
 		var shape := BoxShape3D.new()
 		shape.size = Vector3(0.7, 0.8, 0.6)
 		collision.shape = shape
 		body.add_child(collision)
+		var fitted: Array = []
+		for module in workshop["mounts"]:
+			if workshop["mounts"][module] == id: fitted.append(workshop["parts"][module]["kind"])
+		var height: float = 1.5 if fitted.has("printhead") else (1.35 if fitted.has("refinery") or fitted.has("extractor") else (1.0 if fitted.has("solar") else 0.8))
+		shape.size = Vector3(1.25 if fitted.has("solar") else 0.8, height, 0.8)
+		collision.position.y = height / 2.0 - 0.4
+		if fitted.has("solar"):
+			_box(body, Vector3(1.25, 0.05, 0.8), Color(0.06, 0.2, 0.48), Vector3(0, 0.55, 0))
+			for line in range(5): _box(body, Vector3(0.015, 0.01, 0.8), Color(0.3, 0.6, 0.85), Vector3(-0.5 + line * 0.25, 0.585, 0))
+		if fitted.has("printhead"):
+			_box(body, Vector3(0.8, 0.06, 0.7), Color(0.75, 0.8, 0.85), Vector3(0, 0.45, 0))
+			for x in [-0.35, 0.35]: _box(body, Vector3(0.06, 0.6, 0.06), Color(0.4, 0.5, 0.6), Vector3(x, 0.75, 0))
+			_box(body, Vector3(0.8, 0.06, 0.08), Color(0.6, 0.7, 0.8), Vector3(0, 1.05, 0))
+			_box(body, Vector3(0.16, 0.2, 0.15), Color(0.95, 0.55, 0.15), Vector3(0, 0.92, 0))
+		if fitted.has("refinery"):
+			for x in [-0.2, 0.2]: _cylinder(body, Vector3(x, 0.6, 0), Color(0.5, 0.65, 0.68), 0.15, 0.45)
+		if fitted.has("extractor"):
+			_box(body, Vector3(0.2, 0.65, 0.2), Color(0.95, 0.65, 0.1), Vector3(0, 0.6, 0))
+		if fitted.has("router"):
+			_box(body, Vector3(0.6, 0.08, 0.4), Color(0.2, 0.7, 0.45), Vector3(0, 0.45, 0))
 		var index: int = 0
 		for module in workshop["mounts"]:
 			if workshop["mounts"][module] != id: continue
 			var kind: String = workshop["parts"][module]["kind"]
 			_box(body, Vector3(0.12, 0.12, 0.08), Color(0.2, 0.7, 0.75) if kind == "socket" else Color(0.85, 0.6, 0.2), Vector3(-0.25 + float(index % 4) * 0.16, 0.3 - float(index / 4) * 0.16, -0.33))
 			index += 1
+		var socket_index: int = 0
+		for module in workshop["mounts"]:
+			if workshop["mounts"][module] != id or workshop["parts"][module]["kind"] != "socket": continue
+			for physical in workshop["inventory_items"]:
+				if physical["container_id"] != InventorySimulationSystem.factory_storage_id(module): continue
+				var offset := Vector3(-0.35 + socket_index * 0.3, 0.15, 0.48)
+				_cylinder(body, offset, Color(0.1, 0.65, 0.7), 0.1, 0.4)
+				var canister_collision := CollisionShape3D.new()
+				var canister_shape := CylinderShape3D.new()
+				canister_shape.radius = 0.1
+				canister_shape.height = 0.4
+				canister_collision.shape = canister_shape
+				canister_collision.position = offset
+				body.add_child(canister_collision)
+				var cargo_label := Label3D.new()
+				cargo_label.position = offset + Vector3(0, 0.35, 0)
+				cargo_label.font_size = 30
+				cargo_label.pixel_size = 0.0035
+				cargo_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+				body.add_child(cargo_label)
+				_socket_labels[physical["item_id"]] = cargo_label
+				socket_index += 1
 		var title := Label3D.new()
-		title.text = "Machine %s" % id.right(8)
-		title.position.y = 0.65
+		var outputs: int = 0
+		if fitted.has("printhead"):
+			for physical in workshop["inventory_items"]:
+				if physical["container_id"] == InventorySimulationSystem.factory_storage_id(id) and not workshop["mounts"].has(physical["item_id"]) and not workshop["links"].has(physical["item_id"]):
+					_box(body, Vector3(0.14, 0.12, 0.14), Color(0.9, 0.6, 0.2), Vector3(-0.2 + outputs * 0.18, 0.55, 0.15))
+					outputs += 1
+		title.position.y = 1.4
 		title.font_size = 36
+		title.pixel_size = 0.004
 		title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		body.add_child(title)
+		_labels[id] = {"label": title, "fitted": fitted, "outputs": outputs}
 	for link in workshop["links"].values():
 		if not poses.has(link["a"]) or not poses.has(link["b"]): continue
 		var a: Vector3 = _position(poses[link["a"]]) + Vector3(0, 0.08, 0)
@@ -51,6 +111,38 @@ func observe(record: Dictionary) -> void:
 		add_child(cable)
 		cable.position = (a + b) / 2.0
 		if a.distance_to(b) > 0.01: cable.quaternion = Quaternion(Vector3.UP, (b - a).normalized())
+	_update_labels(workshop)
+
+
+func _update_labels(workshop: Dictionary) -> void:
+	for id in _labels:
+		var roles: PackedStringArray = []
+		for kind in _labels[id]["fitted"]:
+			if ROLES.has(kind): roles.append(ROLES[kind])
+		var state: String = "READY" if workshop["placements"][id]["enabled"] else "ISOLATED"
+		if workshop["jobs"].has(id): state = "%s · %d ticks" % [workshop["jobs"][id]["recipe"], workshop["jobs"][id]["progress"]]
+		_labels[id]["label"].text = "%s\n%s · %d J" % ["\n".join(roles) if not roles.is_empty() else "MACHINE FRAME", state, workshop["placements"][id]["energy"]]
+		if int(_labels[id]["outputs"]) > 0: _labels[id]["label"].text += "\n%d PRINTED OUTPUT" % _labels[id]["outputs"]
+	for carrier in _socket_labels:
+		var lines: PackedStringArray = []
+		for material in workshop["cargo"].get(carrier, {}):
+			var amount: int = int(workshop["cargo"][carrier][material])
+			if amount > 0: lines.append("%s %.3f kg" % [material, float(amount) / 1000000.0])
+		_socket_labels[carrier].text = "\n".join(lines) if not lines.is_empty() else "EMPTY CANISTER"
+
+
+static func _cylinder(parent: Node3D, offset: Vector3, color: Color, radius: float, height: float) -> void:
+	var visual := MeshInstance3D.new()
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = radius
+	mesh.bottom_radius = radius
+	mesh.height = height
+	visual.mesh = mesh
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	visual.material_override = material
+	visual.position = offset
+	parent.add_child(visual)
 
 
 static func _position(coords: Array) -> Vector3:

@@ -302,8 +302,8 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 		var usage: ServiceResult = _tools.prepare_usage(active.value)
 		if not usage.is_success: return usage
 		prepared_tools = usage.value
-	if not prepared_inventory.is_empty() and _tools != null and prepared_tools == null:
-		var sync: ServiceResult = _tools.prepare_inventory(prepared_inventory, candidate["structures"], candidate["loose_parts"])
+	if (not prepared_inventory.is_empty() or not prepared_graph.is_empty()) and _tools != null and prepared_tools == null:
+		var sync: ServiceResult = _tools.prepare_inventory(prepared_inventory if prepared_graph.is_empty() else prepared_graph["owner"], candidate["structures"], candidate["loose_parts"])
 		if not sync.is_success: return sync
 		prepared_tools = sync.value
 	candidate["state_revision"] = int(candidate["state_revision"]) + 1
@@ -657,6 +657,14 @@ func capture_snapshot() -> ServiceResult:
 
 ## Work recipes share the trusted refinery/chemistry recipes and finite deposits.
 func machine_recipe(id: String) -> Dictionary:
+	if id == "chemical.electrolysis.micro":
+		# Portable 2 L carriers cannot receive the bulk one-kilogram gas batch.
+		# A separate exact 10 g recipe preserves old recipe/save semantics.
+		var micro: Dictionary = machine_recipe("chemical.electrolysis")
+		for stock in ["inputs", "outputs"]:
+			for material in micro[stock]: micro[stock][material] = int(micro[stock][material]) / 100
+		micro["energy_joules"] = int(micro["energy_joules"]) / 100
+		return micro
 	if _catalog["recipes"].has(id):
 		var recipe: Dictionary = _catalog["recipes"][id].duplicate(true)
 		recipe["capability"] = "printhead" if recipe["station"] == "printer" else "refinery"

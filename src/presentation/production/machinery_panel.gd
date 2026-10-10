@@ -28,6 +28,8 @@ func configure(world: WorldRuntime) -> void:
 		_kind.set_item_metadata(_kind.item_count - 1, kind)
 	_kind.add_item("Resource canister (printer + expander, 1 kg iron)")
 	_kind.set_item_metadata(_kind.item_count - 1, "equipment.canister")
+	_kind.add_item("Handheld extractor (printer + expander, 1.5 kg iron)")
+	_kind.set_item_metadata(_kind.item_count - 1, "equipment.extractor")
 	add_child(_kind)
 	_button("Hand-build selected part", "machine_craft")
 	_label("Machine frame")
@@ -65,8 +67,8 @@ func configure(world: WorldRuntime) -> void:
 	_button("Disconnect selected cable", "machine_unwire")
 	_button("Enable machine / router", "enable")
 	_button("Isolate machine / router", "disable")
-	for id in ["extract.iron", "extract.ice", "extract.regolith", "refine.iron", "refine.ice", "refine.regolith", "chemical.electrolysis", "chemical.nutrients", "craft.plate", "salvage.plate"]:
-		_recipe.add_item(id)
+	for id in ["extract.iron", "extract.ice", "extract.regolith", "refine.iron", "refine.ice", "refine.regolith", "chemical.electrolysis.micro", "chemical.nutrients", "craft.plate", "salvage.plate"]:
+		_recipe.add_item("Electrolyze 10 g water (separate H2 / O2 canisters)" if id == "chemical.electrolysis.micro" else id)
 		_recipe.set_item_metadata(_recipe.item_count - 1, id)
 	add_child(_recipe)
 	_button("Run powered canister batch", "machine_run")
@@ -78,6 +80,8 @@ func configure(world: WorldRuntime) -> void:
 	_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_status)
 	add_child(_feedback)
+	move_child(_status, 1)
+	move_child(_feedback, 2)
 	_world.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void:
 		if String(command.command_id) == _pending:
 			_pending = ""
@@ -97,9 +101,9 @@ func observe(record: Dictionary) -> void:
 		if kind == "frame": frames[id] = parts[id] + (" deployed" if machinery["placements"].has(id) else " packed")
 		if kind == "socket": sockets[id] = parts[id]
 	for physical in machinery["inventory_items"]:
-		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated"]: parts[physical["item_id"]] = "canister · %s" % physical["item_id"]
+		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated", "item.extractor.fabricated"]: parts[physical["item_id"]] = "%s · %s" % ["extractor" if physical["definition_id"] == "item.extractor.fabricated" else "canister", physical["item_id"]]
 	for physical in record["inventory"]["items"]:
-		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated"]: parts[physical["item_id"]] = "canister · %s" % physical["item_id"]
+		if physical["definition_id"] in ["item.resource-canister.prototype", "item.resource-canister.fabricated", "item.extractor.fabricated"]: parts[physical["item_id"]] = "%s · %s" % ["extractor" if physical["definition_id"] == "item.extractor.fabricated" else "canister", physical["item_id"]]
 	_fill(_machine, frames)
 	_fill(_other, frames)
 	_fill(_part, parts)
@@ -151,6 +155,13 @@ func _send(action: String) -> void:
 	var queued: ServiceResult = _world.enqueue_command(command)
 	_pending = String(command.command_id) if queued.is_success else ""
 	_feedback.text = "Queued " + action if queued.is_success else queued.message
+
+
+func select_machine(id: String) -> void:
+	for index in range(_machine.item_count):
+		if _machine.get_item_metadata(index) == id:
+			_machine.select(index)
+			return
 
 
 func _button(title: String, action: String) -> void:

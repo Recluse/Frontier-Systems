@@ -91,3 +91,5 @@ Workstation now lists canister/extractor blueprints with required iron and energ
 ## Build portable resource machinery
 
 Open the Construction tab to hand-build frames and modules, insert canisters, deploy generators, connect cables/routers, run powered processing and print replacement equipment. See [the construction walkthrough and prototype limits](modular-resource-machinery-milestone.md). Hold the configured UI cursor key (Left Alt by default) to interact. Existing inventory and settings remain in their original tabs.
+
+The expanded printer also makes component-backed handheld extractors. For portable electrolysis select the 10 g recipe and fit separate water/hydrogen/oxygen canisters. Construction displays live machine telemetry; click deployed machines to select their controls. See the [verified workshop screenshot](../../reports/resource-workshop/workshop.png).

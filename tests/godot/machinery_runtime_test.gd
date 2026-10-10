@@ -68,6 +68,21 @@ func run() -> void:
 	command("machine_unfit", {"machine_id": printer, "item_id": manufactured_canister, "socket_id": ""})
 	command("salvage_equipment", {"item_id": manufactured_canister})
 	command("machine_remove", {"machine_id": printer, "item_id": "resource-canister-1", "socket_id": socket})
+	command("load_cargo", {"carrier_id": "resource-canister-1", "material": "iron", "amount_milligrams": 1500000})
+	command("machine_insert", {"machine_id": printer, "item_id": "resource-canister-1", "socket_id": socket})
+	step(120)
+	old_structures = production.capture_snapshot().value["structures"]
+	command("machine_print", {"machine_id": printer, "kind": "equipment.extractor"})
+	var manufactured_tool: String = ""
+	for id in production.capture_snapshot().value["structures"]:
+		if not old_structures.has(id): manufactured_tool = id
+	check(not manufactured_tool.is_empty(), "expanded grid printer creates a component-backed handheld extractor")
+	var tools: ToolSimulationSystem = world.get_simulation_system(ToolSimulationSystem.SYSTEM_ID)
+	check(tools.capability(manufactured_tool, "tool.extractor").value, "printed tool has live independent working components")
+	check(world.capture_world_snapshot_json().is_success, "printed tool and component provenance validate together")
+	command("machine_unfit", {"machine_id": printer, "item_id": manufactured_tool, "socket_id": ""})
+	command("salvage_equipment", {"item_id": manufactured_tool})
+	command("machine_remove", {"machine_id": printer, "item_id": "resource-canister-1", "socket_id": socket})
 	command("load_cargo", {"carrier_id": "resource-canister-1", "material": "iron", "amount_milligrams": 200000})
 	command("machine_insert", {"machine_id": printer, "item_id": "resource-canister-1", "socket_id": socket})
 	var refinery: String = assemble("refinery", [1000, 0, 0])
@@ -170,6 +185,11 @@ func run() -> void:
 	check(not restored.restore_world_snapshot_json(JSON.stringify(wrong_pose)).is_success, "mismatched physical world location rejects")
 	restored.free()
 	print("Machinery integration: %d failures" % failures)
+	finish()
+
+
+## Capture tools can retain the verified world to render the actual client.
+func finish() -> void:
 	world.free()
 	quit(1 if failures else 0)
 
