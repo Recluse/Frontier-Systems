@@ -1,5 +1,7 @@
 # Implementation Readiness Review
 
+Twitch foundation update: [optional streamer integration](../design/twitch-streamer-integration.md) adds independent PSR-4 chat/HTTP boundaries, bounded ReactPHP sends and source-only app-token delivery with sanitized failures. Offline Windows mocks pass. OAuth/service wiring, incoming EventSub and public status/panel deployment remain pending; no live account/chat/panel action performed. Basic gameplay priority is retained.
+
 Basic gameplay priority update: [inventory consciousness capabilities](../architecture/inventory-consciousness-capabilities.md) now bind health to actor command checks, interrupt voluntary jobs/grips and revoke scoped search views on incapacity. Conscious actors can still interact with unconscious targets under existing physical rules; restored/recovered state controls availability. Basic gameplay is prioritized before away missions/procedural planets. Wider body-control, injury and chemical integration remain pending.
 
 Away-mission design update: [disposable seeded planets](../design/seeded-away-missions.md) now specify fresh instance identity, shared crew presence, atomic extraction and irreversible loss of everything left at completion. Cleanup rejects late results and removes live mission data, with explicit allocator/GPU retirement and crash/reconnect rules. This is a declared disposal boundary alongside persistent colonies; documentation only, no runtime changes or tests run.

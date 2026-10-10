@@ -63,6 +63,9 @@ jobs:
       - name: Run PHP unit suite
         run: composer unit
 
+      - name: Check optional Twitch adapters without live credentials
+        run: php vendor/phpunit/phpunit/phpunit --bootstrap ../../packages/twitch/tests/bootstrap.php ../../packages/twitch/tests
+
       - name: Audit locked dependencies
         if: matrix.php-version == '8.5' && matrix.os == 'ubuntu-latest'
         env:
@@ -84,7 +87,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest]
-        package: [profiling, profiling-http]
+        package: [profiling, profiling-http, twitch]
     defaults:
       run:
         working-directory: packages/${{ matrix.package }}

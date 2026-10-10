@@ -19,6 +19,8 @@ return (new Config())
             ->in(__DIR__ . '/../../packages/world-contracts/src')
             ->in(__DIR__ . '/../../packages/profiling/src')
             ->in(__DIR__ . '/../../packages/profiling-http/src')
+            ->in(__DIR__ . '/../../packages/twitch/src')
+            ->in(__DIR__ . '/../../packages/twitch/tests')
             ->append([
                 __DIR__ . '/bin/control-plane.php',
                 __DIR__ . '/build/build-phar.php',

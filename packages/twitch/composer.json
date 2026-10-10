@@ -1,0 +1,10 @@
+{
+  "name": "frontier-systems/twitch",
+  "description": "Optional asynchronous Twitch adapters for Frontier Systems.",
+  "type": "library", "license": "MIT",
+  "require": {"php": "^8.3", "react/http": "^1.9", "react/promise": "^3.0", "psr/http-message": "^1.1 || ^2.0"},
+  "require-dev": {"phpunit/phpunit": "^11.5"},
+  "autoload": {"psr-4": {"Frontier\\Twitch\\": "src/"}},
+  "autoload-dev": {"psr-4": {"Frontier\\Twitch\\Tests\\": "tests/"}},
+  "scripts": {"unit": "phpunit --bootstrap tests/bootstrap.php tests"}
+}

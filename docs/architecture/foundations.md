@@ -1,5 +1,7 @@
 # Runtime foundations
 
+[Optional Twitch integration](../design/twitch-streamer-integration.md) now has a separate MIT/PSR-4 asynchronous outgoing chat adapter. Incoming EventSub, OAuth, public server-status projection and a streamer Panel Extension are staged future integration; ticks never depend on Twitch responses.
+
 [Basic inventory consciousness capabilities](inventory-consciousness-capabilities.md) now reject unconscious actor commands, cancel voluntary work/grips and revoke external search views, while retaining passive-target interaction and recovery. Basic gameplay has priority; away missions and planetary streaming remain future work.
 
 [Seeded away missions](../design/seeded-away-missions.md) are planned disposable planet instances: departing/ending a mission retires its identity and permanently loses all unextracted contents. Atomic exports, crew-aware closure, crash-safe cleanup and bounded memory reclamation are specified; no mission runtime exists yet.
