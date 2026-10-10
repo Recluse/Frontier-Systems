@@ -15,8 +15,8 @@ if ($preset.development_only -ne $true -or $preset.receiver.address -notmatch '^
     throw 'The smoke runner requires a development-only loopback receiver.'
 }
 $port = [int]$Matches[1]
-$phpCommand = (Get-Command $PhpExecutable -CommandType Application).Source
-$godotCommand = (Get-Command $GodotExecutable -CommandType Application).Source
+$phpCommand = (Get-Command $PhpExecutable -CommandType Application | Select-Object -First 1).Source
+$godotCommand = (Get-Command $GodotExecutable -CommandType Application | Select-Object -First 1).Source
 $receiverScript = Join-Path $projectRoot 'tools/run-profiling-receiver.php'
 if ($receiverScript.Contains('"') -or $configPath.Contains('"')) {
     throw 'Quoted filenames are not supported by this development launcher.'

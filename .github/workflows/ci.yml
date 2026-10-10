@@ -48,7 +48,14 @@ jobs:
         run: composer validate --strict
 
       - name: Install locked dependencies
+        if: runner.os != 'Windows'
         run: composer install --prefer-dist --no-interaction --no-progress
+
+      # phpDocumentor's optional PHAR distributor needs GPG import unavailable
+      # on this Windows runner. Documentation generation runs in verified Linux CI.
+      - name: Install locked dependencies on Windows without documentation plugin
+        if: runner.os == 'Windows'
+        run: composer install --no-plugins --prefer-dist --no-interaction --no-progress
 
       - name: Enforce PSR-4 mappings
         run: composer dump-autoload --optimize --strict-psr --strict-ambiguous
