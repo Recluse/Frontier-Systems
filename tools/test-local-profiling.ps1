@@ -125,7 +125,21 @@ try {
     }
     if ($IsWindows) { $godotLaunch.WindowStyle = 'Hidden' }
     Write-Output ('Godot integration executable: ' + $godotCommand)
-    Write-Output ('Project class cache present: ' + (Test-Path -LiteralPath (Join-Path $projectRoot '.godot/global_script_class_cache.cfg')))
+    $classCachePath = Join-Path $projectRoot '.godot/global_script_class_cache.cfg'
+    if (-not (Test-Path -LiteralPath $classCachePath)) {
+        # The integration harness is independently runnable after a fresh checkout,
+        # even when preceding runner/tool setup has removed generated Godot state.
+        $importLaunch = $godotLaunch.Clone()
+        $importLaunch.ArgumentList = @('--headless', '--editor', '--path', '.', '--import', '--quit')
+        $importLaunch.RedirectStandardOutput = Join-Path $outputDirectory 'godot-import.stdout.log'
+        $importLaunch.RedirectStandardError = Join-Path $outputDirectory 'godot-import.stderr.log'
+        $importProcess = Start-Process @importLaunch
+        Get-Content -LiteralPath $importLaunch.RedirectStandardOutput
+        Get-Content -LiteralPath $importLaunch.RedirectStandardError
+        if ($importProcess.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $classCachePath)) {
+            throw 'Godot project import did not initialize the required class cache.'
+        }
+    }
     $godotProcess = Start-Process @godotLaunch
     Get-Content -LiteralPath $godotLaunch.RedirectStandardOutput
     Get-Content -LiteralPath $godotLaunch.RedirectStandardError
