@@ -116,7 +116,7 @@ try {
     # Windows GUI-subsystem Godot executables do not wait under direct invocation.
     $godotLaunch = @{
         FilePath = $godotCommand
-        ArgumentList = @('--headless', '--path', ('"' + $projectRoot + '"'), '--script', 'res://tests/godot/local_profiling_upload_test.gd', '--', ('"--profiling-config=' + $configPath + '"'))
+        ArgumentList = @('--headless', '--path', '.', '--script', 'res://tests/godot/local_profiling_upload_test.gd', '--', ('"--profiling-config=' + $configPath.Replace('\', '/') + '"'))
         WorkingDirectory = $projectRoot
         RedirectStandardOutput = Join-Path $outputDirectory 'godot.stdout.log'
         RedirectStandardError = Join-Path $outputDirectory 'godot.stderr.log'
@@ -124,6 +124,8 @@ try {
         PassThru = $true
     }
     if ($IsWindows) { $godotLaunch.WindowStyle = 'Hidden' }
+    Write-Output ('Godot integration executable: ' + $godotCommand)
+    Write-Output ('Project class cache present: ' + (Test-Path -LiteralPath (Join-Path $projectRoot '.godot/global_script_class_cache.cfg')))
     $godotProcess = Start-Process @godotLaunch
     Get-Content -LiteralPath $godotLaunch.RedirectStandardOutput
     Get-Content -LiteralPath $godotLaunch.RedirectStandardError
