@@ -28,6 +28,8 @@ func _ready() -> void:
 
 
 func connect_host(url: String, invite_key: String) -> ServiceResult:
+	if _connecting or _socket.get_ready_state() != WebSocketPeer.STATE_CLOSED:
+		return ServiceResult.failure(&"remote_connect_pending", "A host connection is already active or pending.")
 	if _sent_auth or invite_key.length() < 32 or invite_key.length() > 256 or not (url.begins_with("ws://127.0.0.1:") or url.begins_with("ws://localhost:") or url.begins_with("wss://")):
 		return ServiceResult.failure(&"remote_configuration", "Use loopback WebSocket or TLS with an operator-provided invite key.")
 	_invite_key = invite_key
@@ -37,13 +39,18 @@ func connect_host(url: String, invite_key: String) -> ServiceResult:
 	var error: Error = _socket.connect_to_url(url)
 	_connecting = error == OK
 	_connect_started = Time.get_ticks_msec()
-	set_process(true)
+	if error != OK: _invite_key = ""
+	set_process(error == OK)
 	return ServiceResult.success() if error == OK else ServiceResult.failure(&"remote_connect", "Cannot connect to the host.")
+
+
+func connection_ready() -> bool:
+	return _authenticated and not _observation.is_empty() and _socket.get_ready_state() == WebSocketPeer.STATE_OPEN
 
 
 func _process(_delta: float) -> void:
 	_socket.poll()
-	if _connecting and Time.get_ticks_msec() - _connect_started > 5000 and not _authenticated:
+	if _connecting and Time.get_ticks_msec() - _connect_started > 5000 and _observation.is_empty():
 		_socket.close(-1)
 	if _socket.get_ready_state() == WebSocketPeer.STATE_CLOSED and _connecting:
 		_projection.record = {}
@@ -52,10 +59,12 @@ func _process(_delta: float) -> void:
 		_authenticated = false
 		_sent_auth = false
 		_connecting = false
+		_invite_key = ""
+		server_slot = -1
 		for command in _requests.values():
 			command_completed.emit(command, ServiceResult.failure(&"remote_disconnected", "Host connection closed; preserve the original terrain intent and retry after reconnecting."))
 		_requests.clear()
-		connection_closed.emit("Host connection closed")
+		connection_closed.emit("Host rejected authentication or session; check the configured invite and retry." if _socket.get_close_code() == 1008 else "Host connection closed")
 		set_process(false)
 		return
 	if _socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
@@ -161,7 +170,7 @@ func _retry_path() -> String:
 
 
 func enqueue_command(command: SimulationCommand) -> ServiceResult:
-	if not _authenticated or _socket.get_ready_state() != WebSocketPeer.STATE_OPEN or _requests.size() >= 8:
+	if not connection_ready() or _requests.size() >= 8:
 		return ServiceResult.failure(&"remote_not_ready", "Host is not ready or requests are pending.")
 	var system: String = "terrain" if TerrainTransportCodec.is_terrain(command) else ("production" if command is ProductionDevelopmentCommand else ("inventory" if command is InventoryDevelopmentCommand else ("world" if command is CheckpointRequest else "")))
 	if system.is_empty() or String(command.command_id).length() > 90 or _requests.has(String(command.command_id)):

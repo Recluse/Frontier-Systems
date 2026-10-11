@@ -1,12 +1,16 @@
 param(
     [string]$Godot = 'godot',
     [switch]$PortsReserved,
-    [ValidateSet('basic', 'terrain', 'walls', 'machinery', 'equipment-fabrication', 'tool-parts', 'input-acceptance', 'client-acceptance', 'production-navigation')]
+    [ValidateSet('basic', 'terrain', 'walls', 'machinery', 'equipment-fabrication', 'tool-parts', 'input-acceptance', 'client-acceptance', 'production-navigation', 'manual-reconnect')]
     [string]$Route = 'terrain',
     [ValidateRange(1, 300)][int]$TimeoutSeconds = 120
 )
 $ErrorActionPreference = 'Stop'
 if ($Route -eq 'client-acceptance' -and -not $PortsReserved) { throw 'Reserve loopback port 27850 through Coordinator before client-acceptance.' }
+if ($Route -eq 'manual-reconnect') {
+    if (-not $PortsReserved) { throw 'Reserve loopback port 27849 through Coordinator before manual-reconnect.' }
+    if (Get-NetTCPConnection -State Listen -LocalPort 27849 -ErrorAction SilentlyContinue) { throw 'Port 27849 is occupied; do not bind or terminate its owner.' }
+}
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $executable = (Get-Command $Godot -CommandType Application | Select-Object -First 1).Source
 $output = Join-Path $projectRoot "var/ci/render-$Route"
@@ -19,6 +23,9 @@ if ($Route -eq 'client-acceptance') { $arguments += '--ports-reserved' }
 if ($Route -eq 'production-navigation') {
     # Detached panel fixture: no client connection or listening ports.
     $arguments = @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility', '--path', '.', '--script', 'res://tests/godot/production_panel_navigation_test.gd', '--', '--capture-production-navigation')
+}
+if ($Route -eq 'manual-reconnect') {
+    $arguments = @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility', '--path', '.', '--script', 'res://tests/godot/manual_reconnect_acceptance.gd', '--', '--capture-reconnect')
 }
 $launch = @{
     FilePath = $executable
@@ -34,7 +41,17 @@ $previousEventToken = [Environment]::GetEnvironmentVariable('FRONTIER_EVENT_TOKE
 $env:FRONTIER_EVENT_URL = ''
 $env:FRONTIER_EVENT_TOKEN = ''
 $process = $null
+$overridePath = Join-Path $projectRoot 'override.cfg'
+$createdOverride = $false
 try {
+    if ($Route -eq 'manual-reconnect') {
+        if (Test-Path -LiteralPath $overridePath) { throw 'Preserve existing override.cfg; use a clean isolated worktree.' }
+        $profileName = 'FrontierSystems-reconnect-' + [Guid]::NewGuid().ToString('N')
+        [IO.File]::WriteAllText($overridePath, "[application]`nconfig/use_custom_user_dir=true`nconfig/custom_user_dir_name=`"$profileName`"`n")
+        $createdOverride = $true
+        $manifest = [ordered]@{ head_sha = (& git -C $projectRoot rev-parse HEAD).Trim(); dirty = @(& git -C $projectRoot status --porcelain); profile = $profileName; fixture = 'manual_reconnect_acceptance.gd'; renderer = 'gl_compatibility'; provenance = 'Ordinary Godot viewport captures; existing MIT geometry; no generative art.'; acceptance = 'Automated button-signal activation and real disposable loopback authentication/checkpoint recovery; no human/controller/VR/Linux graphical claim.' }
+        [IO.File]::WriteAllText((Join-Path $output 'manifest.json'), ($manifest | ConvertTo-Json -Depth 4))
+    }
     $process = Start-Process @launch
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         $process.Kill($true)
@@ -54,4 +71,5 @@ try {
     }
     [Environment]::SetEnvironmentVariable('FRONTIER_EVENT_URL', $previousEventUrl, 'Process')
     [Environment]::SetEnvironmentVariable('FRONTIER_EVENT_TOKEN', $previousEventToken, 'Process')
+    if ($createdOverride) { Remove-Item -LiteralPath $overridePath }
 }
