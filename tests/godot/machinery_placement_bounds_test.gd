@@ -44,6 +44,17 @@ func run() -> void:
 	var pending: Dictionary = MachineryPlacementFeedback.describe(record, "frame", [0, 100, -1000], "freeform", true, true, Vector3(2.5, 1.5, 1.3))
 	check(pending["size"] == Vector3(2.5, 1.5, 1.3) and pending["text"].contains("2.50 × 1.50 × 1.30"), "pending dimensions and text freeze together")
 	check(pending["text"].contains("Waiting for host") and pending["text"].contains("Advisory only"), "pending is not host approval")
+	workshop["placements"]["frame"] = {"position": [4000, 0, -1000]}
+	var raced: Dictionary = MachineryPlacementFeedback.describe(record, "frame", [0, 100, -1000], "freeform", true, true, Vector3(2.5, 1.5, 1.3))
+	check(raced["ghost_visible"] and raced["position"] == [0, 100, -1000] and raced["text"].contains("Target X 0.00 / Y 0.10 / Z -1.00"), "observation before acknowledgement cannot retire or redirect pending target")
+	check(raced["selected_position"] == [4000, 0, -1000] and raced["selected_size"].is_equal_approx(Vector3(3.7, 1.5, 1.3)), "observed selection stays separate from frozen pending bounds")
+	var simultaneous := MachineryPreview.new()
+	root.add_child(simultaneous)
+	simultaneous.present_feedback(raced)
+	var queued_ghost: MeshInstance3D = simultaneous._feedback_root.get_child(13)
+	check((queued_ghost.mesh as BoxMesh).size == Vector3(2.5, 1.5, 1.3) and queued_ghost.position.is_equal_approx(MachineryPlacementFeedback.display_position([0, 100, -1000]) + Vector3(0, 0.75, 0)), "actual pending mesh survives a concurrent deployed observation")
+	simultaneous.free()
+	workshop["placements"].erase("frame")
 	var absent: Dictionary = MachineryPlacementFeedback.describe({}, "", [0, 0, 0], "surface", true, false)
 	check(not absent["ghost_visible"] and absent["selected_position"].is_empty(), "missing observation retires feedback")
 	var stale: Dictionary = {"production": {"machinery": {"parts": {}, "mounts": {}, "placements": {"frame": {"position": [0, 0, -1000]}}}}}
