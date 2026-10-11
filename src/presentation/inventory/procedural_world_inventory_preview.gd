@@ -13,7 +13,22 @@ var _selected_key: String = ""
 var _rebuilds: int = 0
 var player_facing_labels: bool = false
 var skip_machine_roots: bool = false
-var labels_visible: bool = true
+var _selection_label: InventorySelectionLabel
+var labels_visible: bool = true:
+	set(value):
+		labels_visible = value
+		if _rendered != null:
+			for child in _rendered.get_children():
+				if child is Label3D: child.visible = value
+		_highlight()
+
+
+func _ready() -> void:
+	var layer := CanvasLayer.new()
+	add_child(layer)
+	_selection_label = InventorySelectionLabel.new()
+	layer.add_child(_selection_label)
+	_highlight()
 
 
 func observe(record: Dictionary) -> ServiceResult:
@@ -82,13 +97,7 @@ func _rebuild() -> void:
 			var location: Vector3 = origin + Vector3(-0.3 + float(index % 4) * 0.2, 0.75 + dimensions.y / 2.0, -0.15 + float(index / 4) * 0.3)
 			var mesh: MeshInstance3D = _box(_rendered, dimensions, location, color)
 			var key: String = JSON.stringify([container["container_id"], item["item_id"]])
-			var identity := Label3D.new()
-			identity.position = location + Vector3(0, 0.9, 0)
-			identity.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-			identity.font_size = 22
-			identity.text = "%s\n%s · observed %.2f m" % [item["item_id"], container["container_id"], float(container["distance_millimetres"]) / 1000.0]
-			_rendered.add_child(identity)
-			_visible_items[key] = {"mesh": mesh, "color": color, "identity": identity, "text": identity.text}
+			_visible_items[key] = {"mesh": mesh, "color": color, "item_id": item["item_id"], "container_id": container["container_id"], "distance": container["distance_millimetres"]}
 			var area := Area3D.new()
 			area.position = location
 			area.collision_layer = 4
@@ -122,8 +131,14 @@ func _highlight() -> void:
 		var entry: Dictionary = _visible_items[key]
 		var material: StandardMaterial3D = entry["mesh"].material_override
 		material.albedo_color = Color("#ffe066") if key == _selected_key else entry["color"]
-		entry["identity"].visible = labels_visible and key == _selected_key
-		entry["identity"].text = entry["text"] if key == _selected_key else ""
+	if _selection_label != null:
+		_selection_label.target = null
+		_selection_label.enabled = labels_visible
+		if _visible_items.has(_selected_key):
+			var selected: Dictionary = _visible_items[_selected_key]
+			_selection_label.select_proxy(selected["mesh"], selected["item_id"], selected["container_id"], selected["distance"])
+		else:
+			_selection_label.visible = false
 
 
 func _box(parent: Node3D, dimensions: Vector3, location: Vector3, color: Color) -> MeshInstance3D:

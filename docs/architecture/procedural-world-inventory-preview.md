@@ -33,3 +33,9 @@ Windows Godot 4.7.2 import and `world_inventory_preview_test.gd` passed. Checks 
 Tests invoke the picking signal handler and verify its command bridge headlessly. Native mouse ray picking, graphical composition, lighting/readability and Linux execution remain unverified locally. No claim of authoritative 3D player/item physics is made by this preview.
 
 Next: real body/world spatial records and physical access adapters, item transforms/floor placement and authoritative pickup validation from player geometry, then construction and material transfer jobs.
+
+## Selected proxy screen card
+
+The selected identity uses one inventory-only CanvasLayer card instead of world-space text. It stays within its own viewport at the top right, with an opaque background and item/root/host-observed-distance lines. A camera-updated leader terminates at the actual selected proxy mesh; all card Controls ignore mouse events. This projection does not assert line of sight or authoritative geometry/reach. Native Area3D picking is unchanged.
+
+Selection survives valid rebuilds only while the same displayed IDs remain, rebinding to the replacement mesh. Removed selection, hidden labels, absent camera, offscreen/behind-camera target or a viewport under 180 by 150 logical pixels suppress the card. Long IDs ellipsize; the overlay retains full IDs. The card allocates three text lines once and updates projection per presentation frame; no persisted state or schema changes. See [label milestone evidence](../development/inventory-label-readability-milestone.md).
