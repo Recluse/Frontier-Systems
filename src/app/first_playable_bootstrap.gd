@@ -241,6 +241,7 @@ func _start_client() -> void:
 	_content.add_child(save)
 	_checkpoint_status = Label.new()
 	_checkpoint_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_checkpoint_status.focus_mode = Control.FOCUS_ALL
 	_checkpoint_status.text = "No manual checkpoint requested this session."
 	_content.add_child(_checkpoint_status)
 	_host_actions.assign([pickup, drop, drop_plate, save])
@@ -259,6 +260,15 @@ func _request_checkpoint() -> void:
 	if not queued.is_success:
 		_checkpoint_request = null
 		_checkpoint_status.text = "Checkpoint not submitted: " + queued.message.left(512)
+	_reveal_checkpoint_status.call_deferred()
+
+
+## Reveal current feedback after wrapped text settles, without taking keyboard focus.
+func _reveal_checkpoint_status() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_inside_tree() and _checkpoint_status.is_visible_in_tree():
+		_scroll.ensure_control_visible(_checkpoint_status)
 
 ## Reuse operator configuration in memory only; never display or journal credentials.
 func _connect_client() -> void:
@@ -309,7 +319,10 @@ func _navigate_to_workstation() -> void:
 	if _latest.is_empty() or not is_instance_valid(_production_panel) or _production_panel.is_queued_for_deletion():
 		return
 	_tabs.current_tab = 0
-	_scroll.ensure_control_visible(_production_panel.refining_focus_control())
+	var target: Control = _production_panel.refining_focus_control()
+	# World selection must retain gameplay input for target feedback and sky clearing.
+	# Keyboard focus follows the visible GUI controls when the player enters the pane.
+	_scroll.ensure_control_visible(target)
 
 
 func _on_observation(record: Dictionary) -> void:
@@ -417,6 +430,7 @@ func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
 			_checkpoint_status.text = "Shared world checkpoint confirmed on disk."
 		else:
 			_checkpoint_status.text = "Checkpoint failed: " + result.message.left(512)
+		_reveal_checkpoint_status.call_deferred()
 
 
 # A look gesture belongs to the preview, not to the root GUI mouse latch.

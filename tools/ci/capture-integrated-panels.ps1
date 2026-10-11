@@ -1,5 +1,6 @@
 param(
     [string]$Godot = 'godot',
+    [ValidateSet('integrated', 'engineering-loop')][string]$Route = 'integrated',
     [ValidateSet('gl_compatibility', 'forward_plus')][string]$RenderingMethod = 'gl_compatibility',
     [ValidateRange(1, 120)][int]$TimeoutSeconds = 60
 )
@@ -12,6 +13,7 @@ $overridePath = Join-Path $projectRoot 'override.cfg'
 if (Test-Path -LiteralPath $overridePath) { throw 'Preserve existing override.cfg; use a clean isolated worktree.' }
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 $profileName = 'FrontierSystems-integrated-' + [Guid]::NewGuid().ToString('N')
+$fixture = if ($Route -eq 'engineering-loop') { 'engineering_loop_shell_test.gd' } else { 'integrated_panel_layout_test.gd' }
 $process = $null
 $head = (& git -C $projectRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Cannot pin fixture HEAD.' }
@@ -23,7 +25,7 @@ $manifest = [ordered]@{
     renderer = $RenderingMethod
     profile = $profileName
     started_utc = [DateTime]::UtcNow.ToString('o')
-    fixture = 'integrated_panel_layout_test.gd'
+    fixture = $fixture
     sockets = $false
     acceptance = 'Automated actual-shell presentation with injected keyboard and paid domain commands; human/controller/VR/network recovery unverified.'
 }
@@ -40,7 +42,7 @@ try {
     $info.RedirectStandardError = $true
     $info.Environment['FRONTIER_EVENT_URL'] = ''
     $info.Environment['FRONTIER_EVENT_TOKEN'] = ''
-    foreach ($argument in @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', $RenderingMethod, '--path', '.', '--script', 'res://tests/godot/integrated_panel_layout_test.gd', '--', '--capture-integrated')) {
+    foreach ($argument in @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', $RenderingMethod, '--path', '.', '--script', "res://tests/godot/$fixture", '--', '--capture-integrated')) {
         $info.ArgumentList.Add($argument)
     }
     $process = [Diagnostics.Process]::new()
