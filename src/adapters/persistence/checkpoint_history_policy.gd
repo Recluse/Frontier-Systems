@@ -21,4 +21,3 @@ func validate() -> ServiceResult:
 
 func detached() -> CheckpointHistoryPolicy:
 	return CheckpointHistoryPolicy.new(entries, retained_bytes)
-

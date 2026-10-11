@@ -146,4 +146,3 @@ static func _cleanup(files: CheckpointFileIO, staging: String, code: StringName,
 	if not cleaned.is_success:
 		return ServiceResult.failure(&"backup_cleanup", message + " History staging cleanup failed; staging is never selectable.")
 	return ServiceResult.failure(code, message)
-
