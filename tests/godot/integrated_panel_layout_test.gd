@@ -75,7 +75,7 @@ func run() -> void:
 	world.get_node("SimulationRunner").set_physics_process(false)
 	world.command_completed.connect(func(_request: SimulationCommand, result: ServiceResult) -> void: last = result)
 	context = AuthenticatedCommandContext.for_local_development(&"local-inventory-actor", world.world_id, world.region_id)
-	for _batch in range(6):
+	for _batch in range(9):
 		move(ProductionSimulationSystem.SOURCE_POSITIONS["deposit.iron"])
 		command("extract", {"deposit_id": "deposit.iron", "carrier_id": "resource-canister-1", "amount_milligrams": 1000000})
 		move([0, 0, 0])
@@ -87,6 +87,7 @@ func run() -> void:
 	command("materialize_plate", {})
 	command("fabricate_equipment", {"blueprint_id": "equipment.extractor"})
 	command("fabricate_tool_part", {"blueprint_id": "part.head.basic", "expected_tool_revision": frame()["tools"]["state_revision"]})
+	command("machine_craft", {"kind": "frame"})
 	client = FixtureClient.new()
 	root.add_child(client)
 	client.set_process(false)
@@ -149,6 +150,27 @@ func run() -> void:
 		check(inventory_scroll.scroll_vertical > scroll_before, "integrated focused pane scrolls")
 		await snap("%d-inventory" % viewport_size.x)
 		client._tabs.current_tab = 3
+		machinery._placement_kind.item_selected.emit(0)
+		var selected_part: String = MachineryPanel._selected(machinery._part)
+		for group_index in [0, 1, 0]:
+			machinery._group.select(group_index)
+			machinery._group.item_selected.emit(group_index)
+			machinery._group.grab_focus()
+			await settle()
+			var group_scroll := machinery.get_parent() as ScrollContainer
+			bounded(machinery, group_scroll.size.x)
+			check(visible(machinery._group, group_scroll), "desktop/narrow keyboard focus reveals group chooser")
+			check(machinery._recipe.is_visible_in_tree() == (group_index == 1) and machinery._coordinate_grid.is_visible_in_tree() == (group_index == 0), "real shell groups isolate recipes from assembly placement")
+			check(MachineryPanel._selected(machinery._part) == selected_part, "real shell group roundtrip retains physical part identity")
+			await key(KEY_TAB)
+			var focused: Control = root.gui_get_focus_owner()
+			check(focused != null and focused.is_visible_in_tree(), "Tab from chooser reaches visible control")
+			if focused != null:
+				await settle()
+				check(visible(focused, group_scroll), "keyboard target revealed through machinery scroll")
+			await key(KEY_TAB, true)
+			check(machinery._group.has_focus(), "Shift Tab returns to machinery group chooser")
+		check((client._tabs.get_parent() as HSplitContainer).get_child(0).size.x >= 300, "machinery groups preserve world camera area")
 		machinery._placement_kind.item_selected.emit(1)
 		await settle()
 		var machinery_scroll := machinery.get_parent() as ScrollContainer
@@ -232,6 +254,41 @@ func run() -> void:
 	bounded(client._content, client._scroll.size.x)
 	check((client._tabs.get_parent() as Control).get_global_rect().end.x <= root.size.x, "long host failure does not expand shell beyond window")
 	await snap("narrow-rejected")
+	client._tabs.current_tab = 3
+	machinery._choose_mode(0)
+	var machine_id: String = frame()["production"]["machinery"]["parts"].keys()[0]
+	machinery.select_machine(machine_id)
+	machinery._send("machine_deploy")
+	var deploy_request: SimulationCommand = remote.sent[-1]
+	var pinned_deploy: Dictionary = machinery._pending_deploy.duplicate(true)
+	var pinned_identity: String = machinery._request_identity.text
+	var submitted_snapshot: String = world.capture_world_snapshot_json().value
+	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 720)]:
+		root.size = viewport_size
+		for group_index in [1, 0]:
+			machinery._group.item_selected.emit(group_index)
+			await settle()
+			check(machinery._pending_deploy == pinned_deploy and machinery._request_identity.text == pinned_identity, "desktop/narrow groups retain exact deployment identity pose mode revision")
+			check(machinery._machine.disabled and machinery._recipe.disabled and machinery._kind.disabled and machinery._other.disabled and machinery._socket.disabled, "pending groups freeze shared and hidden selectors")
+			(machinery.get_parent() as ScrollContainer).ensure_control_visible(machinery._request_identity)
+			await settle()
+			check(visible(machinery._request_identity, machinery.get_parent()), "full submitted machinery identity fits desktop/narrow viewport")
+			bounded(machinery, (machinery.get_parent() as ScrollContainer).size.x)
+	check(world.capture_world_snapshot_json().value == submitted_snapshot, "real shell pending group switches preserve canonical paid snapshot")
+	apply(deploy_request)
+	remote.command_completed.emit(deploy_request, last)
+	observe_shell()
+	await settle()
+	check(machinery._pending.is_empty() and machinery._request_identity.text == pinned_identity, "matching real host deploy feedback retains exact submitted identity")
+	check(machinery._feedback.text == ("Completed" if last.is_success else EngineeringFailureGuidance.describe(last, last.message)), "real paid host deploy result matches panel feedback")
+	machinery._send("machine_run")
+	var pending_operation: String = machinery._pending
+	var operation_identity: String = machinery._request_identity.text
+	remote.connection_closed.emit("Connection lost; submitted machinery operation outcome is unknown.")
+	for group_index in [1, 0, 1]: machinery._group.item_selected.emit(group_index)
+	await settle()
+	check(machinery._pending == pending_operation and machinery._request_identity.text == operation_identity and machinery._feedback.text.contains("unknown"), "disconnect and group switches retain pending operation and explicit uncertainty")
+	check(machinery._recipe.disabled and machinery._kind.disabled and machinery._machine.disabled, "disconnect cannot reenable pending machinery selectors")
 	client.free()
 	world.free()
 	if failures == 0: print("PASS integrated client shell: paid fixture, desktop/narrow wrapping, focus/scroll, exact pending and full host feedback; no sockets.")

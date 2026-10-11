@@ -13,6 +13,34 @@ func finish() -> void:
 	var own: Dictionary = inventory.own_inventory_observation(context).value
 	var record: Dictionary = {"production": observed, "inventory": own, "position": [0, 0, 0]}
 	panel.observe(record)
+	panel.select_machine(observed["machinery"]["placements"].keys()[0])
+	var selected_machine: String = panel._selected(panel._machine)
+	var selected_part: String = panel._selected(panel._part)
+	var selected_recipe: String = panel._selected(panel._recipe)
+	var snapshot: String = world.capture_world_snapshot_json().value
+	panel._choose_group(1)
+	check(panel._recipe.visible and not panel._coordinate_grid.visible and not panel._socket.visible, "operation hides assembly geometry and sockets")
+	panel._choose_group(0)
+	check(not panel._recipe.visible and panel._coordinate_grid.visible and panel._socket.visible, "assembly visibility returns after roundtrip")
+	check(panel._selected(panel._machine) == selected_machine and panel._selected(panel._part) == selected_part and panel._selected(panel._recipe) == selected_recipe, "navigation retains stable identities and recipe")
+	check(world.capture_world_snapshot_json().value == snapshot, "group roundtrip does not mutate finite-material world")
+	panel._send("machine_run")
+	snapshot = JSON.stringify([production.capture_snapshot().value, inventory.capture_snapshot().value])
+	var pending: String = panel._pending
+	var identity: String = panel._request_identity.text
+	check(not pending.is_empty() and identity.contains(selected_machine) and identity.contains(selected_recipe) and identity.contains("Production revision"), "real queued operation pins machine recipe revision request")
+	panel._choose_group(1)
+	panel._choose_group(0)
+	check(panel._pending == pending and panel._request_identity.text == identity and panel._recipe.disabled and panel._kind.disabled and panel._socket.disabled and panel._other.disabled, "pending group roundtrip freezes every command selector and exact identity")
+	check(JSON.stringify([production.capture_snapshot().value, inventory.capture_snapshot().value]) == snapshot, "pending navigation preserves production and inventory before host tick")
+	step(1)
+	check(panel._pending.is_empty() and panel._feedback.text == ("Completed" if last.is_success else EngineeringFailureGuidance.describe(last, last.message)), "matching real host result clears only completed request")
+	panel._choose_group(1)
+	check(panel._request_identity.text == identity and panel._feedback.visible, "host outcome retains submitted identity across groups")
+	observed = production.observation(context).value
+	original = JSON.stringify(observed)
+	record["production"] = observed
+	panel.observe(record)
 	preview.observe(observed)
 	check(helper.observe(observed), "scoped production telemetry accepted")
 	var id: String = observed["machinery"]["placements"].keys()[0]

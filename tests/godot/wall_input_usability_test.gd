@@ -94,7 +94,7 @@ func finish() -> void:
 	panel.observe(record())
 	check(panel._selected(panel._wall).is_empty(), "observation refresh does not undo intentional new-wall transition")
 	panel._placement_kind.item_selected.emit(0)
-	check(panel._kind.visible and panel._recipe.visible and not panel._wall.visible and not panel._wall_turn.visible, "machinery mode restores assembly and hides wall-only controls")
+	check(panel._kind.visible and not panel._recipe.visible and not panel._wall.visible and not panel._wall_turn.visible, "machinery mode restores assembly and hides wall-only controls")
 	panel._placement_kind.item_selected.emit(1)
 	check([panel._axes[0].value, panel._axes[1].value, panel._axes[2].value] == draft, "mode roundtrip retains draft pose")
 	var saved_turn: int = panel._wall_turn.selected

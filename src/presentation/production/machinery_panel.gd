@@ -43,9 +43,22 @@ var _operation_feedback := MachineryOperationFeedback.new()
 var _machine_controls: Array[Control] = []
 var _wall_controls: Array[Control] = []
 var _part_title := Label.new()
+var _group := OptionButton.new()
+var _assembly_controls: Array[Control] = []
+var _operation_controls: Array[Control] = []
+var _request_identity := Label.new()
 
 
 func configure(world: WorldRuntime) -> void:
+	_group.add_item("Assembly / placement", 0)
+	_group.add_item("Operation / recipes", 1)
+	_group.fit_to_longest_item = false
+	_group.tooltip_text = "Show assembly and wiring, or powered recipes. Selections and host requests are retained."
+	_group.item_selected.connect(_choose_group)
+	_group.focus_entered.connect(func() -> void: _reveal_wall_control.call_deferred(_group))
+	add_child(_group)
+	_request_identity.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_request_identity)
 	if get_parent() is ScrollContainer:
 		var scroll := get_parent() as ScrollContainer
 		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -56,6 +69,7 @@ func configure(world: WorldRuntime) -> void:
 	guide.text = "Hand-build a frame, controller, power connector and work head from refined iron at the workbench. Fit sockets and canisters. Deploy a solar frame and wire machines directly or through a router. Equipment printing needs an expander; hand assembly needs only materials. Expanders also add sockets. Removing parts pauses work; restart requires Resume."
 	add_child(guide)
 	_machine_controls.append(guide)
+	_assembly_controls.append(guide)
 	_part.fit_to_longest_item = false
 	_kind.fit_to_longest_item = false
 	_populate_designs({})
@@ -68,6 +82,7 @@ func configure(world: WorldRuntime) -> void:
 	add_child(_part)
 	_label("Socket (for canister insertion/removal)")
 	add_child(_socket)
+	_assembly_controls.append(_socket)
 	_button("Fit module", "machine_fit")
 	_button("Remove module / printed part", "machine_unfit")
 	_button("Insert canister", "machine_insert")
@@ -160,6 +175,7 @@ func configure(world: WorldRuntime) -> void:
 	_button("Pack machine with its nested contents", "machine_pack")
 	_label("Other cable endpoint")
 	add_child(_other)
+	_assembly_controls.append(_other)
 	_button("Connect selected cable", "machine_wire")
 	_button("Disconnect selected cable", "machine_unwire")
 	_button("Enable machine / router", "enable")
@@ -168,6 +184,7 @@ func configure(world: WorldRuntime) -> void:
 		_recipe.add_item("Electrolyze 10 g water (separate H2 / O2 canisters)" if id == "chemical.electrolysis.micro" else id)
 		_recipe.set_item_metadata(_recipe.item_count - 1, id)
 	add_child(_recipe)
+	_operation_controls.append(_recipe)
 	_button("Run powered canister batch", "machine_run")
 	_button("Resume batch after restart", "machine_resume")
 	_button("Cancel batch (inputs stay in canisters)", "machine_cancel")
@@ -180,6 +197,7 @@ func configure(world: WorldRuntime) -> void:
 	_eject_amount.value = 100
 	_eject_amount.suffix = " g iron"
 	add_child(_eject_amount)
+	_operation_controls.append(_eject_amount)
 	_button("Eject iron into selected owned canister", "machine_autolathe_eject")
 	_button("Recycle empty owned part into workbench iron", "machine_recycle")
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -194,6 +212,11 @@ func configure(world: WorldRuntime) -> void:
 	_wall_controls.append_array([_wall, _wall_build_button, _wall_remove_button])
 	move_child(_status, 2)
 	move_child(_feedback, 1)
+	move_child(_request_identity, 2)
+	move_child(_group, _part.get_index() + 1)
+	for picker in [_machine, _part, _socket, _other, _kind, _recipe]:
+		picker.fit_to_longest_item = false
+	_assembly_controls.append_array([_coordinate_title, _coordinate_grid, _mode, _show_placement])
 	_world.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void:
 		if String(command.command_id) == _pending:
 			_pending = ""
@@ -308,6 +331,11 @@ func _send(action: String) -> void:
 	command.payload = payload
 	var queued: ServiceResult = _world.enqueue_command(command)
 	_pending = String(command.command_id) if queued.is_success else ""
+	if queued.is_success and (action.begins_with("machine_") or action in ["enable", "disable"]):
+		_request_identity.text = "Submitted %s · request %s" % [action, command.command_id]
+		var captions: Dictionary = {"machine_id": "Machine", "expected_revision": "Production revision", "recipe_id": "Recipe", "position": "Position (mm)", "mode": "Placement mode", "item_id": "Physical part", "socket_id": "Socket", "other_id": "Other endpoint", "kind": "Design", "amount_milligrams": "Amount (mg)"}
+		for key in payload:
+			_request_identity.text += "\n%s: %s" % [captions.get(key, key), str(payload[key])]
 	_feedback.text = "Queued " + action + "; waiting for host" if queued.is_success else EngineeringFailureGuidance.describe(queued, queued.message)
 	if action == "machine_deploy" and queued.is_success:
 		_pending_deploy = payload.duplicate(true)
@@ -319,6 +347,7 @@ func _send(action: String) -> void:
 			_pending_wall.merge(_record["production"]["walls"].get(payload["wall_id"], {}).duplicate(true))
 	_refresh_placement()
 	if action in ["wall_build", "wall_remove"]: _reveal_wall_control(_placement_status)
+	elif queued.is_success: _reveal_wall_control(_request_identity)
 
 
 func select_machine(id: String) -> void:
@@ -338,6 +367,13 @@ func _choose_mode(index: int) -> void:
 		_placement_kind.select(index)
 		_show_placement.set_pressed_no_signal(false)
 	_refresh_placement()
+
+
+## Navigation only: never submits, resets selections, or changes pending identity.
+func _choose_group(index: int) -> void:
+	_group.select(index)
+	_refresh_placement()
+	_reveal_wall_control.call_deferred(_group)
 
 
 ## Explicit presentation transition; retain the draft and any settled result.
@@ -372,10 +408,18 @@ func _reset_wall_placement() -> void:
 	_begin_wall_placement()
 
 
-## Keep keyboard-focused wall controls in view without changing other tabs.
+## Reveal shared feedback and focused controls through the existing client scrolls.
 func _reveal_wall_control(control: Control) -> void:
-	if _placement_kind.selected == 1 and get_parent() is ScrollContainer:
-		(get_parent() as ScrollContainer).call_deferred("ensure_control_visible", control)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree() or not is_instance_valid(control): return
+	var ancestor: Node = control.get_parent()
+	while ancestor != null:
+		if ancestor is ScrollContainer:
+			(ancestor as ScrollContainer).ensure_control_visible(control)
+			await get_tree().process_frame
+			if not is_inside_tree() or not is_instance_valid(control): return
+		ancestor = ancestor.get_parent()
 
 
 func _link_focus(first: Control, next: Control) -> void:
@@ -403,6 +447,10 @@ func _button(title: String, action: String) -> Button:
 	_action_buttons.append(button)
 	if action not in ["wall_build", "wall_remove", "position"]: _machine_controls.append(button)
 	add_child(button)
+	if action in ["machine_run", "machine_resume", "machine_cancel", "machine_print", "machine_autolathe_feed", "machine_autolathe_make", "machine_autolathe_eject", "enable", "disable"]:
+		_operation_controls.append(button)
+	elif action not in ["wall_build", "wall_remove"]:
+		_assembly_controls.append(button)
 	return button
 
 
@@ -412,7 +460,10 @@ func _label(title: String, wall_only: bool = false) -> void:
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(label)
 	if wall_only: _wall_controls.append(label)
-	else: _machine_controls.append(label)
+	else:
+		_machine_controls.append(label)
+		if title.begins_with("Autolathe:"): _operation_controls.append(label)
+		elif title != "Machine frame": _assembly_controls.append(label)
 
 
 static func _selected(picker: OptionButton) -> String:
@@ -522,6 +573,16 @@ func _refresh_placement() -> void:
 	for picker in [_part, _wall, _wall_turn, _placement_kind]: picker.disabled = waiting or (wall_mode and unavailable)
 	_wall_build_button.disabled = waiting or unavailable or inspecting
 	_wall_remove_button.disabled = waiting or unavailable or _selected(_wall).is_empty()
+	_group.visible = not wall_mode
+	_request_identity.visible = not wall_mode and not _request_identity.text.is_empty()
+	for control in _assembly_controls:
+		if control in [_coordinate_title, _coordinate_grid, _mode, _show_placement]:
+			control.visible = control.visible and (wall_mode or _group.selected == 0)
+		else: control.visible = (wall_mode and not _machine_controls.has(control)) or (not wall_mode and _group.selected == 0)
+	_show_placement.visible = wall_mode or _group.selected == 0
+	for control in _operation_controls: control.visible = not wall_mode and _group.selected == 1
+	for picker in [_kind, _recipe, _socket, _other]: picker.disabled = waiting or unavailable
+	_eject_amount.editable = not waiting and not unavailable
 	if _axes.size() != 3: return
 	var coords: Array = [roundi(_axes[0].value * 1000), roundi(_axes[1].value * 1000), roundi(_axes[2].value * 1000)]
 	var machine_id: String = _selected(_machine)
