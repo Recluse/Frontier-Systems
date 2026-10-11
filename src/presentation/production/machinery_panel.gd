@@ -41,6 +41,10 @@ var _operation_feedback := MachineryOperationFeedback.new()
 
 
 func configure(world: WorldRuntime) -> void:
+	if get_parent() is ScrollContainer:
+		var scroll := get_parent() as ScrollContainer
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.follow_focus = true
 	_world = world
 	var guide := Label.new()
 	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -332,6 +336,7 @@ func select_wall(id: String) -> void:
 func _button(title: String, action: String) -> Button:
 	var button := Button.new()
 	button.text = title
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.pressed.connect(_send.bind(action))
 	_action_buttons.append(button)
 	add_child(button)
