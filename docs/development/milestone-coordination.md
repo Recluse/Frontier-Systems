@@ -16,7 +16,31 @@ All milestone human approval requests must go through Coordinator. Implementatio
 
 The owner separately authorized creation and stage-based upkeep of fundraising campaigns on the existing Ko-fi Valgorithms account. The $5,000 initial goal and $5/$15/$30 Frontier membership tiers were created and publicly verified on 2026-10-10, with a factual launch announcement. Coordinator owns upkeep under `docs/fundraising/README.md` and the publication ledger; first monthly benefits are due by 2026-11-09. This exception permits campaign updates, not game deployment, unrelated outreach, payment/account changes, paid upgrades or unreviewed reward commitments.
 
-## Completed first wave
+## Portable terrain and presentation integration (2026-10-10)
+
+| Milestone | Reviewed exact head | PR / passing CI | Verified merge |
+| --- | --- | --- | --- |
+| Selected inventory label readability | `5f6f75a9638cd0fcc736330cb99e22ea9e940e48` | [#16](https://github.com/Valgorithms/Frontier-Systems/pull/16), PR `38103281816`, push `38102952857` | `98b5be255965535817aabcfc91f917f406257d1f` |
+| Terrain escrow to portable inventory | `3efa7b6adcc634bbc5b15e7a58f448a050eb1188` | [#14](https://github.com/Valgorithms/Frontier-Systems/pull/14), full PR/push `38103188589` / `38103186883`, focused PR/push `38103188588` / `38103186837` | `209938740175f9b985742717ee181f8083f5fa6d` |
+| Physical wall inspection/removal feedback | `8ce13f8ec1cf3558d10ec59ddc5cdcdbd48e9532` | [#15](https://github.com/Valgorithms/Frontier-Systems/pull/15), PR `38104245739`, push `38104244162` | `62c61c445dfeee7dccef852268ec535fcf0b97f0` |
+
+All merges used matching-head guards and normal protections; no admin bypass. Review confirmed mouse-transparent selection cards, stable proxy correlation, frozen wall removal identity/pose and truthful accepted/rejected/unconfirmed outcomes. Representative inventory/wall captures were visually inspected; all seven downloaded PNG hashes matched committed LFS pointer OIDs. They remain internal verification evidence under the owner's current no-public-upload instruction. Terrain added no graphical captures.
+
+Terrain review traced the server-only typed command through claimant-scoped ordinals, prospective inventory adoption and composed Production/Terrain mass providers. Terrain retains the sole conserved matter/provenance record; foreign claims, changed retries, capacity failure and recovery inconsistencies reject. Exact-head Windows/Linux CI includes the focused portable/schema checks and full runtime/export gates. The risk assessment recommended merge with an advisory human-review label because persistent-state/schema changes exclude automatic merge; Coordinator review was already owner-authorized. New v2 portable checkpoints require managed recovery rather than blind rollback to a v1 runtime. No wire/UI endpoint is claimed yet.
+
+On combined runtime head `62c61c4`, eight Windows checks passed: import/startup, checkpoint recovery, equipment fabrication, two-client first-playable acceptance (35.72 s), terrain portable (6.59 s), wall feedback and world inventory preview. Evidence: ignored `var/ci/coordinator-portable-label-wall-authorized`. The initial restricted import failed only on Windows certificate-store/editor-profile access; it is not counted as passed. The authorized rerun passed all checks. Shared port 27849 is released. No new graphical, human or VR acceptance was run by Coordinator.
+
+| Successor chat | ID | Narrow scope / boundaries |
+| --- | --- | --- |
+| Reduce overlapping world context labels | `01a128dd-9d03-7122-a0cf-7c7853b6fa09` | Context labels for refinery/terrain/tray, bounded camera-aware layout and true anchors; no authority/network/bootstrap. Draft [#20](https://github.com/Valgorithms/Frontier-Systems/pull/20) created through Coordinator's working GitHub route after the child's connector returned 403. |
+| Expose terrain parcel materialization to authenticated clients | `01a128df-a71c-7ff1-b765-4bd8ab2c6ef4` | Exclusively owns necessary materialize schema/network/bootstrap and TerrainPanel claim/retry surface; preserves mass owner/ordinal semantics. Ports 19241/19242 reserved. |
+| Improve physical wall placement input usability | `01a128e0-cc1b-7e71-8546-d26ca64b47b6` | Wall-only machinery panel input/inspection transitions; excludes core/schema/network/bootstrap and contextual labels. Port 19251 reserved. |
+
+Each successor explicitly uses Sol/medium, one agent, an isolated current-origin/dev-master worktree, codex/ feature branch, attached draft PR and its own milestone doc. All human approvals route through Coordinator. Three gameplay implementation chats remain assigned.
+
+Separately, the reviewed Discord setup documentation [#17](https://github.com/Valgorithms/Frontier-Systems/pull/17) at `dc3cd89ac135544ceb890c557024ac5d83a9eef3` passed PR/push CI `38106232148` / `38106220711` and merged as `3b78f73dec991ff7af5526afe600173c4d942714`. This records the separately authorized live community/bot setup and explicit acceptance limits; it does not add a gameplay successor or claim payment, ordinary-member, ticket-delivery or disruptive moderation acceptance. Website TLS remains pending under its approved one-off follow-up.
+
+## Completed first wave (historical)
 
 | Milestone | Reviewed head | PR | Required CI | Verified merge |
 | --- | --- | --- | --- | --- |
