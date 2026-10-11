@@ -62,6 +62,9 @@ func transfer(transport: RemoteWorldRuntime, id: String) -> InventoryDevelopment
 	check(transport.enqueue_command(command).is_success, "submit nested transfer through real adapter")
 	return command
 
+func create_host() -> FirstPlayableHost:
+	return FirstPlayableHost.new()
+
 func start_host(port: int) -> bool:
 	world = WorldRuntime.new()
 	world.resource_carriers_enabled = true
@@ -71,7 +74,7 @@ func start_host(port: int) -> bool:
 	if not store.configure(world, directory).is_success:
 		check(false, "native temporary checkpoint adapter configures replacement world")
 		return false
-	host = FirstPlayableHost.new()
+	host = create_host()
 	host.persistence = store
 	root.add_child(host)
 	if not host.configure(world, KEYS, port).is_success:
