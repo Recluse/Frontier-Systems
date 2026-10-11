@@ -1,5 +1,11 @@
 # Coordinated milestone work
 
+## Workstation CI hold (2026-10-11 05:40 UTC)
+
+PR #41 frozen `127c1febd3748eb2de1e85b30520c145c5c51493` is held: exact-head production recipes workflow `38115470477` failed on Windows and Linux, jobs `114399391394` / `114399391549`. `workstation_resource_view_test.gd:35` fails “current recipe details beside stable selector.” Routed to assigned workstation chat `01a12972-fa04-7590-ad9b-037ae92138b7` for narrow runtime/fixture diagnosis while preserving visible detail coverage; new final head and green CI required. Local layout passes cannot waive this regression. No merge/successor created.
+
+Inventory layout and actual-client acceptance remain active; latter reports injected keyboard/visible button finite loop, construction, save acknowledgement and disk-restored reconnect passed, but final freeze/CI remain pending and human acceptance is unverified. Its 27849/27850 lease remains held until cleanup release confirmation. Website certificate unchanged (`new`); daily Ko-fi post not due, substantive merged progress retained for batching.
+
 ## Target hints and component controls integration (2026-10-11 05:30 UTC)
 
 Reviewed #36 immutable `ea606de3deca65dbbeeb6ce55f5a6a917c0e3aac`: four complete wrapped rows, distinct hover/selected identities, retained authority uncertainty, bounded width/content height and mouse-ignore/focus/rebinding behavior. All 20 exact-head checks passed (PR `38114352860`, push `38114350481`). Guarded squash merge verified `0d10b9d1f5a244fe5a39ca3b7d1d05f7c328eac7`. Inspected internal 360x640 ordinary-engine capture: full warning visible, no private data; explicit hover fixture and unverified integrated-panel/human limits preserved. Media remains local, no gallery/LFS/public upload.
