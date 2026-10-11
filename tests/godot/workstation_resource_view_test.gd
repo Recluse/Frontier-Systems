@@ -16,21 +16,14 @@ func run() -> void:
 	var initial: Dictionary = production.observation(context).value
 	var before: String = world.capture_world_snapshot_json().value
 	var text: String = view.describe(initial, "refine.iron")
-	check(text.contains("shared ore.iron short by 1.000 kg") and text.contains("Live recipe costs"), "missing input and unavailable live quote")
-	check(text.contains("Pinned default fixture hint") and text.contains("may differ from the host"), "fixture costs never masquerade as host authority")
+	check(text.contains("shared ore.iron short by 1.000 kg") and text.contains("Host catalog requirements"), "missing input uses host requirements")
+	check(text.contains("Duration and capacity quote unavailable") and not text.contains("fixture"), "no fixture assumptions or capacity quote")
 	for partial in [{}, {"store": {}}, {"components": [42]}]:
 		check(view.describe(partial, "craft.plate").contains("unavailable"), "partial observations clear resource claims")
 	var rejected: Dictionary = initial.duplicate(true)
 	rejected["energy_joules"] = -1
 	check(view.describe(rejected, "craft.plate").contains("unavailable"), "malformed observation rejected")
 	check(world.capture_world_snapshot_json().value == before and production.observation(context).value == initial, "helper preserves canonical snapshot and input observation")
-	var fixture: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/production/catalog.v1.json"))
-	for id in WorkstationResourceView.FIXTURE_RECIPES:
-		var hint: Array = WorkstationResourceView.FIXTURE_RECIPES[id]
-		var recipe: Dictionary = fixture["recipes"][id]
-		check(hint[0] == recipe["station"] and int(hint[2]) == int(recipe["energy_joules"]) and hint[1].size() == recipe["inputs"].size(), "pinned fixture station/energy matches " + id)
-		for material in hint[1]:
-			check(int(hint[1][material]) == int(recipe["inputs"].get(material, -1)), "pinned fixture material matches " + id)
 	var panel := LocalProductionPanel.new()
 	panel.custom_minimum_size.x = 420
 	root.add_child(panel)

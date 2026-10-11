@@ -11,13 +11,14 @@ func accept_record(value: Dictionary) -> ServiceResult:
 	fields.append("machinery")
 	fields.append("walls")
 	fields.append_array(PackedStringArray(["structures", "blueprints", "loose_parts", "tool_extraction"]))
-	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 7, 7) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
+	if value.get("schema_version") == 8: fields.append("recipe_requirements")
+	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 7, 8) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
 		return _invalid()
 	if not SpatialWallConstruction.valid(value["walls"]): return _invalid()
 	for field in ["last_tick", "state_revision", "catalog_revision", "wall_mass_milligrams", "energy_joules"]:
 		if not ControlContractValidation.is_integer(value[field], 0, 9007199254740000):
 			return _invalid()
-	if typeof(value["catalog_fingerprint"]) != TYPE_STRING or value["catalog_fingerprint"].length() != 64:
+	if not ControlContractValidation.is_integer(value["catalog_revision"], 1, 1) or not _fingerprint_valid(value["catalog_fingerprint"]):
 		return _invalid()
 	if not _valid_stock(value["store"], true) or not _valid_stock(value["vessel"], true) or typeof(value["cargo"]) != TYPE_DICTIONARY or value["cargo"].size() > 32:
 		return _invalid()
@@ -76,8 +77,35 @@ func accept_record(value: Dictionary) -> ServiceResult:
 	machinery.erase("cargo")
 	if not MachineryWorkshop.validate(machinery): return _invalid()
 	if not SpatialWallConstruction.scene_clear(value["walls"], machinery, {"bodies": []}): return _invalid()
+	if int(value["schema_version"]) == 8 and not _valid_requirements(value): return _invalid()
+	# A connection owns one immutable catalog identity, including projected costs.
+	if not record.is_empty():
+		if value["catalog_revision"] != record["catalog_revision"] or value["catalog_fingerprint"] != record["catalog_fingerprint"]: return _invalid()
+		if record.has("recipe_requirements") and (not value.has("recipe_requirements") or value["recipe_requirements"] != record["recipe_requirements"]): return _invalid()
 	record = value.duplicate(true)
 	return ServiceResult.success()
+
+
+static func _fingerprint_valid(value: Variant) -> bool:
+	if typeof(value) != TYPE_STRING or value.length() != 64: return false
+	for character in value:
+		if not "0123456789abcdef".contains(character): return false
+	return true
+
+
+static func _valid_requirements(value: Dictionary) -> bool:
+	var requirements: Variant = value.get("recipe_requirements")
+	if typeof(requirements) != TYPE_DICTIONARY or requirements.size() > 32 or not ControlContractValidation.has_exact_fields(requirements, PackedStringArray(value["recipes"])): return false
+	for id in requirements:
+		var recipe: Variant = requirements[id]
+		if not ControlContractValidation.is_id(id) or typeof(recipe) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(recipe, PackedStringArray(["station", "inputs", "energy_joules"])): return false
+		if typeof(recipe["station"]) != TYPE_STRING or not STATIONS.has(recipe["station"]) or not ControlContractValidation.is_integer(recipe["energy_joules"], 1, 100000) or not _valid_stock(recipe["inputs"]) or recipe["inputs"].is_empty(): return false
+		var mass: int = 0
+		for amount in recipe["inputs"].values():
+			if int(amount) < 1: return false
+			mass += int(amount)
+		if mass > MAX_MASS: return false
+	return true
 
 
 static func _valid_stock(stock: Variant, complete: bool = false) -> bool:

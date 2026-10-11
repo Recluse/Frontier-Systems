@@ -21,3 +21,15 @@ The above describes the legacy local lab. In the cooperative scene, FirstPlayabl
 ## Verification scope
 
 The cooperative graphical check completes all seven guide stages using local character physics and authenticated host commands, on both Forward+/D3D12 and Compatibility/OpenGL. See [acceptance evidence](../development/first-playable-acceptance.md). Human usability, cancellation and guide-reset review remain separate follow-up checks.
+
+## Current workstation recipe requirements
+
+`WorkstationResourceView` uses only validated host `recipe_requirements` from production observation v8. It never loads the client catalog as authority. Each recipe exposes inputs in milligrams, energy in joules and its station; duration, output capacity and execution availability are not quoted. Shared stock pays recipe inputs; owned cargo must first be unloaded. The older seven-stage session guide and first-playable task route still describe the default scenario; they are not alternate-catalog recipe quotes.
+
+Production owns catalog identity and initializes it once from the validated catalog. Observations are detached read-only copies, produced at the existing observation cadence (the panel polls at 10 Hz). The simulation's priority-300 tick, command validation, receipts, failure behavior, persistence v7 and existing profiling signals remain unchanged. There are no asynchronous callbacks or new tick-time I/O. Invalid observations display unavailable information and cannot enable commands.
+
+Observation v8 requires at most 32 recipe entries whose keys exactly match the recipe ID list. Every entry has exactly `station`, `inputs` and `energy_joules`. Inputs contain 1–32 registered materials with positive integer milligrams, at most 100,000,000 mg total; energy is an integer from 1–100,000 J. Stations use the existing seven station IDs. Runtime additionally checks dynamic recipe-key equality and total input mass, which JSON Schema cannot express. The catalog revision is 1 and its identity is a lowercase 64-character SHA-256 fingerprint of the complete host catalog, not of this reduced projection.
+
+A remote connection pins the first valid catalog identity and v8 requirements. Changed identity, changed requirements, unknown fields, missing entries, unknown materials/stations, non-integral/negative/unbounded amounts and v8-to-v7 downgrade are rejected. Disconnect clears the projection and identity so a new connection can accept another validated catalog. The fingerprint identifies the authenticated host catalog; the reduced projection does not independently reconstruct or authenticate that full catalog.
+
+New clients accept exact legacy v7 observations and explicitly report recipe requirements unavailable without fixture assumptions. Persistence and restore remain v7, and an observation cannot be restored as a canonical record. Old clients that only accept v7 cannot consume v8; use matching host/client builds. There is no protocol negotiation or new authorization boundary.

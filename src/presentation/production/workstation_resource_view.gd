@@ -1,17 +1,7 @@
 extends RefCounted
 class_name WorkstationResourceView
 
-## Presentation hints pinned to catalog.v1.json at c8f6f145325965b39d827b40eb879a190f853ae3.
-## Never a live host quote. No command or canonical state ownership.
-const FIXTURE_RECIPES: Dictionary = {
-	"refine.iron": ["refinery", {"ore.iron": 1000000}, 1000],
-	"refine.ice": ["refinery", {"ice": 1000000}, 500],
-	"refine.regolith": ["refinery", {"regolith": 1000000}, 1000],
-	"chemical.electrolysis": ["chemical", {"water": 1000000}, 2000],
-	"chemical.nutrients": ["chemical", {"water": 900000, "salts": 100000}, 500],
-	"craft.plate": ["printer", {"iron": 1000000}, 1000],
-	"salvage.plate": ["recycler", {"plate": 1000000}, 500]
-}
+## Validated read-only host requirements. No command or canonical state ownership.
 var _had_job: bool = false
 var _ended: bool = false
 
@@ -64,24 +54,24 @@ func describe(record: Dictionary, recipe_id: String, pending: bool = false, incl
 
 
 static func recipe_text(record: Dictionary, recipe_id: String) -> String:
+	if not valid(record): return "Recipe prerequisites unavailable: wait for a valid current observation."
 	if recipe_id.is_empty() or not record["recipes"].has(recipe_id): return "Selected recipe unavailable in current observation."
 	var blockers := PackedStringArray()
 	if not record["can_operate"]: blockers.append("approach station with a conscious body and an unreserved hand")
 	if not record["job"].is_empty(): blockers.append("station occupied; wait or use existing cancellation controls")
-	var hint: String = "Live recipe costs, duration and capacity quote unavailable."
-	if FIXTURE_RECIPES.has(recipe_id):
-		var fixture: Array = FIXTURE_RECIPES[recipe_id]
-		var station: String = fixture[0]
-		var inputs: Dictionary = fixture[1]
-		hint += " Pinned default fixture hint: %s; %d J at %s. These assumptions may differ from the host." % [stock_text(inputs), fixture[2], station]
-		if not record["powered"].get(station, false): blockers.append("%s needs power under fixture assumption" % station)
-		if int(record["energy_joules"]) < int(fixture[2]): blockers.append("energy short by %d J under fixture assumption" % (int(fixture[2]) - int(record["energy_joules"])))
+	var hint: String = "Recipe requirements unavailable from legacy v7 observation."
+	if record.has("recipe_requirements"):
+		var recipe: Dictionary = record["recipe_requirements"][recipe_id]
+		var station: String = recipe["station"]
+		var inputs: Dictionary = recipe["inputs"]
+		hint = "Host catalog requirements: %s; %d J at %s." % [stock_text(inputs), recipe["energy_joules"], station]
+		if not record["powered"][station]: blockers.append("%s needs power" % station)
+		if int(record["energy_joules"]) < int(recipe["energy_joules"]): blockers.append("energy short by %d J" % (int(recipe["energy_joules"]) - int(record["energy_joules"])))
 		for material in inputs:
 			var available: int = int(record["store"].get(material, 0))
-			if available < int(inputs[material]): blockers.append("shared %s short by %.3f kg under fixture assumption; carried payloads must be unloaded" % [material, float(int(inputs[material]) - available) / 1000000.0])
-	else:
-		hint += " No pinned fixture hint for this ID."
-	return "Selected: %s. %s\n%s" % [recipe_id, hint, "Current blockers: " + "; ".join(blockers) if not blockers.is_empty() else "No blockers found in observed fields and fixture hints; host still validates capability, costs, capacity and revision."]
+			if available < int(inputs[material]): blockers.append("shared %s short by %.3f kg; carried payloads must be unloaded" % [material, float(int(inputs[material]) - available) / 1000000.0])
+	hint += " Duration and capacity quote unavailable."
+	return "Selected: %s. %s\n%s" % [recipe_id, hint, "Current blockers: " + "; ".join(blockers) if not blockers.is_empty() else "No blockers found in observed fields; host still validates capability, capacity and revision."]
 
 
 static func stock_text(stock: Dictionary) -> String:

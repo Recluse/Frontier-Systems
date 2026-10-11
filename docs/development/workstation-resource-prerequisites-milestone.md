@@ -19,3 +19,7 @@ Queued command receipt, active job, paused job and disappeared job have separate
 Windows Godot 4.7.2, existing `tools/ci/run-godot-checks.ps1`, 120-second test bounds: import/startup, `workstation_resource_view_test.gd`, `repair_usability_test.gd`, and `first_playable_task_guide_test.gd` passed. The new test exercises valid/empty/partial/malformed records, pinned assumptions, ownership boundaries, real extraction/unload/queued acceptance, active/paused/cancelled/rejected work, simultaneous blockers, reversible counts, stable recipe selection/reordering, wrapping/clipping configuration, disconnect clearing and unchanged canonical snapshot/input observation from the helper. Existing maintenance and guide regressions pass.
 
 No fixed sockets were used or reserved. No live service, graphical readability capture, full scroll/human/controller/VR acceptance, media upload, release, deployment, merge or integration-branch push is claimed. Exact-head Windows/Linux CI is required on the attached draft PR before coordinator review/merge; CI results belong in the final handoff, without confusing local Windows success with remote matrix evidence.
+
+## Superseding contract
+
+The fixture hints described above are historical. [Authoritative recipe observations](authoritative-recipe-observations-milestone.md) replace them with validated host inputs, energy and station requirements in observation v8; legacy v7 now displays unavailable costs explicitly. Production persistence remains v7.

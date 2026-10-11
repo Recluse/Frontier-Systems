@@ -44,7 +44,7 @@ Replace invite binding with Steam identity behind a session adapter; retain cano
 
 ## Versioned data contracts
 
-Production intents use production-intent-v1.schema.json; canonical records now use production-system-v6.schema.json (with v1–v5 migration). Read-only scoped projections use production-observation-v6.schema.json and are never valid restore inputs. Local checkpoint envelopes use local-checkpoint-v1.schema.json, with UTF-8 byte bounds and cross-system validation additionally enforced at runtime. These schemas live under docs/schema/.
+Production intents use production-intent-v1.schema.json; canonical records use production-system-v7.schema.json (with v1 through v6 migration). Read-only scoped projections use production-observation-v8.schema.json; new clients also accept legacy v7 observations without recipe requirements. Observations are never valid restore inputs. Local checkpoint envelopes use local-checkpoint-v1.schema.json, with UTF-8 byte bounds and cross-system validation additionally enforced at runtime. These schemas live under docs/schema/.
 
 [Equipment fabrication](equipment-fabrication.md) extends the factory preparation boundary and conserved structural mass. V2 payload-only descriptions above refer to the earlier plate/canister implementation.
 

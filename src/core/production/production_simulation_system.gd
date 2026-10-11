@@ -217,7 +217,13 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 		if _state["structures"].has(item["item_id"]):
 			observed["structures"][item["item_id"]] = _state["structures"][item["item_id"]].duplicate(true)
 	observed["machinery"] = machinery_observation(context)
+	# Observation version is independent of the v7 persistence record.
+	observed["schema_version"] = 8
 	observed["recipes"] = _catalog["recipes"].keys()
+	observed["recipe_requirements"] = {}
+	for id in _catalog["recipes"]:
+		var recipe: Dictionary = _catalog["recipes"][id]
+		observed["recipe_requirements"][id] = {"station": recipe["station"], "inputs": recipe["inputs"].duplicate(true), "energy_joules": recipe["energy_joules"]}
 	observed["dispensable"] = _catalog["dispensable"].duplicate()
 	observed["can_operate"] = authorize(context).is_success
 	observed["vessel_pressure_kpa"] = _vessel_pressure(_state["vessel"])
