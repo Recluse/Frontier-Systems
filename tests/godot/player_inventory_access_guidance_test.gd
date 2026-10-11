@@ -27,6 +27,26 @@ func layout() -> void:
 		root.size = size
 		await settle()
 		var scroll := panel.get_parent() as ScrollContainer
+		for guidance: Label in [panel._transfer_preview, panel._storage_status]:
+			check(guidance.size.x <= scroll.size.x + 1 and guidance.get_line_count() == guidance.get_visible_line_count(), "paid transfer/capacity guidance wraps in actual shell")
+			guidance.grab_focus()
+			await settle()
+			check(scroll.get_global_rect().intersects(guidance.get_global_rect()), "focus reveals paid transfer/capacity guidance")
+			var previous: int = scroll.scroll_vertical
+			var up := InputEventKey.new()
+			up.keycode = KEY_PAGEUP
+			up.physical_keycode = KEY_PAGEUP
+			up.pressed = true
+			root.push_input(up)
+			await process_frame
+			up = InputEventKey.new()
+			up.keycode = KEY_PAGEUP
+			up.physical_keycode = KEY_PAGEUP
+			root.push_input(up)
+			await settle()
+			check(scroll.scroll_vertical < previous, "paid transfer guidance keyboard page scroll works")
+		check(panel._transfer_preview.text.contains(selected) and panel._transfer_preview.text.contains(destination) and not panel._transfer_preview.text.contains("Slot:"), "paid move preview retains exact targets without equipment slot")
+		check(panel._storage_status.text.contains(destination) and not panel._transfer_preview.text.contains("Observed destination"), "paid capacity remains beside destination without repetition")
 		check(panel.get_child(panel._slot.get_index() - 1) == panel._equipment, "equipment guidance immediately precedes its slot control")
 		check(panel._equipment.size.x <= scroll.size.x + 1 and panel._equipment.get_line_count() == panel._equipment.get_visible_line_count(), "paid equipment guidance wraps in actual shell")
 		panel._equipment.grab_focus()
@@ -159,6 +179,7 @@ func run() -> void:
 	choose(panel._destination, "body.human-1")
 	check(panel._selected_id(panel._items) == plate and panel._transfer_preview.text.contains("Source physical access: observed closed container storage.backpack-1"), "known paid descendant stays browsable with named source ancestor")
 	check(panel._inventory_buttons["move"].disabled and panel._inventory_buttons["move"].tooltip_text.contains("Known contents remain browsable"), "same helper explains observed blocker in prerequisite")
+	await layout()
 	transfer(plate, "storage.pouch-1", "body.human-1", false)
 	check(last.error_code == &"inventory_container_closed" and inventory.capture_snapshot().value["owner"] == before["owner"], "host rejects closed path atomically")
 	for field in ["deposits", "store", "cargo", "energy_joules", "state_revision", "components", "structures"]:
