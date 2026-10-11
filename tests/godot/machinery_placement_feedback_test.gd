@@ -49,8 +49,8 @@ func finish() -> void:
 	check(not production.capture_snapshot().value["machinery"]["placements"].has(printer), "rejection creates no physical placement")
 	check(panel._show_placement.button_pressed and not panel._feedback.text.is_empty(), "rejected ghost stays available for correction")
 	panel._axes[0].value = 0.8
-	panel._axes[0].value = 0.9
-	panel._axes[2].value = -1.1
+	panel._axes[0].value = 0.0
+	panel._axes[2].value = -1.0
 	panel._mode.select(1)
 	panel._refresh_placement()
 	panel._send("machine_deploy")

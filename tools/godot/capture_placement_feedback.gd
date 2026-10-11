@@ -34,8 +34,8 @@ func finish() -> void:
 	client._tabs.current_tab = 3
 	var panel: MachineryPanel = client._machinery_panel
 	panel.select_machine(printer)
-	panel._axes[0].value = 0.9
-	panel._axes[2].value = -1.1
+	panel._axes[0].value = 0.0
+	panel._axes[2].value = -1.0
 	panel._show_placement.button_pressed = true
 	client._habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW)
 	client._habitat.camera.position = Vector3(-8.8, 4.0, 4.5)
