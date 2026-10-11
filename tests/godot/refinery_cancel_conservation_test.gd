@@ -54,5 +54,3 @@ func conserved(before: Dictionary, after: Dictionary, label: String) -> void:
 	check(before["cargo"]["resource-canister-1"]["ice"] == 1000000 and after["cargo"]["resource-canister-1"]["ice"] == 1000000, label + " retains exact unconsumed refinery input bill")
 	for carrier in ["resource-canister-1", "resource-canister-2"]:
 		check(int(after["cargo"][carrier].get("water", 0)) == 0, label + " cannot create refinery water output")
-
-
