@@ -1,7 +1,29 @@
 extends SceneTree
 
+## This explicit-save route polls real workers without advancing the autosave clock.
+## An idle observation cannot otherwise reserve the store across WebSocket delivery.
+class ManualCheckpointStore extends WorldPersistenceAdapter:
+	func _process(_delta: float) -> void:
+		super._process(0.0)
+
+
+## Hold a real worker write at the injected filesystem boundary; native I/O follows.
+class GatedFiles extends CheckpointFileIO:
+	var armed: bool = false
+	var entered := Semaphore.new()
+	var release := Semaphore.new()
+	func write_text(path: String, text: String) -> ServiceResult:
+		if armed:
+			armed = false
+			entered.post()
+			release.wait()
+		return super.write_text(path, text)
+
+var _files := GatedFiles.new()
+var _shells: Array[FirstPlayableBootstrap] = []
 var _failures: int = 0
 var _acks: Dictionary = {}
+var _ack_slots: Dictionary = {}
 var _observations: Dictionary = {}
 var _counter: int = 0
 
@@ -11,13 +33,18 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	create_timer(110.0).timeout.connect(func() -> void:
+		_files.release.post() # Never leave an injected worker gate held at shutdown.
+		push_error("Cooperative acceptance deadline")
+		quit(1)
+	)
 	var directory: String = "user://acceptance-%d" % Time.get_ticks_usec()
 	var world := WorldRuntime.new()
 	world.resource_carriers_enabled = true
 	root.add_child(world)
-	var store := WorldPersistenceAdapter.new()
+	var store := ManualCheckpointStore.new()
 	root.add_child(store)
-	_check(store.configure(world, directory).is_success, "new durable store initializes")
+	_check(store.configure(world, directory, _files).is_success, "new durable store initializes")
 	var host := FirstPlayableHost.new()
 	host.persistence = store
 	root.add_child(host)
@@ -25,17 +52,24 @@ func _run() -> void:
 	_check(host.configure(world, keys, 27849).is_success and world.start_simulation().is_success, "shared host starts")
 	var clients: Array[RemoteWorldRuntime] = []
 	for slot in range(2):
-		var client := RemoteWorldRuntime.new()
-		root.add_child(client)
-		client.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void: _acks[String(command.command_id)] = result)
+		var shell := _connect_shell(keys[slot])
+		_shells.append(shell)
+		var client: RemoteWorldRuntime = shell._remote
+		client.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void:
+			_acks[String(command.command_id)] = result
+			_ack_slots[String(command.command_id)] = slot
+		)
 		client.observation_received.connect(func(record: Dictionary) -> void: _observations[slot] = record)
-		_check(client.connect_host("ws://127.0.0.1:27849", keys[slot]).is_success, "client connects")
+		_check(client._connecting, "actual shell starts its one transport connection")
 		clients.append(client)
 	await _wait(func() -> bool: return _observations.size() == 2, 5.0)
 	if _observations.size() != 2:
 		_check(false, "both authenticated clients receive scoped host observations")
 		quit(1)
 		return
+	for shell in _shells:
+		shell._habitat.character.read_local_keyboard = false
+		shell._habitat.character.set_physics_process(false)
 	_check(_observations[0]["inventory"]["body_id"] != _observations[1]["inventory"]["body_id"], "invite slots bind separate bodies")
 	var invalid := RemoteWorldRuntime.new()
 	root.add_child(invalid)
@@ -105,12 +139,16 @@ func _run() -> void:
 	component_restore.free()
 	# The consumed plate becomes a shared placed panel; restart retains its identity.
 	await _reject(clients[1 - winner], 1 - winner, "production", "wall_build", {"item_id": plate, "position": [0, 0, -1000], "quarter_turn": 0})
-	await _production(clients[winner], winner, "wall_build", {"item_id": plate, "position": [0, 0, -1000], "quarter_turn": 0})
+	await create_timer(0.2).timeout
+	var wall_payload: Dictionary = {"item_id": plate, "position": [0, 0, -1000], "quarter_turn": 0, "expected_revision": _observations[winner]["production"]["state_revision"]}
+	var wall_request: String = _queue(clients[winner], "production", "wall_build", wall_payload)
+	await _wait(func() -> bool: return _acks.has(wall_request), 3.0)
+	_check(_acks.has(wall_request) and _acks[wall_request].is_success, "physical construction receives its matching receipt")
 	await create_timer(0.25).timeout
 	var wall_id: String = _observations[winner]["production"]["walls"].keys()[0]
 	_check(_observations[1 - winner]["production"]["walls"].has(wall_id) and _observations[winner]["production"]["components"].is_empty(), "both crews see shared wall without duplicate physical plate")
 	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
-	await _send(clients[winner], "world", "checkpoint", {})
+	await _manual_save(winner, store)
 	var wall_save: ServiceResult = LocalWorldSaveStore.read_latest(directory)
 	var wall_restore := WorldRuntime.new()
 	wall_restore.resource_carriers_enabled = true
@@ -118,6 +156,10 @@ func _run() -> void:
 	_check(wall_save.is_success and wall_restore.restore_world_snapshot_json(wall_save.value["snapshot_json"]).is_success, "disk checkpoint restores physical wall construction")
 	_check((wall_restore.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem).capture_snapshot().value["walls"].has(wall_id), "checkpoint preserves wall identity")
 	wall_restore.free()
+	var recovered: Dictionary = await _wall_recovery(world, store, host, clients, keys, directory, winner, wall_id, plate, wall_request, wall_payload)
+	world = recovered["world"]
+	store = recovered["store"]
+	host = recovered["host"]
 	# Two simultaneous dismantles at one revision produce only one recovered plate.
 	await _walk_to(clients[1 - winner], 1 - winner, [1000, 0, 0])
 	await create_timer(0.25).timeout
@@ -229,8 +271,8 @@ func _run() -> void:
 	_check(production.capture_snapshot().value["deposits"]["deposit.iron"] == 8000000 and not production.capture_snapshot().value["job"].is_empty(), "restart preserves depletion and remaining batch work")
 	await _wait(func() -> bool: return production.capture_snapshot().value["job"].is_empty(), 4.0)
 	_check(production.capture_snapshot().value["store"]["plate"] == 1000000, "restarted batch completes once")
-	for client in clients:
-		client.free()
+	for shell in _shells: shell.free()
+	_shells.clear()
 	host.free()
 	store.free()
 	world.free()
@@ -259,9 +301,121 @@ func _run() -> void:
 	reconnected.free()
 	restarted_host.free()
 	restarted.free()
+	for name in ["world-a.json", "world-b.json", "world-a.json.tmp", "world-b.json.tmp"]:
+		_check(_files.remove_file(directory.path_join(name)).is_success, "temporary checkpoint file removed")
+	_check(DirAccess.remove_absolute(directory) == OK, "unique temporary checkpoint directory removed")
+	PlayerInputSettings.instance().release_all()
+	await process_frame
 	if _failures == 0:
-		print("FIRST PLAYABLE ACCEPTANCE: two authenticated clients, scoped cargo, competing extraction, refinement, physical crafting/recycling, shared generator control, assembly checkpoint and restarted batch passed.")
+		print("FIRST PLAYABLE ACCEPTANCE: two authenticated clients, scoped cargo, competing extraction, refinement, physical crafting/recycling, shared generator control, matching worker receipts, abandoned-save uncertainty, two-client wall recovery, exact construction/extraction replay and restarted batch passed.")
 	quit(0 if _failures == 0 else 1)
+
+
+func _connect_shell(key: String) -> FirstPlayableBootstrap:
+	var old_url: String = OS.get_environment("FRONTIER_HOST_URL")
+	var old_key: String = OS.get_environment("FRONTIER_INVITE_KEY")
+	OS.set_environment("FRONTIER_HOST_URL", "ws://127.0.0.1:27849")
+	OS.set_environment("FRONTIER_INVITE_KEY", key)
+	var shell := FirstPlayableBootstrap.new()
+	root.add_child(shell)
+	shell.set_process(false) # Fixture moves through paid remote commands, not local physics.
+	OS.set_environment("FRONTIER_HOST_URL", old_url)
+	OS.set_environment("FRONTIER_INVITE_KEY", old_key)
+	return shell
+
+
+func _manual_save(slot: int, store: WorldPersistenceAdapter) -> void:
+	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
+	var shell: FirstPlayableBootstrap = _shells[slot]
+	shell._host_actions[-1].pressed.emit()
+	var request: CheckpointRequest = shell._checkpoint_request
+	_check(request != null, "actual save control retains one exact request object")
+	if request == null: return
+	var id: String = String(request.command_id)
+	await _wait(func() -> bool: return _acks.has(id), 3.0)
+	_check(_acks.has(id) and _ack_slots.get(id) == slot and _acks[id].is_success and shell._checkpoint_request == null and shell._checkpoint_status.text.contains("confirmed on disk"), "matching worker receipt confirms the requesting shell")
+	_check(not store.status()["busy"] and store.status()["saved_tick"] >= 0, "save success follows worker completion")
+	await create_timer(0.15).timeout
+	_check(shell._checkpoint_status.text.contains("confirmed on disk"), "fresh transport observation cannot erase the matching save receipt")
+
+
+func _wall_recovery(world: WorldRuntime, store: WorldPersistenceAdapter, host: FirstPlayableHost, clients: Array[RemoteWorldRuntime], keys: Array[String], directory: String, winner: int, wall_id: String, plate: String, wall_request: String, wall_payload: Dictionary) -> Dictionary:
+	var owner := world.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem
+	var before: Dictionary = owner.capture_snapshot().value
+	var bodies: Array = [_observations[0]["inventory"]["body_id"], _observations[1]["inventory"]["body_id"]]
+	_check(before["deposits"]["deposit.iron"] == 8000000 and before["store"]["iron"] == 200000 and before["store"]["tailings"] == 800000 and before["cargo"].get("resource-canister-1", {}).get("ore.iron", 0) == 0 and before["cargo"].get("resource-canister-2", {}).get("ore.iron", 0) == 0 and before["walls"].size() == 1 and not before["cargo"].has(plate), "finite ten-kilogram budget closes with one paid wall and no consumed plate")
+	var receipt: Dictionary = {}
+	for record in before["receipts"]:
+		if record["request_id"] == "net-%d-%s" % [winner, wall_request]: receipt = record.duplicate(true)
+	_check(not receipt.is_empty(), "canonical construction receipt retains exact actor-scoped provenance")
+	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
+	store.set_process(false) # Deterministic worker completion delivery; no autosave race.
+	_files.armed = true
+	var shell: FirstPlayableBootstrap = _shells[winner]
+	shell._host_actions[-1].pressed.emit()
+	var abandoned: CheckpointRequest = shell._checkpoint_request
+	_check(abandoned != null, "disconnect scenario submits a manual checkpoint")
+	if abandoned == null:
+		_files.armed = false
+		store.set_process(true)
+		return {"world": world, "store": store, "host": host}
+	await _wait(func() -> bool: return _files.entered.try_wait(), 3.0)
+	_check(store.status()["busy"] and not host._checkpoint_request.is_empty() and shell._checkpoint_request == abandoned and not _acks.has(String(abandoned.command_id)), "exact manual save remains pending while its real worker is held")
+	var busy: ServiceResult = store.request_checkpoint()
+	_check(not busy.is_success and busy.error_code == &"checkpoint_busy", "runtime rejects a second checkpoint while the native worker is held")
+	var competing_save: String = _queue(clients[1 - winner], "world", "checkpoint", {})
+	await _wait(func() -> bool: return _acks.has(competing_save), 3.0)
+	_check(_acks.has(competing_save) and _ack_slots.get(competing_save) == 1 - winner and not _acks[competing_save].is_success and _acks[competing_save].error_code == &"checkpoint_unavailable" and host._checkpoint_request.get("request_id") == String(abandoned.command_id), "competing peer save rejects without replacing the exact pending disk request")
+	await create_timer(0.15).timeout
+	_check(shell._checkpoint_status.text.contains("waiting for disk") and shell._checkpoint_request == abandoned, "fresh observations cannot claim pending disk completion")
+	host.free() # Close only this fixture's listener while its write is in flight.
+	await _wait(func() -> bool: return not clients[0].connection_ready() and not clients[1].connection_ready(), 3.0)
+	_check(shell._checkpoint_request == null and shell._checkpoint_status.text.contains("outcome unknown") and _shells[1 - winner]._latest.is_empty(), "disconnect invalidates exact save correlation and both cached observations")
+	_check(_acks.has(String(abandoned.command_id)) and _acks[String(abandoned.command_id)].error_code == &"remote_disconnected", "abandoned save completes locally as disconnected, never as disk success")
+	_files.release.post()
+	store.set_process(true)
+	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
+	var latest: ServiceResult = LocalWorldSaveStore.read_latest(directory)
+	_check(latest.is_success and not latest.value.is_empty() and shell._checkpoint_status.text.contains("outcome unknown"), "worker may commit after disconnect without confirming the abandoned request")
+	store.free()
+	world.free()
+	var replacement := WorldRuntime.new()
+	replacement.resource_carriers_enabled = true
+	root.add_child(replacement)
+	var replacement_store := ManualCheckpointStore.new()
+	root.add_child(replacement_store)
+	_check(replacement_store.configure(replacement, directory, _files).is_success, "replacement store restores its actual worker checkpoint")
+	var replacement_host := FirstPlayableHost.new()
+	replacement_host.persistence = replacement_store
+	root.add_child(replacement_host)
+	_check(replacement_host.configure(replacement, keys, 27849).is_success and replacement.start_simulation().is_success, "replacement host reopens only the leased endpoint")
+	_observations.clear()
+	for slot in range(2):
+		_check(clients[slot].connect_host("ws://127.0.0.1:27849", keys[slot]).is_success, "same actual client reconnects to its persistent invite")
+	await _wait(func() -> bool: return _observations.size() == 2, 4.0)
+	for slot in range(2):
+		_check(_observations.has(slot) and _observations[slot]["production"]["walls"].has(wall_id) and InventorySpatialMath.normalized(_observations[slot]["production"]["walls"][wall_id]["position"]) == before["walls"][wall_id]["position"] and int(_observations[slot]["production"]["walls"][wall_id]["quarter_turn"]) == before["walls"][wall_id]["quarter_turn"] and _observations[slot]["inventory"]["body_id"] == bodies[slot] and _observations[slot]["production"]["deposits"]["deposit.iron"] == 8000000 and _observations[slot]["production"]["components"].is_empty(), "both fresh recovered views retain exact wall pose, depletion and consumed plate absence")
+	_check(shell._checkpoint_request == null and shell._checkpoint_status.text.contains("outcome unknown") and clients[winner]._requests.is_empty(), "reconnect observations never resubmit or settle the abandoned save")
+	shell._remote.command_completed.emit(abandoned, ServiceResult.success()) # Late application delivery only.
+	_check(shell._checkpoint_status.text.contains("outcome unknown"), "late abandoned completion cannot revive disk confirmation")
+	var recovered_owner := replacement.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem
+	var retry := ProductionDevelopmentCommand.new()
+	retry.command_id = StringName(wall_request)
+	retry.operation = "wall_build"
+	retry.payload = wall_payload.duplicate(true)
+	_acks.erase(wall_request)
+	_check(clients[winner].enqueue_command(retry).is_success, "original consumed plate, pose and revision retry unchanged")
+	await _wait(func() -> bool: return _acks.has(wall_request), 3.0)
+	var after: Dictionary = recovered_owner.capture_snapshot().value
+	_check(_acks.has(wall_request) and _ack_slots.get(wall_request) == winner and _acks[wall_request].is_success and after["state_revision"] == before["state_revision"] and after["walls"] == before["walls"] and after["cargo"] == before["cargo"] and after["store"] == before["store"] and after["receipts"] == before["receipts"], "durable construction retry returns existing receipt without a second wall or material mutation")
+	_acks.erase(wall_request)
+	_check(clients[1 - winner].enqueue_command(retry).is_success, "other authenticated actor submits same client ID")
+	await _wait(func() -> bool: return _acks.has(wall_request), 3.0)
+	_check(_acks.has(wall_request) and _ack_slots.get(wall_request) == 1 - winner and not _acks[wall_request].is_success and recovered_owner.capture_snapshot().value["walls"] == before["walls"], "foreign actor cannot replay another actor's construction receipt")
+	await _manual_save(1 - winner, replacement_store)
+	_check(shell._checkpoint_status.text.contains("outcome unknown"), "other actor's genuine save receipt cannot settle abandoned request")
+	await _manual_save(winner, replacement_store)
+	return {"world": replacement, "store": replacement_store, "host": replacement_host}
 
 
 func _production(client: RemoteWorldRuntime, slot: int, operation: String, payload: Dictionary) -> void:
