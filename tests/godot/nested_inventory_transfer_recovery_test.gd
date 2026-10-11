@@ -139,7 +139,7 @@ func exercise() -> void:
 	check(observed_open("storage.backpack-1", false) and panel._record["mass_milligrams"] == mass, "restored closed ancestor and total carried mass observed")
 	check(not remote.frames.slice(frames).any(func(value: Dictionary) -> bool: return value.get("type") == "ack" and value.get("request_id") == String(abandoned.command_id)), "fresh session invents no abandoned transfer acknowledgement")
 	var feedback: String = panel._result.text
-	check(feedback.contains(String(abandoned.command_id)) and feedback.contains(paid_item) and feedback.contains("source storage.pouch-1") and feedback.contains("destination body.human-1") and feedback.contains("revision " + str(abandoned.payload["expected_revision"])), "fresh replacement observation retains exact abandoned Move identity and targets")
+	check(feedback.contains(String(abandoned.command_id)) and feedback.contains(paid_item) and feedback.contains("source storage.pouch-1") and feedback.contains("destination body.human-1") and feedback.contains("revision " + str(int(abandoned.payload["expected_revision"]))), "fresh replacement observation retains exact abandoned Move identity and targets")
 	check(panel._pending_inventory.is_empty() and not panel._move_recovery_text.is_empty(), "recovery retains display text only, no live pending payload")
 	check(feedback.contains("outcome is unknown") and feedback.contains("Reconnect and refresh"), "fresh observation preserves transfer uncertainty and explicit recovery guidance")
 	panel._completed(abandoned, ServiceResult.success())
