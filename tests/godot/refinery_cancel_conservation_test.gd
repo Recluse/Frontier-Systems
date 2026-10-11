@@ -12,6 +12,11 @@ func recovery_recipe() -> String:
 
 
 func finish() -> void:
+	prepare_refinery()
+	await super.finish()
+
+
+func prepare_refinery() -> void:
 	# The inherited paid finite loop already extracted exactly 1 kg ice. Move
 	# that existing physical canister into its existing refinery via commands.
 	var machinery: Dictionary = production.capture_snapshot().value["machinery"]
@@ -46,7 +51,6 @@ func finish() -> void:
 	var cargo: Dictionary = production.capture_snapshot().value["cargo"]
 	check(cargo["resource-canister-1"]["ice"] == 1000000 and ProductionSimulationSystem._mass(cargo["resource-canister-2"]) == 0, "finite extracted input bill and empty output canister before refinery run")
 	check(world.capture_world_snapshot_json().is_success, "command-prepared refinery validates full provenance")
-	await super.finish()
 
 
 func conserved(before: Dictionary, after: Dictionary, label: String) -> void:
