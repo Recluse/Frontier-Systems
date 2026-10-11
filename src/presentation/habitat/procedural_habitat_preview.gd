@@ -57,6 +57,11 @@ func _ready() -> void:
 	character.rotation.y = -PI / 2.0
 	add_child(character)
 	camera.make_current()
+	var feedback_layer := CanvasLayer.new()
+	add_child(feedback_layer)
+	var feedback := HabitatTargetFeedback.new()
+	feedback.habitat = self
+	feedback_layer.add_child(feedback)
 
 
 func focus_production() -> void:
