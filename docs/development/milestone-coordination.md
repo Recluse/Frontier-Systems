@@ -12,6 +12,8 @@ Chat IDs respectively: `01a12845-2c55-76b3-bd83-3b4cd9d6a4db`, `01a12845-3a53-7a
 
 The owner now explicitly authorizes the coordinator to review completed milestone PRs, merge them with admin bypass if repository protections require it, and create a successor milestone chat after each merge. Exact-head required CI must pass; bypass does not waive failed or missing checks. Shared schemas and authority boundaries are serialized. At most three implementation chats run concurrently. Fixed-loopback acceptance tests use port 27849 serially. Live services, releases and production deployment remain outside these assignments.
 
+All milestone human approval requests must go through Coordinator. Implementation chats continue already-authorized work and report actual approval-review blockers here with the action, stated reason and relevant evidence. They must not ask the owner directly or duplicate approval questions. Coordinator asks only genuinely necessary questions and relays the human answer; this routing does not bypass tool approval review or expand credential authorization.
+
 ## Completed first wave
 
 | Milestone | Reviewed head | PR | Required CI | Verified merge |
