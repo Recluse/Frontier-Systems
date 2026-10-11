@@ -1,5 +1,9 @@
 # Coordinated milestone work
 
+## Long-term civilization and station capability parity
+
+Owner added [broad Civ13/Space Station 13 player-capability parity](civilization-station-capability-parity.md): almost everything players can do should eventually be possible in Frontier. Treat this as a milestone family with a source-pinned capability matrix, dependencies, concrete acceptance and explicit owner-approved exclusions, rather than one unbounded PR or an engineering-only subset. Start foundational gameplay and tutorial readiness first; retain active chat scopes and all authority, conservation, persistence, platform and reference-rights rules.
+
 ## Inventory handoffs and visual readability integration (2026-10-11 05:10 UTC)
 
 Reviewed #32 final `d2c2e9a7b42e437420620ab141962e4613efdfd8`: scoped direct-tray contents, owned nested storage, stable missing IDs, frozen pending self/world payloads, host-only capacity/reach decisions, matching completion and disconnect uncertainty. Actual domain tests exercise paid ownership-preserving nested moves/handoffs, atomic full-container/stale rejection and private scope. All 20 exact-head checks passed (PR `38112931050`, push `38112927640`). Verified guarded squash merge `dc70a8c0eac8ccfbada725b0194674f2769c3127`.
