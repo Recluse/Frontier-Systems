@@ -1,5 +1,18 @@
 # Coordinated milestone work
 
+## Target hints and component controls integration (2026-10-11 05:30 UTC)
+
+Reviewed #36 immutable `ea606de3deca65dbbeeb6ce55f5a6a917c0e3aac`: four complete wrapped rows, distinct hover/selected identities, retained authority uncertainty, bounded width/content height and mouse-ignore/focus/rebinding behavior. All 20 exact-head checks passed (PR `38114352860`, push `38114350481`). Guarded squash merge verified `0d10b9d1f5a244fe5a39ca3b7d1d05f7c328eac7`. Inspected internal 360x640 ordinary-engine capture: full warning visible, no private data; explicit hover fixture and unverified integrated-panel/human limits preserved. Media remains local, no gallery/LFS/public upload.
+
+Reviewed #37 immutable `191e5e453468da2c81a9b15ffad52fcd1521d857`: observed fabrication/recycling bills, owned loose versus mounted identity, stable unavailable selections, frozen pending IDs/revisions, matching receipt/rejection and disconnect uncertainty. Real domain fixture verifies paid fabrication/fit/detach/recycle, retained displaced part, atomic stale rejection and legacy views. No canonical/schema/persistence edits. All 22 exact-head checks passed (PR `38114378337`, push `38114362890`, focused recipes `38114378402`). Guarded squash merge verified `c8bffef578a8decffae9a3dae79ea7c666c87b64`. No graphical capture supplied or graphical acceptance inferred. No admin bypass; clean primary fast-forwarded.
+
+Six combined Windows checks passed on `c8bffef`: import/startup, equipment_prerequisites_view_test, habitat_target_feedback_test, player_inventory_components_test and player_inventory_handoffs_test; ignored `var/ci/coordinator-component-target`. No fixed ports used. Separate Sol/medium successors start in isolated current-origin worktrees/descriptive branches without `codex/`, attached draft PRs and own docs:
+
+- **Make inventory component controls usable in the actual client**, `01a12972-eaea-7742-84da-cfa371758795`: inventory presentation layout/focus only, preserves pending IDs and handoffs.
+- **Make workstation recipe controls easier to navigate**, `01a12972-fa04-7590-ad9b-037ae92138b7`: LocalProductionPanel layout/navigation only; no inventory, target or authority edits.
+
+Actual-client acceptance chat `01a1296b-43ed-7fd1-9763-6d766c5d0286` remains active; Coordinator granted exclusive 27849/27850 after listener precheck and updated ignored reservation record. Three implementation chats assigned. All owner approvals route here; no AI art/media publication. Tutorial human gate remains open. Website TLS unchanged (`new`, enforcement false). Last confirmed public Ko-fi post remains under 23 hours old; substantial merged progress is available for the next daily batch.
+
 ## Tutorial readiness review (2026-10-11 05:20 UTC)
 
 Reviewed #35 immutable `b6b45edc174caac050e49549ecb045220bb699e9`: verification-only capture destination, basic route option, bounded sequential runners, unique temporary profile, existing-override refusal, environment restoration and explicit scripted versus human limits. All 20 exact-head PR/push checks passed (runs `38113774728` / `38113772183`). Verified matching-head squash merge `8ad5bceaa2fc06d0da544f75f09fcf03abe471f0`; no admin bypass. Clean primary fast-forwarded. Reused six successful worker Windows checks and native scripted loop evidence; no runtime interaction changes warrant repeating these checks. Tutorial gate remains **not met**. Internal capture stays local; no gallery/LFS/public media upload.
