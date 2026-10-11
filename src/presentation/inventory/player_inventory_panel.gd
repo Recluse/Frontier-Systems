@@ -758,10 +758,27 @@ func _guidance_input(event: InputEvent, guidance: Label) -> void:
 
 func _reveal_feedback(request_id: String) -> void:
 	# Wrapped text changes height after container sorting; reveal its final bounds.
-	await get_tree().process_frame
-	await get_tree().process_frame
-	if _pending == request_id and get_parent() is ScrollContainer:
+	# Node-bound signal callbacks disconnect on free; no coroutine outlives this panel.
+	if _can_reveal_feedback(request_id):
+		var callback: Callable = _wait_feedback_layout.bind(request_id)
+		if not get_tree().process_frame.is_connected(callback):
+			get_tree().process_frame.connect(callback, CONNECT_ONE_SHOT)
+
+
+func _wait_feedback_layout(request_id: String) -> void:
+	if _can_reveal_feedback(request_id):
+		var callback: Callable = _finish_feedback_layout.bind(request_id)
+		if not get_tree().process_frame.is_connected(callback):
+			get_tree().process_frame.connect(callback, CONNECT_ONE_SHOT)
+
+
+func _finish_feedback_layout(request_id: String) -> void:
+	if _can_reveal_feedback(request_id):
 		(get_parent() as ScrollContainer).ensure_control_visible(_result)
+
+
+func _can_reveal_feedback(request_id: String) -> bool:
+	return is_inside_tree() and not is_queued_for_deletion() and _pending == request_id and get_parent() is ScrollContainer and is_instance_valid(_result) and _result.is_inside_tree()
 
 
 func _component_picker(picker: OptionButton, title: String) -> void:
