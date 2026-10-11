@@ -1,5 +1,9 @@
 # Equipment fabrication and material provenance
 
+## Observation-only prerequisite display
+
+The workstation equipment picker displays observed blueprint costs against current shared stock/energy and printer power/access. Owned equipment salvage shows stable identities, current installed material records, salvage costs and recycler power. Stable selections remain pinned when unavailable; no alternate target is silently chosen. This is advisory presentation; existing host transactions revalidate all resources, ownership, capacity and revisions. See [presentation evidence and deferred component integration](../development/equipment-prerequisites-ui-milestone.md).
+
 ## Ownership and composition
 
 EquipmentBlueprintCatalog owns immutable trusted assembly definitions separately from commodity recipes. Each definition names an inventory definition/revision, material requirements, fabrication/salvage energy and a display label. The validator permits at most 32 unique outputs, registered materials and registered zero-base-mass equipment tagged equipment.fabricated. Output definitions currently cannot have inventory child storage; that extension needs container-graph factory transactions.

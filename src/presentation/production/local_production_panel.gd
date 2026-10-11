@@ -22,6 +22,9 @@ var _feedback: Label
 var _deposit: OptionButton
 var _blueprint: OptionButton
 var _equipment: OptionButton
+var _fabrication_details: Label
+var _fabricate_button: Button
+var _salvage_button: Button
 var _recipe: OptionButton
 var _recipe_details: Label
 var _chemical: OptionButton
@@ -126,17 +129,12 @@ func configure(world: WorldRuntime) -> ServiceResult:
 	var fabrication_title := _label()
 	fabrication_title.text = "Equipment fabrication · recoverable construction materials"
 	_blueprint = _picker()
-	if observed.is_success:
-		for id in observed.value.get("blueprints", {}):
-			var blueprint: Dictionary = observed.value["blueprints"][id]
-			var requirements: PackedStringArray = []
-			for material in blueprint["materials"]:
-				requirements.append("%.2f kg %s" % [float(blueprint["materials"][material]) / 1000000.0, material])
-			_blueprint.add_item("%s · %s · %d J" % [blueprint["name"], ", ".join(requirements), blueprint["fabrication_energy_joules"]])
-			_blueprint.set_item_metadata(_blueprint.item_count - 1, id)
-	_button("Fabricate selected equipment into inventory", _fabricate_equipment)
+	_blueprint.item_selected.connect(func(_index: int) -> void: refresh())
+	_fabrication_details = _label()
+	_fabricate_button = _button("Fabricate selected equipment into inventory", _fabricate_equipment)
 	_equipment = _picker()
-	_button("Salvage selected fabricated equipment and contents", _salvage_equipment)
+	_equipment.item_selected.connect(func(_index: int) -> void: refresh())
+	_salvage_button = _button("Salvage selected fabricated equipment and contents", _salvage_equipment)
 	_button("Build 1 kg wall segment", _send.bind("build", {}))
 	_button("Deconstruct one wall segment", _send.bind("deconstruct", {}))
 	_station = _picker()
@@ -161,16 +159,8 @@ func refresh() -> void:
 	var observed: ServiceResult = _world.production_observation(_context())
 	_guide_label.text = _guide.text()
 	var valid_observation: bool = observed.is_success and typeof(observed.value) == TYPE_DICTIONARY and WorkstationResourceView.valid(observed.value)
-	if valid_observation and _equipment != null:
-		var selected: String = str(_equipment.get_item_metadata(_equipment.selected)) if _equipment.selected >= 0 else ""
-		_equipment.clear()
-		for id in observed.value.get("structures", {}):
-			var structure: Dictionary = observed.value["structures"][id]
-			_equipment.add_item(observed.value["blueprints"][structure["blueprint_id"]]["name"])
-			_equipment.set_item_metadata(_equipment.item_count - 1, id)
-			if selected == id:
-				_equipment.select(_equipment.item_count - 1)
 	_record = observed.value if valid_observation else {}
+	_refresh_equipment()
 	_fill_recipes(_record.get("recipes", []))
 	if not _world is RemoteWorldRuntime:
 		var tools := _world.get_simulation_system(ToolSimulationSystem.SYSTEM_ID) as ToolSimulationSystem
@@ -181,6 +171,8 @@ func refresh() -> void:
 	_fill_components(_record.get("components", []))
 	for button in _buttons:
 		button.disabled = not _pending.is_empty() or _record.is_empty() or not _record.get("can_operate", false)
+	_fabricate_button.disabled = _fabricate_button.disabled or not _record.get("blueprints", {}).has(EquipmentPrerequisiteView.selected(_blueprint))
+	_salvage_button.disabled = _salvage_button.disabled or not _record.get("structures", {}).has(EquipmentPrerequisiteView.selected(_equipment))
 	_extract_button.disabled = not _pending.is_empty() or _record.is_empty() or _carrier.selected < 0 or _deposit.selected < 0 or not _record.get("extractable_sources", []).has(_deposit.get_item_text(_deposit.selected))
 	var suggested: Dictionary = _guide.suggested_action()
 	_guide_button.text = suggested["label"]
@@ -274,13 +266,39 @@ func _extract_action() -> void:
 		_send("extract", {"carrier_id": _carrier.get_item_text(_carrier.selected), "deposit_id": _deposit.get_item_text(_deposit.selected), "amount_milligrams": int(round(_amount.value * 1000.0))})
 
 
+func _refresh_equipment() -> void:
+	if _blueprint == null: return
+	var blueprints: Dictionary = _record.get("blueprints", {})
+	var entries: Dictionary = {}
+	for id in blueprints: entries[id] = blueprints[id]["name"]
+	EquipmentPrerequisiteView.fill(_blueprint, entries, "Select equipment blueprint")
+	entries = {}
+	for id in _record.get("structures", {}):
+		var blueprint_id: String = _record["structures"][id]["blueprint_id"]
+		entries[id] = blueprints.get(blueprint_id, {}).get("name", blueprint_id)
+	EquipmentPrerequisiteView.fill(_equipment, entries, "Select owned fabricated equipment")
+	_fabrication_details.text = EquipmentPrerequisiteView.quote(_record, blueprints, EquipmentPrerequisiteView.selected(_blueprint), "printer")
+	var item_id: String = EquipmentPrerequisiteView.selected(_equipment)
+	if _record.get("structures", {}).has(item_id):
+		var structure: Dictionary = _record["structures"][item_id]
+		_fabrication_details.text += "\nOwned equipment ID: %s; recoverable installed materials: %s." % [item_id, WorkstationResourceView.stock_text(structure["materials"])]
+		_fabrication_details.text += "\nSalvage energy: %d J; recycler power: %s. Contents return to shared stock; host checks receiving capacity. Spent energy is not recovered." % [blueprints[structure["blueprint_id"]]["salvage_energy_joules"], "on" if _record["powered"]["recycler"] else "off"]
+	else:
+		_fabrication_details.text += "\nSelect owned fabricated equipment to inspect salvage. Previous ID: " + item_id
+	if not _pending.is_empty(): _fabrication_details.text += "\nCommand pending: no output confirmed; wait for host receipt."
+	_blueprint.disabled = _record.is_empty() or not _pending.is_empty()
+	_equipment.disabled = _blueprint.disabled
+
+
 func _fabricate_equipment() -> void:
-	if _blueprint.selected >= 0:
+	refresh()
+	if _record.get("blueprints", {}).has(EquipmentPrerequisiteView.selected(_blueprint)):
 		_send("fabricate_equipment", {"blueprint_id": _blueprint.get_item_metadata(_blueprint.selected)})
 
 
 func _salvage_equipment() -> void:
-	if _equipment.selected >= 0:
+	refresh()
+	if _record.get("structures", {}).has(EquipmentPrerequisiteView.selected(_equipment)):
 		_send("salvage_equipment", {"item_id": _equipment.get_item_metadata(_equipment.selected)})
 
 
@@ -357,6 +375,8 @@ func _on_closed() -> void:
 	_feedback.text = ""
 	_refresh_maintenance()
 	_maintenance_feedback.text = "Unavailable: world or host connection closed; command outcome requires a fresh observation."
+	_refresh_equipment()
+	_fabrication_details.text = "Unavailable: world closed; command outcome requires a fresh observation."
 	for button in _buttons:
 		button.disabled = true
 	set_process(false)
