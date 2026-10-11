@@ -1,5 +1,24 @@
 # Coordinated milestone work
 
+## Guide and maintenance integration (2026-10-11 03:39 UTC)
+
+Reviewed and merged PR #21 at `36c280718228ffaa1f93d7d30531652134937627` as `c93dbdc96e4dee404294c63ff93ef15c3f1ef29f`; exact-head PR/push CI `38108397803` / `38108395825` and all 20 check runs passed. Reviewed guide projection validation, pinned recipe hints, current/reversible counts, invalid/disconnected clearing, read-only snapshots and appended tab wiring. No graphical acceptance or media exists for this milestone.
+
+Reviewed and merged PR #23 at final `854cee94aaa60629c8244f4fbcd4385c2fc3652e` as `c8f6f145325965b39d827b40eb879a190f853ae3`; exact-head PR/push CI `38108568481` / `38108565938` and all 20 checks passed. Review included final unavailable-station-reserve delta, stable component selection, existing paid maintenance command, stale rejection and disconnect signals. UI does not invent maintenance quotes, thresholds, causes or required tools. Inspected the local disabled-component capture: readable bounded section, observed capabilities and retained zero-integrity component, no secrets or unrelated service data. It stays ignored/local under the current no-upload policy; no public showcase or full scrolling/human/controller/VR acceptance claimed.
+
+Both merges used matching-head guards without admin bypass. Fast-forwarded clean primary checkout to `c8f6f14`; six combined Windows checks passed (import/startup, first_playable_task_guide_test, repair_usability_test, tool_runtime_test, world_context_label_test), ignored evidence `var/ci/coordinator-guide-maintenance`. These checks used no fixed sockets. Reuse individual exact-head Windows/Linux CI; no repeated full suite.
+
+Successors created after verified merges, explicit Sol/medium, isolated current-origin worktree/codex branch and attached draft PR requirements:
+
+- `01a1290c-59f3-7b20-9f5a-14e3786f16f9`, **Make first-playable controls and navigation discoverable**: player controls/help and minimal bootstrap attachment only; no production/terrain panels or authority changes.
+- `01a1290c-b5cf-7dc2-bfbb-5f9e2ba82ca7`, **Clarify workstation recipe and resource prerequisites**: local-production presentation/helper only, preserve maintenance and explicit unavailable costs; no bootstrap/terrain/machinery or authority changes.
+
+Together with terrain-return PR #22 these are three active gameplay implementations. Compact snapshots confirm both successors started. All handoffs route human approvals through Coordinator and prohibit current gameplay media uploads. Terrain return head `b0d799d23300c06085d55544d5cf47d7fc837c87` still has required Godot CI in progress; remain held. Worker released ports 19241/19242/19243/27853 and Coordinator observed no matching listeners, updating ignored reservation record.
+
+Discord-interest onboarding chat reports live completion: one optional single-select primary-interest question, six permissionless roles, saved/reloaded mappings and member preview verified. Existing FAQ/guide/defaults/private areas preserved; future scope choices carry no access/release promises. No manual member assignment. Documentation draft PR #24 head `7245fa88b774d65575d8bd28a34a5d29429d1ecd` awaits source review and CI; aggregate history/fresh-member role assignment remain unverified. This community task receives no gameplay successor.
+
+Website certificate remains `new`; homepage-link merges remain held. Recent free Ko-fi progress post already covers the active approachable-demo direction; these small presentation merges do not trigger a duplicate update.
+
 ## Pending successors and Discord onboarding (2026-10-11 03:29 UTC)
 
 - Task guide chat `01a128fb-1aca-79b3-bafc-df0d8fdf00c6` has attached draft PR #21 at `36c280718228ffaa1f93d7d30531652134937627`. Source review confirms current scoped facts, no historical completion or commands, and minimal appended Guide tab wiring. Recipe hints match the pinned current catalog. Exact-head runs `38108397803` / `38108395825` still have Godot jobs in progress; no merge while gates are missing.
