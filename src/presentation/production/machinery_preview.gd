@@ -197,7 +197,8 @@ func present_feedback(feedback: Dictionary) -> void:
 	if not selected.is_empty():
 		var selected_size: Vector3 = feedback.get("selected_size", size)
 		_footprint(_feedback_root, MachineryPlacementFeedback.display_position(selected), selected_size, Color(1.0, 0.85, 0.2))
-		_feedback_label(_feedback_root, MachineryPlacementFeedback.display_position(selected) + Vector3(0, selected_size.y + 0.75, 0), "SELECTED · " + String(feedback["selected_id"]).right(8), Color(1.0, 0.85, 0.2))
+		if feedback.get("machine_envelope", false): _envelope_edges(_feedback_root, MachineryPlacementFeedback.display_position(selected), selected_size, Color(1.0, 0.85, 0.2))
+		_feedback_label(_feedback_root, MachineryPlacementFeedback.display_position(selected) + Vector3(0, selected_size.y + 0.75, 0), ("SELECTED ENVELOPE · " if feedback.get("machine_envelope", false) else "SELECTED · ") + String(feedback["selected_id"]).right(8), Color(1.0, 0.85, 0.2))
 	if not feedback["ghost_visible"]: return
 	var target: Vector3 = MachineryPlacementFeedback.display_position(feedback["position"])
 	var color := Color(0.2, 0.85, 0.95, 0.24) if feedback["advisory_ok"] else Color(1.0, 0.35, 0.2, 0.24)
@@ -214,7 +215,7 @@ func present_feedback(feedback: Dictionary) -> void:
 		var extent: Vector3 = Vector3(0.018, 0.018, 0.018) + axes[index] * 0.9
 		_feedback_box(_feedback_root, extent, colors[index], target + Vector3(0, 0.04, 0) + axes[index] * 0.45)
 		_feedback_label(_feedback_root, target + Vector3(0, 0.1, 0) + axes[index], ["+X", "+Y", "+Z"][index], colors[index])
-	_feedback_label(_feedback_root, target + Vector3(0, size.y + 0.35, 0), "PENDING HOST" if feedback["pending"] else "PLACEMENT PREVIEW", Color(color, 1.0))
+	_feedback_label(_feedback_root, target + Vector3(0, size.y + 0.35, 0), "PENDING HOST" if feedback["pending"] else ("ADVISORY ENVELOPE" if feedback.get("machine_envelope", false) else "PLACEMENT PREVIEW"), Color(color, 1.0))
 
 
 static func _footprint(parent: Node3D, base: Vector3, size: Vector3, color: Color) -> void:
@@ -241,3 +242,13 @@ static func _feedback_box(parent: Node3D, size: Vector3, color: Color, at: Vecto
 	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material: StandardMaterial3D = visual.material_override
 	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+
+
+## Complete selected machine AABB; the existing floor footprint supplies four edges.
+static func _envelope_edges(parent: Node3D, base: Vector3, size: Vector3, color: Color) -> void:
+	for x in [-1.0, 1.0]:
+		for z in [-1.0, 1.0]:
+			_feedback_box(parent, Vector3(0.025, size.y, 0.025), color, base + Vector3(x * size.x / 2.0, size.y / 2.0, z * size.z / 2.0))
+	for side in [-1.0, 1.0]:
+		_feedback_box(parent, Vector3(size.x, 0.025, 0.025), color, base + Vector3(0, size.y, side * size.z / 2.0))
+		_feedback_box(parent, Vector3(0.025, 0.025, size.z), color, base + Vector3(side * size.x / 2.0, size.y, 0))
