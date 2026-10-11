@@ -16,6 +16,8 @@ var _pending_world: Dictionary = {}
 var _pending_inventory: Dictionary = {}
 var _inventory_buttons: Dictionary = {}
 var _storage_status := Label.new()
+var _transfer_preview := Label.new()
+var _world_transfer_preview := Label.new()
 var _initialized_pickers: Dictionary = {}
 var _source := OptionButton.new()
 var _destination := OptionButton.new()
@@ -25,9 +27,15 @@ var _carrier := OptionButton.new()
 var _summary := Label.new()
 var _details := Label.new()
 var _equipment := Label.new()
+var _active_tool := Label.new()
+var _equipment_record: Dictionary = {}
+var _equipment_observed_at: int = -1
+var _equipment_tick: int = -1
+var _equipment_revision: int = -1
 var _result := Label.new()
 var _buttons: Array[Button] = []
 var _pending: String = ""
+var _shown_pending: String = ""
 var _view_key: String = ""
 var _tools: Dictionary = {}
 var _tool_parts := OptionButton.new()
@@ -35,15 +43,25 @@ var _tool_mounts := OptionButton.new()
 var _loose_parts := OptionButton.new()
 var _part_blueprints := OptionButton.new()
 var _component_details := Label.new()
+var _maintenance_targets := Label.new()
+var _component_selections: Dictionary = {}
 var _component_buttons: Dictionary = {}
 var _pending_component: Dictionary = {}
 var _inspected_tool: String = ""
 var _work_cycles := SpinBox.new()
 var _work_status := Label.new()
+var _work_targets := Label.new()
+const EQUIPMENT_OBSERVATION_TIMEOUT_MSEC: int = 5000
 
 
 func configure(remote: RemoteWorldRuntime) -> void:
 	_remote = remote
+	if get_parent() is ScrollContainer:
+		var scroll := get_parent() as ScrollContainer
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.follow_focus = true
+		scroll.focus_mode = Control.FOCUS_ALL
+		scroll.gui_input.connect(_scroll_input)
 	for picker in [_source, _destination, _slot, _deposit, _carrier, _tool_parts, _tool_mounts, _loose_parts, _part_blueprints]:
 		picker.fit_to_longest_item = false
 		picker.clip_text = true
@@ -61,9 +79,9 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_items.item_activated.connect(_open_storage)
 	add_child(_items)
 	add_child(_details)
-	_label("Equipment slot")
+	_label("Selected equipment slot · selection alone does not make a hand active")
 	add_child(_slot)
-	var equipment_actions := HBoxContainer.new()
+	var equipment_actions := HFlowContainer.new()
 	add_child(equipment_actions)
 	_button(equipment_actions, "Equip", _self_action.bind("equip"), "equip")
 	_button(equipment_actions, "Unequip", _self_action.bind("unequip"), "unequip")
@@ -73,6 +91,8 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_destination)
 	_storage_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_storage_status)
+	_transfer_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_transfer_preview)
 	_destination.item_selected.connect(func(_index: int) -> void: _update_buttons())
 	_slot.item_selected.connect(func(_index: int) -> void: _update_buttons())
 	_button(self, "Move selected item into destination", _self_action.bind("move"), "move")
@@ -86,13 +106,17 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_world_items)
 	_world_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_world_details)
-	var world_actions := HBoxContainer.new()
+	_world_transfer_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_world_transfer_preview)
+	var world_actions := HFlowContainer.new()
 	add_child(world_actions)
 	_button(world_actions, "Collect selected", _world_action.bind("pickup"), "pickup")
 	_button(world_actions, "Drop selected", _world_action.bind("drop"), "drop")
 	_world_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_world_status)
-	_label("Active tool · resource extractor")
+	_label("Hand-tool extraction · uses host-observed active equipment")
+	_active_tool.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_active_tool)
 	for id in ["deposit.iron", "deposit.ice", "deposit.regolith"]:
 		_deposit.add_item({"deposit.iron": "Iron ore", "deposit.ice": "Ice", "deposit.regolith": "Regolith"}[id])
 		_deposit.set_item_metadata(_deposit.item_count - 1, id)
@@ -104,28 +128,41 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_work_cycles.value = 2
 	_work_cycles.suffix = " cycles of 1 kg"
 	add_child(_work_cycles)
+	_work_targets.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_work_targets)
+	_deposit.item_selected.connect(func(_index: int) -> void: _update_buttons())
+	_carrier.item_selected.connect(func(_index: int) -> void: _update_buttons())
+	_work_cycles.value_changed.connect(func(_value: float) -> void: _update_buttons())
 	_work_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_work_status)
 	_button(self, "Start sustained extraction", _sustained_action.bind("start_tool_extract"))
 	_button(self, "Resume reserved extraction", _sustained_action.bind("resume_tool_extract"))
 	_button(self, "Cancel and release remaining source reservation", _sustained_action.bind("cancel_tool_extract"))
 	_label("Tool component maintenance · select a tool above, then a component")
-	add_child(_tool_parts)
+	_component_picker(_tool_parts, "Repair component · mounted or inspected detached")
+	_maintenance_targets.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_maintenance_targets)
 	_button(self, "Maintain selected component at workstation", _repair_component)
 	_label("Tool parts · manufacture from workstation materials")
-	add_child(_part_blueprints)
+	_component_picker(_part_blueprints, "Fabrication blueprint")
 	_button(self, "Manufacture selected part", _part_action.bind("fabricate_tool_part"), "fabricate_tool_part")
 	_label("Owned loose part · use an equipment mount to replace or upgrade")
-	add_child(_loose_parts)
-	add_child(_tool_mounts)
+	_component_picker(_loose_parts, "Owned loose part")
+	_component_picker(_tool_mounts, "Equipment mount")
 	_button(self, "Fit loose part in selected tool mount", _part_action.bind("fit_tool_part"), "fit_tool_part")
 	_button(self, "Detach selected tool mount into inventory", _part_action.bind("detach_tool_part"), "detach_tool_part")
 	_button(self, "Recycle selected loose part", _part_action.bind("recycle_tool_part"), "recycle_tool_part")
 	_component_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_label("Observed component prerequisites · scroll to read all costs and host checks")
 	add_child(_component_details)
 	for picker in [_part_blueprints, _loose_parts, _tool_mounts, _tool_parts]:
 		picker.item_selected.connect(func(_index: int) -> void: _update_buttons())
 	_label("Equip the extractor in a hand, make that hand active, carry a canister and approach the source. Mounted extraction remains available through Workstation. Crowbar world interactions are a later integration.")
+	for guidance: Label in [_equipment, _active_tool, _maintenance_targets, _component_details, _work_status, _work_targets, _storage_status, _transfer_preview, _world_transfer_preview, _world_status, _result]:
+		guidance.focus_mode = Control.FOCUS_ALL
+		guidance.gui_input.connect(_guidance_input.bind(guidance))
+		guidance.tooltip_text = "Tab to review; Up/Down or Page Up/Page Down scroll the Inventory pane."
+	_result.tooltip_text = "Action feedback; Tab to review the exact pending target or host receipt; Up/Down or Page Up/Page Down to scroll."
 	add_child(_result)
 	remote.command_completed.connect(_completed)
 	remote.connection_closed.connect(_disconnected)
@@ -133,12 +170,21 @@ func configure(remote: RemoteWorldRuntime) -> void:
 
 
 func observe(frame: Dictionary) -> void:
-	_record = frame["inventory"]
-	_production = frame["production"]
-	_nearby = frame["world_items"]
+	_record = frame.get("inventory", {})
+	_observe_equipment(frame)
+	if _record.is_empty():
+		_summary.text = "Inventory observation unavailable."
+		_view_key = ""
+		_tools = {}
+		_production = {}
+		_work_status.text = "Work-cycle observation unavailable."
+		_update_buttons()
+		return
+	_production = frame.get("production", {})
+	_nearby = frame.get("world_items", {})
 	_tools = frame.get("tools", {})
 	var work: Dictionary = _production.get("tool_extraction", {})
-	_work_status.text = "No sustained extraction reserved by you."
+	_work_status.text = "Work-cycle observation unavailable." if _production.is_empty() else "No sustained extraction reserved by you; this does not confirm past completion."
 	if not work.is_empty():
 		_work_status.text = "Extraction %s · %d completed, %d reserved · %s" % [work["status"], work["completed_cycles"], work["remaining_cycles"], work["pause_reason"]]
 	var loose: Dictionary = {}
@@ -156,27 +202,52 @@ func observe(frame: Dictionary) -> void:
 		return
 	_view_key = view_key
 	_summary.text = "Owned including nested storage: %.2f kg · %d items" % [float(_record["mass_milligrams"]) / 1000000.0, _record["items"].size()]
-	var equipped: PackedStringArray = []
-	for binding in _record["equipped"]:
-		equipped.append("%s: %s" % [_slot_name(binding["slot_id"]), _item_name(binding["item_id"])])
-	_equipment.text = "Active: %s\n%s" % [_slot_name(_record["active_hand_slot_id"]), ", ".join(equipped)]
 	var containers: Array = _record.get("container_ids", [])
 	_fill_picker(_source, containers, true)
 	_fill_picker(_destination, containers)
 	_fill_picker(_slot, _record["slot_ids"])
-	var previous_carrier: String = str(_carrier.get_item_metadata(_carrier.selected)) if _carrier.selected >= 0 else ""
-	_carrier.clear()
-	for id in _production.get("cargo", {}):
-		_carrier.add_item("Canister %d" % (_carrier.item_count + 1))
-		_carrier.set_item_metadata(_carrier.item_count - 1, id)
-		if id == previous_carrier:
-			_carrier.select(_carrier.item_count - 1)
+	var carriers: Dictionary = {}
+	for id in _production.get("cargo", {}): carriers[id] = "Canister"
+	EquipmentPrerequisiteView.fill(_carrier, carriers, "Select a receiving canister")
 	_fill_items()
 	_fill_picker(_world_root, world_containers)
 	_fill_world_items()
 	_inspect()
 	_inspect_world()
 	_update_buttons()
+
+
+## Freshness only fences presentation claims; it neither authorizes nor retries commands.
+func _observe_equipment(frame: Dictionary) -> void:
+	var revision: int = int(_record.get("inventory_revision", -1))
+	var tick: int = int(frame.get("tick_number", -1))
+	if _record.is_empty() or revision < _equipment_revision or (tick >= 0 and tick < _equipment_tick):
+		_equipment_record = {}
+		_update_active_equipment()
+		return
+	if tick < 0 or tick > _equipment_tick or _equipment_observed_at < 0:
+		_equipment_observed_at = Time.get_ticks_msec()
+	_equipment_tick = maxi(tick, _equipment_tick)
+	_equipment_revision = revision
+	_equipment_record = _record.duplicate(true) if Time.get_ticks_msec() - _equipment_observed_at <= EQUIPMENT_OBSERVATION_TIMEOUT_MSEC else {}
+	_update_active_equipment()
+
+
+func _process(_delta: float) -> void:
+	if not _equipment_record.is_empty() and _equipment_observed_at >= 0 and Time.get_ticks_msec() - _equipment_observed_at > EQUIPMENT_OBSERVATION_TIMEOUT_MSEC:
+		_equipment_record = {}
+		_update_active_equipment()
+
+
+func _update_active_equipment() -> void:
+	var text: String = PlayerInventoryPresentation.active_equipment(_equipment_record, _selected_id(_items), _picker_id(_slot))
+	if not _pending_inventory.is_empty() and _pending_inventory.get("operation") in ["equip", "unequip", "select_hand", "switch_hand"]:
+		text += "\nEquipment command pending; outcome unconfirmed until its matching host receipt. Display follows fresh observations."
+	_active_tool.text = text
+	var equipped := PackedStringArray()
+	for binding in _equipment_record.get("equipped", []):
+		equipped.append("%s: %s" % [binding["slot_id"], binding["item_id"]])
+	_equipment.text = text + ("\nObserved equipment bindings: " + ", ".join(equipped) if not equipped.is_empty() else "")
 
 
 func _fill_world_items() -> void:
@@ -318,6 +389,7 @@ func _self_action(operation: String) -> void:
 	if not _pending.is_empty():
 		_pending_inventory = payload.duplicate(true)
 		_result.text = PlayerInventoryPresentation.pending_text(_pending_inventory)
+		_update_active_equipment()
 
 func _world_action(operation: String) -> void:
 	if _record.is_empty() or not _pending.is_empty():
@@ -352,6 +424,10 @@ func _inspect_world() -> void:
 
 
 func _disconnected(message: String) -> void:
+	_equipment_record = {}
+	_equipment_observed_at = -1
+	_equipment_tick = -1
+	_equipment_revision = -1
 	_record = {}
 	_production = {}
 	_nearby = {}
@@ -365,7 +441,7 @@ func _disconnected(message: String) -> void:
 	_initialized_pickers.clear()
 	for list in [_items, _world_items]: list.clear()
 	for picker in [_source, _destination, _slot, _world_root, _carrier, _tool_parts, _tool_mounts, _loose_parts, _part_blueprints]: picker.clear()
-	for label in [_summary, _equipment, _details, _world_details, _work_status, _storage_status]: label.text = ""
+	for label in [_summary, _equipment, _details, _world_details, _work_status, _storage_status, _transfer_preview, _world_transfer_preview]: label.text = ""
 	_result.text = message + "; pending target cleared; its outcome is unknown. Reconnect and refresh before retrying."
 	_world_status.text = _result.text
 	_update_buttons()
@@ -375,10 +451,12 @@ func _use_tool() -> void:
 	if not _pending.is_empty(): return
 	if _record.is_empty():
 		return
-	if _carrier.selected < 0:
+	if _picker_id(_carrier).is_empty() or _carrier.is_item_disabled(_carrier.selected):
 		_result.text = "Carry a resource canister first."
 		return
-	_submit("tool_extract", {"deposit_id": _deposit.get_item_metadata(_deposit.selected), "carrier_id": _carrier.get_item_metadata(_carrier.selected), "amount_milligrams": 1000000, "expected_revision": _production["state_revision"]}, true)
+	var payload: Dictionary = {"deposit_id": _deposit.get_item_metadata(_deposit.selected), "carrier_id": _carrier.get_item_metadata(_carrier.selected), "amount_milligrams": 1000000, "expected_revision": _production["state_revision"]}
+	_submit("tool_extract", payload, true)
+	_pin_component_intent("tool_extract", payload)
 
 
 func switch_active_hand() -> void:
@@ -390,7 +468,9 @@ func _repair_component() -> void:
 	if _picker_id(_tool_parts).is_empty() or _tool_parts.is_item_disabled(_tool_parts.selected) or _tools.is_empty():
 		_result.text = "Select a tool and component first."
 		return
-	_submit("repair_tool_component", {"part_id": _tool_parts.get_item_metadata(_tool_parts.selected), "amount_ppm": 1000000, "expected_revision": _production["state_revision"], "expected_tool_revision": _tools["state_revision"]}, true)
+	var payload: Dictionary = {"part_id": _tool_parts.get_item_metadata(_tool_parts.selected), "amount_ppm": 1000000, "expected_revision": _production["state_revision"], "expected_tool_revision": _tools["state_revision"]}
+	_submit("repair_tool_component", payload, true)
+	_pin_component_intent("repair_tool_component", payload)
 
 
 func _sustained_action(operation: String) -> void:
@@ -398,9 +478,10 @@ func _sustained_action(operation: String) -> void:
 	if _production.is_empty(): return
 	var payload: Dictionary = {"expected_revision": _production["state_revision"]}
 	if operation == "start_tool_extract":
-		if _carrier.selected < 0: return
+		if _picker_id(_carrier).is_empty() or _carrier.is_item_disabled(_carrier.selected): return
 		payload.merge({"deposit_id": _deposit.get_item_metadata(_deposit.selected), "carrier_id": _carrier.get_item_metadata(_carrier.selected), "cycles": int(_work_cycles.value)})
 	_submit(operation, payload, true)
+	_pin_component_intent(operation, payload)
 
 
 func _component_prerequisite(operation: String) -> String:
@@ -464,10 +545,18 @@ func _part_action(operation: String) -> void:
 		payload["item_id"] = _selected_id(_items)
 		payload["slot_id"] = _tool_mounts.get_item_metadata(_tool_mounts.selected)
 	_submit(operation, payload, true)
+	_pin_component_intent(operation, payload)
+
+
+func _pin_component_intent(operation: String, payload: Dictionary) -> void:
 	if not _pending.is_empty():
 		_pending_component = payload.duplicate(true)
 		_pending_component["operation"] = operation
-		_result.text = "Waiting for host · " + JSON.stringify(_pending_component) + ". No output or mount change confirmed."
+		if operation in ["resume_tool_extract", "cancel_tool_extract"]:
+			var work: Dictionary = _production.get("tool_extraction", {})
+			for field: String in ["request_id", "tool_id", "deposit_id", "carrier_id"]:
+				if work.has(field): _pending_component["observed_reserved_" + field] = work[field]
+		_result.text = "Waiting for host\n" + _pending_component_text() + "\nNo repair, output, mount change or work-cycle completion confirmed."
 		_update_buttons()
 
 
@@ -487,23 +576,38 @@ func _submit(operation: String, payload: Dictionary, production: bool = false) -
 		_pending = String(command.command_id)
 		_result.text = "Waiting for server…"
 	else:
-		_result.text = queued.message
+		_result.text = EngineeringFailureGuidance.describe(queued, queued.message)
 	_update_buttons()
 
 
 func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 	if String(command.command_id) == _pending:
 		var was_world: bool = not _pending_world.is_empty()
+		var exact_targets: String = _pending_component_text() if not _pending_component.is_empty() else ""
 		_pending = ""
 		_pending_world.clear()
 		_pending_inventory.clear()
 		_pending_component.clear()
-		_result.text = "Host accepted action. Inventory follows the latest host view." if result.is_success else "Host rejected action: " + result.message
+		_result.text = "Host accepted action. Inventory follows the latest host view." if result.is_success else EngineeringFailureGuidance.describe(result, "Host rejected action: " + result.message)
+		if not exact_targets.is_empty(): _result.text += "\nReceipt targets\n" + exact_targets + "\nObserved state below follows host observations; receipt does not predict capabilities."
 		if was_world: _world_status.text = _result.text
 		_update_buttons()
+		if get_parent() is ScrollContainer: _reveal_feedback.call_deferred(_pending)
 
 
 func _update_buttons() -> void:
+	_update_active_equipment()
+	_work_targets.text = _work_target_text()
+	_transfer_preview.text = PlayerInventoryPresentation.transfer_preview(_record, _selected_id(_items), _picker_id(_destination), _picker_id(_slot)) if not _record.is_empty() else ""
+	_world_transfer_preview.text = ""
+	if not _record.is_empty():
+		_world_transfer_preview.text = PlayerInventoryPresentation.drop_preview(_record, _selected_id(_items), _nearby, _picker_id(_world_root))
+		if not _picker_id(_world_root).is_empty():
+			_world_transfer_preview.text += "\n" + PlayerInventoryPresentation.transfer_preview(_record, _selected_id(_world_items), _picker_id(_destination), "", _nearby, _picker_id(_world_root))
+	if _shown_pending != _pending:
+		_shown_pending = _pending
+		if not _pending.is_empty() and get_parent() is ScrollContainer:
+			_reveal_feedback.call_deferred(_pending)
 	for button in _buttons:
 		button.disabled = _record.is_empty() or not _pending.is_empty()
 	for operation in _component_buttons:
@@ -511,8 +615,10 @@ func _update_buttons() -> void:
 		var reason: String = _component_prerequisite(operation)
 		component_button.disabled = component_button.disabled or not reason.is_empty()
 		component_button.tooltip_text = reason if not reason.is_empty() else "Host rechecks current prerequisites at the tick."
+	_update_component_selections()
+	_maintenance_targets.text = ToolMaintenanceView.targets(_tools, _production, _inspected_tool, _picker_id(_tool_parts), _picker_id(_tool_mounts), _picker_id(_loose_parts))
 	_component_details.text = EquipmentPrerequisiteView.part_text(_tools, _production, _picker_id(_part_blueprints), _selected_id(_items), _picker_id(_tool_mounts), _picker_id(_loose_parts), not _pending.is_empty())
-	if not _pending_component.is_empty(): _component_details.text += "\nPending exact IDs and revisions: " + JSON.stringify(_pending_component)
+	if not _pending_component.is_empty(): _component_details.text += "\nPending exact targets\n" + _pending_component_text()
 	for operation in _inventory_buttons:
 		var button: Button = _inventory_buttons[operation]
 		var reason: String = _inventory_prerequisite(operation)
@@ -522,9 +628,69 @@ func _update_buttons() -> void:
 		picker.disabled = _record.is_empty() or not _pending.is_empty()
 	_items.mouse_filter = Control.MOUSE_FILTER_IGNORE if not _pending.is_empty() else Control.MOUSE_FILTER_STOP
 	_world_items.mouse_filter = _items.mouse_filter
+	_items.focus_mode = Control.FOCUS_ALL if _pending.is_empty() else Control.FOCUS_NONE
+	_world_items.focus_mode = _items.focus_mode
 	_items.set_process_input(_pending.is_empty())
 	_world_items.set_process_input(_pending.is_empty())
 	_storage_status.text = PlayerInventoryPresentation.storage_hint(_record, _picker_id(_destination)) if not _record.is_empty() else ""
+
+func _pending_component_text() -> String:
+	var lines := PackedStringArray(["Action: " + str(_pending_component.get("operation", ""))])
+	for field: String in ["blueprint_id", "item_id", "slot_id", "part_id", "amount_ppm", "amount_milligrams", "deposit_id", "carrier_id", "cycles", "observed_reserved_request_id", "observed_reserved_tool_id", "observed_reserved_deposit_id", "observed_reserved_carrier_id", "expected_revision", "expected_tool_revision"]:
+		if not _pending_component.has(field): continue
+		var title: String = {"blueprint_id": "Blueprint ID", "item_id": "Tool ID", "slot_id": "Mount ID", "part_id": "Part ID", "amount_ppm": "Requested repair ppm", "amount_milligrams": "Requested mass mg", "deposit_id": "Source ID", "carrier_id": "Receiving canister ID", "cycles": "Requested cycles", "observed_reserved_request_id": "Observed reservation request ID at submit", "observed_reserved_tool_id": "Observed reserved tool ID at submit", "observed_reserved_deposit_id": "Observed reserved source ID at submit", "observed_reserved_carrier_id": "Observed reserved canister ID at submit", "expected_revision": "Production revision", "expected_tool_revision": "Tool revision"}[field]
+		lines.append(title + ": " + str(_pending_component[field]))
+	return "\n".join(lines)
+
+
+func _scroll_input(event: InputEvent) -> void:
+	var scroll := get_parent() as ScrollContainer
+	if scroll == null or not scroll.has_focus(): return
+	var direction: int = 1 if event.is_action_pressed("ui_down") else (-1 if event.is_action_pressed("ui_up") else 0)
+	if direction != 0:
+		scroll.scroll_vertical += direction * 80
+		scroll.accept_event()
+
+
+## Large wrapped guidance remains readable without leaving its keyboard focus.
+func _guidance_input(event: InputEvent, guidance: Label) -> void:
+	var scroll := get_parent() as ScrollContainer
+	if scroll == null or not guidance.has_focus(): return
+	var amount: int = 0
+	if event.is_action_pressed("ui_down"): amount = 80
+	elif event.is_action_pressed("ui_up"): amount = -80
+	elif event.is_action_pressed("ui_page_down"): amount = int(scroll.size.y)
+	elif event.is_action_pressed("ui_page_up"): amount = -int(scroll.size.y)
+	if amount != 0:
+		scroll.scroll_vertical += amount
+		guidance.accept_event()
+
+
+func _reveal_feedback(request_id: String) -> void:
+	# Wrapped text changes height after container sorting; reveal its final bounds.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if _pending == request_id and get_parent() is ScrollContainer:
+		(get_parent() as ScrollContainer).ensure_control_visible(_result)
+
+
+func _component_picker(picker: OptionButton, title: String) -> void:
+	_label(title)
+	add_child(picker)
+	var selection := Label.new()
+	selection.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(selection)
+	_component_selections[picker] = selection
+
+
+func _update_component_selections() -> void:
+	for picker: OptionButton in _component_selections:
+		var selection: Label = _component_selections[picker]
+		var id: String = _picker_id(picker)
+		selection.text = "No selection; choose explicitly above."
+		if not id.is_empty():
+			selection.text = "%s\nID: %s%s" % [picker.get_item_text(picker.selected), id, " · unavailable in latest host view" if picker.is_item_disabled(picker.selected) else ""]
+		picker.tooltip_text = selection.text
 
 
 func _label(text: String) -> void:
@@ -537,6 +703,7 @@ func _label(text: String) -> void:
 func _button(parent: Node, text: String, callback: Callable, inventory_operation: String = "") -> void:
 	var button := Button.new()
 	button.text = text
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(callback)
 	parent.add_child(button)
@@ -571,3 +738,36 @@ func _container_name(id: String) -> String:
 
 static func _slot_name(id: String) -> String:
 	return id.replace("hand.", "").replace("_", " ").capitalize()
+
+
+func _work_target_text() -> String:
+	if _record.is_empty() or _production.is_empty(): return "Work-cycle targets unavailable: current observations missing."
+	var source: String = _picker_id(_deposit)
+	var carrier: String = _picker_id(_carrier)
+	var lines := PackedStringArray([
+		"Intended source ID: " + source + ("; observed." if _production.get("deposits", {}).has(source) else "; unavailable."),
+		"Intended receiving canister ID: " + carrier + ("; observed." if _production.get("cargo", {}).has(carrier) else "; unavailable."),
+		"Intended sustained cycles: %d of 1000000 mg; selection completes no work." % int(_work_cycles.value),
+		"Start uses active equipment above, independently of inspected maintenance item. Host rechecks tool, source, canister and reach."
+	])
+	lines.append(_canister_observation_text(carrier))
+	var work: Dictionary = _production.get("tool_extraction", {})
+	if not work.is_empty():
+		for field: String in ["tool_id", "deposit_id", "carrier_id"]:
+			lines.append("Observed reserved " + field + ": " + str(work.get(field, "unavailable")))
+		lines.append("Resume/cancel target this host-observed reservation, not the current selections.")
+	return "\n".join(lines)
+
+
+func _canister_observation_text(carrier: String) -> String:
+	var lines := PackedStringArray()
+	if carrier.is_empty() or not _production.get("cargo", {}).has(carrier):
+		return "Receiving contents and loaded mass unavailable; choose a currently observed canister. Payload capacity unavailable in this observation."
+	lines.append("Observed receiving contents: " + WorkstationResourceView.stock_text(_production["cargo"][carrier]))
+	var mass: String = "unavailable"
+	for detail in _record.get("item_details", []):
+		if detail.get("item", {}).get("item_id", "") == carrier and detail.has("mass_milligrams"):
+			mass = "%d mg (shell and payload included)" % int(detail["mass_milligrams"])
+	lines.append("Observed receiving loaded mass: " + mass + ".")
+	lines.append("Payload capacity unavailable in this observation. No fit or acceptance quote; host rechecks capacity, compatibility and reach.")
+	return "\n".join(lines)

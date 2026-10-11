@@ -43,6 +43,8 @@ The guide is session-only assistance, not a saved achievement. Depleted deposits
 
 ## Save and restart
 
+After a disconnect, use **Reconnect to shared host** above the world view. It reuses the configured host and invite for this running client. Wait for a fresh authenticated host observation before acting; the button disables duplicate attempts. Failed connections or rejected/occupied invites remain visible and retryable. Check the operator configuration if rejection persists. Unacknowledged construction/inventory actions may already have settled: inspect fresh state before issuing new work. Retained terrain work uses the Terrain tab's explicit **Retry original unresolved intent** control; reconnect does not submit it automatically.
+
 Checkpoints run every five seconds, with disk work on a worker rather than inside simulation ticks. **Save shared world now** waits for a disk confirmation from the host. Before intentionally stopping the host, request a save and wait for confirmation. Restart the host with the same keys and `-WorldName` to reload the world; clients reconnect with their own invite.
 
 The default checkpoint directory is ignored `config/local/first-playable/worlds/main`. Two alternating, checksummed files preserve the last valid checkpoint if a slot write is interrupted. If both slots are invalid, startup fails rather than regenerating matter. Sudden termination may lose activity after the last completed checkpoint; these are checkpoints, not a per-command write-ahead log or a promise against hardware failure.

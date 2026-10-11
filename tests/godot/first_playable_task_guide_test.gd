@@ -22,14 +22,15 @@ func run() -> void:
 	for row in panel._rows:
 		check(row.autowrap_mode == TextServer.AUTOWRAP_WORD_SMART and row.mouse_filter == Control.MOUSE_FILTER_IGNORE, "rows wrap without consuming native input")
 	var initial: Dictionary = production.observation(context).value
+	check_observed_prerequisites(initial)
 	var before: String = world.capture_world_snapshot_json().value
 	panel.observe({"production": initial})
 	check(world.capture_world_snapshot_json().value == before, "presentation preserves canonical snapshot")
-	check(panel._rows[3].text.contains("0 carried"), "fresh world has no physical plate")
-	check(panel._rows[4].text.contains("0 currently observed"), "fresh world has no physical wall")
+	check(panel._rows[4].text.contains("0 carried"), "fresh world has no physical plate")
+	check(panel._rows[7].text.contains("0 currently observed"), "fresh world has no physical wall")
 	for partial in [{}, {"store": {"plate": 1000000}}, {"components": ["invented"]}]:
 		panel.observe({"production": partial})
-		check(panel._rows[0].text.contains("unavailable") and not panel._rows[4].visible, "partial data clears all prior facts")
+		check(panel._rows[0].text.contains("unavailable") and not panel._rows[7].visible, "partial data clears all prior facts")
 	var malformed: Dictionary = initial.duplicate(true)
 	malformed["components"] = [42]
 	panel.observe({"production": malformed})
@@ -54,14 +55,15 @@ func run() -> void:
 	command("unload_cargo", {"carrier_id": "resource-canister-1", "material": "ore.iron", "amount_milligrams": 1000000})
 	command("process", {"recipe_id": "refine.iron"})
 	observe()
-	check(panel._rows[5].text.contains("Acceptance is not completion"), "accepted active job is not completion")
+	check(panel._rows[8].text.contains("Acceptance is not completion"), "accepted active job is not completion")
 	command("power", {"station": "refinery", "enabled": false})
 	observe()
-	check(panel._rows[5].text.contains("paused without power"), "paused job remains incomplete")
+	check(panel._rows[8].text.contains("paused without power"), "paused job remains incomplete")
 	command("power", {"station": "refinery", "enabled": true})
 	step(120)
 	observe()
 	check(panel._rows[2].text.contains("0.60 kg stored iron"), "completed batch shows actual output")
+	check(panel._rows[3].text.contains("Needs 1.00 kg stored iron") and panel._rows[3].text.contains("another batch"), "one completed refine batch still cannot pay for a plate")
 	move([-3000, 0, -1000])
 	command("extract", {"deposit_id": "deposit.iron", "carrier_id": "resource-canister-1", "amount_milligrams": 1000000})
 	move([0, 0, 0])
@@ -70,26 +72,46 @@ func run() -> void:
 	step(120)
 	command("process", {"recipe_id": "craft.plate"})
 	observe()
-	check(panel._rows[3].text.contains("0 carried"), "accepted printing does not invent a carried plate")
+	check(panel._rows[4].text.contains("0 carried"), "accepted printing does not invent a carried plate")
 	step(120)
 	observe()
-	check(panel._rows[3].text.contains("collect printed stock"), "stock still requires materialization")
+	check(panel._rows[4].text.contains("collect printed stock"), "stock still requires materialization")
 	command("materialize_plate", {})
 	observe()
-	check(panel._rows[3].text.contains("1 carried"), "real materialization shows owned physical plate")
+	check(panel._rows[4].text.contains("1 carried"), "real materialization shows owned physical plate")
 	var plate: String = production.observation(context).value["components"][0]
 	command("wall_build", {"item_id": plate, "position": [0, 0, 0], "quarter_turn": 0}, false)
 	observe()
-	check(panel._rows[4].text.contains("0 currently observed"), "rejected wall placement confirms no wall")
+	check(panel._rows[7].text.contains("0 currently observed"), "rejected wall placement confirms no wall")
 	command("wall_build", {"item_id": plate, "position": [0, 0, -1000], "quarter_turn": 0})
 	observe()
-	check(panel._rows[3].text.contains("0 carried") and panel._rows[4].text.contains("1 currently observed"), "plate consumption and actual wall shown")
+	check(panel._rows[4].text.contains("0 carried") and panel._rows[7].text.contains("1 currently observed"), "plate consumption and actual wall shown")
 	var wall: String = production.observation(context).value["walls"].keys()[0]
 	command("wall_remove", {"wall_id": wall})
 	observe()
-	check(panel._rows[3].text.contains("1 carried") and panel._rows[4].text.contains("0 currently observed"), "removal reverses current status")
+	check(panel._rows[4].text.contains("1 carried") and panel._rows[7].text.contains("0 currently observed"), "removal reverses current status")
+	command("recycle_component", {"item_id": "absent-plate"}, false)
+	observe()
+	check(panel._rows[5].text.contains("1 carried") and panel._rows[6].text.contains("0.20 kg stored iron"), "rejected recycling grants neither iron nor completion")
+	var energy_before: int = int(production.observation(context).value["energy_joules"])
+	plate = production.observation(context).value["components"][0]
+	command("recycle_component", {"item_id": plate})
+	observe()
+	check(panel._rows[4].text.contains("0 carried") and panel._rows[6].text.contains("1.20 kg stored iron"), "real recycling consumes physical plate and exposes recovered iron")
+	check(int(production.observation(context).value["energy_joules"]) == energy_before - 500, "physical recycling remains paid")
+	check(panel._rows[6].text.contains("cannot prove recycling"), "observed shared stock grants no session completion")
+	command("process", {"recipe_id": "craft.plate"})
+	observe()
+	check(panel._rows[6].text.contains("work pending") and panel._rows[4].text.contains("Needs 1 kg printed stock"), "reprint waits for output before collection")
+	command("cancel", {})
+	observe()
+	check(panel._rows[8].text.contains("disappearance alone does not prove completion") and panel._rows[3].text.contains("0.00 kg printed stock"), "cancelled reprint never counts as observed completion")
+	command("process", {"recipe_id": "craft.plate"})
+	step(120)
+	observe()
+	check(panel._rows[3].text.contains("1.00 kg printed stock") and panel._rows[4].text.contains("0 carried"), "completed reprint is stock until collected")
 	panel.observe({})
-	check(panel._rows[0].text.contains("unavailable") and not panel._rows[3].visible, "disconnect clears cached facts")
+	check(panel._rows[0].text.contains("unavailable") and not panel._rows[4].visible, "disconnect clears cached facts")
 	panel.free()
 	print("Observation-only task guide: %d failures" % failures)
 	finish()
@@ -99,3 +121,46 @@ func observe() -> void:
 	var before: String = world.capture_world_snapshot_json().value
 	panel.observe({"production": production.observation(context).value})
 	check(world.capture_world_snapshot_json().value == before, "every guide update is canonical read-only")
+
+
+
+## Synthetic projection variants prove presentation handling, not additional runtime success.
+func check_observed_prerequisites(initial: Dictionary) -> void:
+	var changed: Dictionary = initial.duplicate(true)
+	changed["cargo"] = {}
+	changed["extractable_sources"] = ["deposit.iron"]
+	panel.observe({"production": changed})
+	check(panel._rows[0].text.contains("Collect a canister"), "reach alone does not permit gathering without owned carrier")
+	changed = initial.duplicate(true)
+	changed["can_operate"] = false
+	panel.observe({"production": changed})
+	check(panel._rows[2].text.contains("free hand") and panel._rows[3].text.contains("Approach"), "workstation reach/body/hand prerequisite remains explicit")
+	changed["store"]["plate"] = 1000000
+	changed["components"] = ["synthetic-plate"]
+	panel.observe({"production": changed})
+	check(panel._rows[4].text.contains("free hand") and panel._rows[5].text.contains("Approach"), "collect/recycle also require workstation capability")
+	changed["can_operate"] = true
+	changed["powered"]["recycler"] = false
+	panel.observe({"production": changed})
+	check(panel._rows[5].text.contains("Recycler needs power"), "physical recycler power prerequisite")
+	changed["powered"]["recycler"] = true
+	changed["energy_joules"] = 499
+	panel.observe({"production": changed})
+	check(panel._rows[5].text.contains("Needs 500 J"), "physical recycling quotes its actual command cost")
+	changed["energy_joules"] = 500
+	panel.observe({"production": changed})
+	check(panel._rows[5].text.contains("plate is consumed") and panel._rows[5].text.contains("receiving capacity"), "recycling warns about consuming selected owned plate and host capacity check")
+	changed = initial.duplicate(true)
+	changed["can_operate"] = true
+	changed["recipe_requirements"]["craft.plate"]["energy_joules"] = 2000
+	changed["recipe_requirements"]["craft.plate"]["inputs"] = {"iron": 2000000}
+	changed["energy_joules"] = 1500
+	panel.observe({"production": changed})
+	check(panel._rows[3].text.contains("Needs 2000 J"), "recipe hint follows observed catalog cost")
+	changed["energy_joules"] = 2000
+	panel.observe({"production": changed})
+	check(panel._rows[3].text.contains("Needs 2.00 kg stored iron"), "recipe hint follows observed input rather than pinned default")
+	changed["schema_version"] = 7
+	changed.erase("recipe_requirements")
+	panel.observe({"production": changed})
+	check(panel._rows[3].text.contains("costs unavailable") and not panel._rows[3].text.contains("1000 J"), "legacy projection does not invent recipe costs")

@@ -41,6 +41,10 @@ var _operation_feedback := MachineryOperationFeedback.new()
 
 
 func configure(world: WorldRuntime) -> void:
+	if get_parent() is ScrollContainer:
+		var scroll := get_parent() as ScrollContainer
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.follow_focus = true
 	_world = world
 	var guide := Label.new()
 	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -173,6 +177,7 @@ func configure(world: WorldRuntime) -> void:
 		if String(command.command_id) == _pending:
 			_pending = ""
 			_feedback.text = WallPlacementFeedback.removal_result(String(_pending_wall["wall_id"]), result) if _pending_wall.get("operation", "") == "wall_remove" else ("Completed" if result.is_success else result.message)
+			_feedback.text = EngineeringFailureGuidance.describe(result, _feedback.text)
 			_wall_result = _feedback.text if _pending_wall.get("operation", "") == "wall_remove" else ""
 			if _pending_wall.get("operation", "") == "wall_build" and result.is_success: _wall_selection_lost = false
 			if (not _pending_deploy.is_empty() or not _pending_wall.is_empty()) and result.is_success:
@@ -270,7 +275,7 @@ func _send(action: String) -> void:
 	command.payload = payload
 	var queued: ServiceResult = _world.enqueue_command(command)
 	_pending = String(command.command_id) if queued.is_success else ""
-	_feedback.text = "Queued " + action + "; waiting for host" if queued.is_success else queued.message
+	_feedback.text = "Queued " + action + "; waiting for host" if queued.is_success else EngineeringFailureGuidance.describe(queued, queued.message)
 	if action == "machine_deploy" and queued.is_success:
 		_pending_deploy = payload.duplicate(true)
 		_pending_deploy["display_size"] = MachineryPlacementFeedback.envelope(_record["production"]["machinery"], payload["machine_id"])
@@ -331,6 +336,7 @@ func select_wall(id: String) -> void:
 func _button(title: String, action: String) -> Button:
 	var button := Button.new()
 	button.text = title
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.pressed.connect(_send.bind(action))
 	_action_buttons.append(button)
 	add_child(button)

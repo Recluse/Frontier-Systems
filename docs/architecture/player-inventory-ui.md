@@ -28,8 +28,37 @@ The component section integrates the observed prerequisite helper for fabricatio
 
 New equipment is seeded **only for new cooperative worlds**. Existing saves preserve their items and are not silently granted tools/backpacks. Choose a new `-WorldName` to see the starter kit while retaining old worlds. Client and host should run the same source revision; protocol negotiation for mixed builds is future work.
 
-Godot editor import and script parsing were performed for this implementation. No gameplay test suites or graphical acceptance runs were executed for this UI update. Earlier first-playable screenshots/results describe the previous revision and must not be presented as verification of these new controls.
+Component presentation now wraps full selected IDs outside clipped pickers, flows action rows within the pane, follows keyboard focus while scrolling, and reveals labeled exact pending fields after layout settles. Focus the Inventory scroll pane to navigate long observed prerequisites with the configured UI Up/Down bindings. Component pending actions also retire item-list keyboard focus until the matching receipt. See [inventory panel usability](../development/inventory-panel-usability-milestone.md) for the seven focused Windows checks and native Default-theme engine fixture at desktop/narrow pane sizes. This evidence uses injected input and real paid domain commands; integrated client/network, human, controller/VR and Linux graphical acceptance remain unverified. Earlier first-playable screenshots describe their own revisions.
 
 ## Cursor and controls
 
+Equipment controls and hand-tool extraction show the host-observed active hand
+and equipped item separately from selected inventory item and equipment slot.
+Missing, older, disconnected or five-second non-advancing observations remove
+these active-equipment claims. Pending commands require their matching receipt;
+equipment display follows fresh observations and predicts no engineering readiness.
+See [active hand/tool feedback](../development/active-hand-tool-feedback-milestone.md)
+for the presentation-only freshness boundary and actual-shell verification.
+
 Hold Left Alt (default) to access panels during navigation. The Settings tab provides rebinding and sensitivity; see [player controls](player-controls.md). Inventory, hand and tool shortcuts use the same configured action registry.
+
+Transfer selections now show exact observed source, owned destination and equipment
+slot IDs together, with loaded item mass and destination load/capacity. Tray drop and
+collection have separate summaries so their different destinations stay explicit.
+Unavailable observation fields remain unavailable; the panel predicts no fit or
+authoritative outcome. See [inventory transfer preview](../development/inventory-transfer-preview-milestone.md).
+
+Transfer/capacity summaries, tray status and host receipts accept keyboard focus.
+Use Tab/Shift+Tab to review them and Up/Down or Page Up/Page Down to scroll
+the Inventory pane while keeping guidance focused, including receipts taller
+than the pane. Enabled action buttons remain in the same relative order and
+focus-following scrolling reveals them. See [transfer layout verification](../development/inventory-transfer-layout-milestone.md).
+
+Maintenance target feedback now identifies the inspected item, selected repair
+part and loose part separately from the host-observed mount occupant. Repair and
+work intents retain exact submitted fields through matching receipts. Work source,
+canister and cycle selections are distinct from an existing host reservation and
+its completed counts. Missing inventory frames and disconnect remove these scoped
+claims; no after-state, compatibility or reach is inferred. See
+[maintenance target feedback](../development/tool-maintenance-target-feedback-milestone.md)
+for actual-panel authority, keyboard review and verification limits.

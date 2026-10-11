@@ -151,7 +151,7 @@ func run() -> void:
 	select_item(panel._items, "crowbar-1")
 	remote.reject_queue = true
 	panel._world_action("drop")
-	check(panel._pending.is_empty() and panel._pending_world.is_empty() and panel._result.text == "Queue unavailable", "unavailable queue creates no pending ownership claim")
+	check(panel._pending.is_empty() and panel._pending_world.is_empty() and panel._result.text.begins_with("Queue unavailable") and panel._result.text.contains("Code: offline") and not panel._result.text.contains("Next:"), "unavailable queue creates no pending ownership claim")
 	remote.reject_queue = false
 	panel._world_action("drop")
 	var late: SimulationCommand = remote.sent[-1]

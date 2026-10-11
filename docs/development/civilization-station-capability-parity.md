@@ -21,6 +21,8 @@ Initial research categories (planning taxonomy, not an audited exhaustive invent
 
 These categories become concrete capability rows only after source verification. Do not treat the taxonomy as a promise that any particular unreviewed upstream mechanic already exists.
 
+The first bounded research slice is the [foundational capability matrix v1](foundational-capability-matrix-milestone.md), with pinned source excerpts, current owner/test pointers and explicit gaps. It does not establish full parity or fresh runtime verification.
+
 ## Milestone sequence and acceptance
 
 1. Build the research matrix and coverage baseline, starting with Civ13 and a pinned owner-relevant SS13 variant. Prioritize ordinary basic actions and independently authored requirements.

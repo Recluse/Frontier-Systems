@@ -202,6 +202,29 @@ static func from_record(record: Dictionary, pause_on_restore: bool = true) -> Se
 	return ServiceResult.success(owner)
 
 
+## Trusted lifecycle preparation only: never publishes or creates player receipts.
+## The composing canonical owner must compare/commit before installing this owner.
+## Remove this body's reservations across bounded sessions; preserve every other member.
+func prepare_controller_invalidation(body_id: String) -> ServiceResult:
+	if not ControlContractValidation.is_id(body_id):
+		return _failure("Controller invalidation requires a stable body ID.")
+	var candidate: Dictionary = to_record()
+	var changed: bool = false
+	for index in range(candidate["sessions"].size() - 1, -1, -1):
+		var participants: Array = candidate["sessions"][index]["participants"]
+		for member in range(participants.size() - 1, -1, -1):
+			if participants[member]["body_id"] == body_id:
+				participants.remove_at(member)
+				changed = true
+		if participants.is_empty():
+			candidate["sessions"].remove_at(index)
+	if changed:
+		if int(candidate["state_revision"]) >= MAX_EXACT_INTEGER:
+			return _failure("Grip invalidation revision is exhausted.")
+		candidate["state_revision"] = int(candidate["state_revision"]) + 1
+	return from_record(candidate, false)
+
+
 func _session_index(id: String) -> int:
 	for index in range(_record["sessions"].size()):
 		if _record["sessions"][index]["session_id"] == id:

@@ -69,6 +69,14 @@ func read(view_id: String, tick: int, owner: SharedInventoryCoordinator, princip
 		"issued_tick": view["issued_tick"], "expires_tick": view["expires_tick"], "items": projected.value["items"].duplicate(true)})
 
 
+## Trusted lifecycle invalidation uses canonical job body IDs, never UI/principal claims.
+func revoke_body(body_id: String) -> void:
+	for id in _views.keys():
+		var state: Dictionary = _views[id]["job"]
+		if state["actor_body_id"] == body_id or state["target_body_id"] == body_id:
+			_views.erase(id)
+
+
 func revoke_principal(principal_id: String) -> void:
 	for id in _views.keys():
 		if _views[id]["principal_id"] == principal_id:

@@ -14,6 +14,7 @@ var _jobs: Dictionary = {}
 var _views := InventorySearchViews.new()
 var _last_tick: int = 0
 var _outcomes: Array = []
+var _controller_restore_generation: int = 0
 var _setup: ServiceResult
 var _world_storage: Dictionary = {}
 var _grips: PhysicalGripOwner
@@ -567,6 +568,52 @@ func world_inventory_observation(context: AuthenticatedCommandContext) -> Servic
 	return ServiceResult.success({"schema_version": 2, "inventory_revision": int(record["state_revision"]), "containers": containers})
 
 
+## Trusted lifecycle projection, independently validated against the actual shared
+## ledger/equipment owner. It is not a snapshot, client claim or admission API.
+func controller_candidate() -> ServiceResult:
+	if _setup == null or not _setup.is_success or _owner == null:
+		return _failure("A configured canonical inventory owner is required.")
+	var snapshot: Dictionary = capture_snapshot().value
+	var checked: ServiceResult = _decode(snapshot, _last_tick)
+	if not checked.is_success:
+		return checked
+	var candidate: Dictionary = {}
+	for body in snapshot["owner"]["bodies"]:
+		var metadata: Dictionary = snapshot["bodies"].filter(func(entry: Dictionary) -> bool: return entry["body_id"] == body["body_id"])[0]
+		candidate[body["body_id"]] = {"body_id": body["body_id"], "principal_id": metadata["principal_id"],
+			"body_container_id": body["body_container_id"], "control_epoch": int(metadata["control_epoch"])}
+	return ServiceResult.success(candidate)
+
+
+## One synchronous compare/prepare/commit including body-scoped lifecycle invalidation.
+## No receipt, high-water, production admission or startup rollout is installed.
+func commit_control_epoch(expected: Dictionary, next_epoch: int) -> ServiceResult:
+	var current: ServiceResult = controller_candidate()
+	if not current.is_success:
+		return current
+	var id: Variant = expected.get("body_id")
+	if not current.value.has(id) or current.value[id] != expected:
+		return ServiceResult.failure(&"binding_conflict", "Canonical body metadata changed.")
+	if int(expected["control_epoch"]) >= MAX_EXACT_INTEGER:
+		return ServiceResult.failure(&"epoch_exhausted", "Canonical control epoch is exhausted.")
+	if next_epoch != int(expected["control_epoch"]) + 1:
+		return ServiceResult.failure(&"binding_conflict", "Control epoch must increment exactly once.")
+	# All fallible work precedes publication. Preparation neither mutates live grips
+	# nor pauses other participants. No callbacks occur in the publication section.
+	var grips: ServiceResult = _grips.prepare_controller_invalidation(String(id))
+	if not grips.is_success:
+		return grips
+	var candidate: Dictionary = _bodies[id].duplicate(true)
+	candidate["control_epoch"] = next_epoch
+	_bodies[id] = candidate
+	_grips = grips.value
+	_views.revoke_body(String(id))
+	for job_id in _jobs.keys():
+		var state: Dictionary = _jobs[job_id]["job"].to_record()
+		if state["actor_body_id"] == id or state["target_body_id"] == id:
+			_finish(job_id, ServiceResult.failure(&"controller_invalidated", "A participating body's controller changed."))
+	return ServiceResult.success(next_epoch)
+
 func capture_snapshot() -> ServiceResult:
 	var jobs: Array = []
 	for entry in _jobs.values():
@@ -575,10 +622,20 @@ func capture_snapshot() -> ServiceResult:
 
 
 func validate_snapshot_record(record: Dictionary, snapshot_tick_number: int) -> ServiceResult:
+	# Runner validates all systems before any restore; exhaustion must fail there.
+	if _controller_restore_generation >= MAX_EXACT_INTEGER:
+		return ServiceResult.failure(&"restore_generation_exhausted", "Restore fence cannot wrap.")
 	return _decode(record, snapshot_tick_number)
 
 
+## Volatile fence is owned here so every direct or runner restore retires tokens.
+func controller_restore_generation() -> int:
+	return _controller_restore_generation
+
+
 func restore_snapshot_record(record: Dictionary, snapshot_tick_number: int) -> ServiceResult:
+	if _controller_restore_generation >= MAX_EXACT_INTEGER:
+		return ServiceResult.failure(&"restore_generation_exhausted", "Restore fence cannot wrap.")
 	var decoded: ServiceResult = _decode(record, snapshot_tick_number)
 	if not decoded.is_success:
 		return decoded
@@ -590,6 +647,7 @@ func restore_snapshot_record(record: Dictionary, snapshot_tick_number: int) -> S
 	_last_tick = snapshot_tick_number
 	_views = InventorySearchViews.new()
 	_outcomes.clear()
+	_controller_restore_generation += 1
 	return ServiceResult.success()
 
 

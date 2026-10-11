@@ -54,8 +54,10 @@ static func part_text(tools: Dictionary, production: Dictionary, blueprint_id: S
 	var lines := PackedStringArray([quote(production, tools["part_blueprints"], blueprint_id, "printer")])
 	lines.append("Owned physical loose parts: %d; select one to fit or recycle. Mounted components are not loose inventory." % tools["loose_parts"].size())
 	lines.append("Selected loose ID: " + loose_id)
+	var loose_observed: bool = false
 	for part in tools["loose_parts"]:
 		if part["part_id"] == loose_id:
+			loose_observed = true
 			lines.append("%s · %s · integrity %d / 1000000 ppm." % [part["name"], part["material_name"], part["integrity_ppm"]])
 			var matched: bool = false
 			for blueprint in tools["part_blueprints"].values():
@@ -64,6 +66,7 @@ static func part_text(tools: Dictionary, production: Dictionary, blueprint_id: S
 				lines.append("Matching recycling specification: %d J; recoverable materials: %s." % [blueprint["salvage_energy_joules"], WorkstationResourceView.stock_text(blueprint["materials"])])
 				break
 			if not matched: lines.append("No matching recycling specification in the current host view.")
+	if not loose_observed: lines.append("Selected loose part unavailable in current observation.")
 	var found: bool = false
 	for assembly in tools["assemblies"]:
 		if assembly["assembly_id"] != tool_id: continue

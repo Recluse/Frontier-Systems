@@ -5,6 +5,9 @@ var _world: WorldRuntime
 var _store: WorldPersistenceAdapter
 var _remote: RemoteWorldRuntime
 var _status: Label
+var _checkpoint_status: Label
+var _checkpoint_request: CheckpointRequest
+var _checkpoint_outcome_unknown: bool = false
 var _content: VBoxContainer
 var _habitat: ProceduralHabitatPreview
 var _production_panel: LocalProductionPanel
@@ -25,6 +28,10 @@ var _hands_hud: Label
 var _terrain_panel: TerrainControlsPanel
 var _terrain_preview: TerrainCellPreview
 var _task_guide: FirstPlayableTaskGuidePanel
+var _look_viewport: SubViewport
+var _reconnect: Button
+var _connection_status: Label
+var _host_actions: Array[Button] = []
 
 
 func _ready() -> void:
@@ -70,20 +77,17 @@ func _start_host() -> void:
 	print("First playable host listening on loopback port 27840; two invite slots and checkpoint persistence enabled.")
 
 
+## Presentation fixtures may supply a transport adapter without opening sockets.
+func _create_client_remote() -> RemoteWorldRuntime:
+	return RemoteWorldRuntime.new()
+
+
 func _start_client() -> void:
-	_remote = RemoteWorldRuntime.new()
+	_remote = _create_client_remote()
 	_remote.terrain_retry_directory = "user://terrain-client-intents"
 	add_child(_remote)
 	_remote.observation_received.connect(_on_observation)
-	_remote.connection_closed.connect(func(message: String) -> void:
-		_status.text = message
-		_latest = {}
-		_task_guide.observe({})
-		_body_initialized = false
-		_habitat.production.observe({})
-		_machinery_preview.observe({})
-		_terrain_preview.observe({})
-	)
+	_remote.connection_closed.connect(_on_connection_closed)
 	_remote.command_completed.connect(_on_completed)
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
@@ -105,6 +109,8 @@ func _start_client() -> void:
 	var scroll := ScrollContainer.new()
 	_scroll = scroll
 	scroll.name = "Workstation"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
 	_tabs.add_child(scroll)
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -144,6 +150,7 @@ func _start_client() -> void:
 	_task_guide.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	guide_scroll.add_child(_task_guide)
 	_status = Label.new()
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.text = "Connecting to the shared host…"
 	_content.add_child(_status)
 	var theme_selector := OverlayThemeController.new()
@@ -151,15 +158,16 @@ func _start_client() -> void:
 	var themed: ServiceResult = theme_selector.configure(row, background)
 	if not themed.is_success:
 		push_warning(themed.message)
-	var url: String = OS.get_environment("FRONTIER_HOST_URL")
-	if url.is_empty():
-		url = "ws://127.0.0.1:27840"
-	var connected: ServiceResult = _remote.connect_host(url, OS.get_environment("FRONTIER_INVITE_KEY"))
-	if not connected.is_success:
-		_status.text = connected.message
 	var views := VBoxContainer.new()
 	views.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(views)
+	_connection_status = Label.new()
+	_connection_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	views.add_child(_connection_status)
+	_reconnect = Button.new()
+	_reconnect.text = "Reconnect to shared host"
+	_reconnect.pressed.connect(_connect_client)
+	views.add_child(_reconnect)
 	var help := FirstPlayableControlsHelp.new()
 	views.add_child(help)
 	help.configure(_tabs)
@@ -173,6 +181,8 @@ func _start_client() -> void:
 		button.pressed.connect(func() -> void: _habitat.activate_character(mode))
 		views.add_child(button)
 	var container := SubViewportContainer.new()
+	# World clicks must not make this forwarding surface a GUI focus owner.
+	container.focus_mode = Control.FOCUS_NONE
 	container.stretch = true
 	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	views.add_child(container)
@@ -183,6 +193,7 @@ func _start_client() -> void:
 	container.add_child(viewport)
 	_habitat = ProceduralHabitatPreview.new()
 	viewport.add_child(_habitat)
+	_habitat.production.workstation_selected.connect(_navigate_to_workstation)
 	_machinery_preview = MachineryPreview.new()
 	_habitat.add_child(_machinery_preview)
 	_terrain_preview = TerrainCellPreview.new()
@@ -226,16 +237,98 @@ func _start_client() -> void:
 	_content.add_child(drop_plate)
 	var save := Button.new()
 	save.text = "Save shared world now"
-	save.pressed.connect(func() -> void:
-		var command := CheckpointRequest.new()
-		command.command_id = StringName("save-%s" % _remote.next_local_request_id())
-		var queued: ServiceResult = _remote.enqueue_command(command)
-		_status.text = "Checkpoint requested; waiting for disk confirmation…" if queued.is_success else queued.message
-	)
+	save.pressed.connect(_request_checkpoint)
 	_content.add_child(save)
+	_checkpoint_status = Label.new()
+	_checkpoint_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_checkpoint_status.focus_mode = Control.FOCUS_ALL
+	_checkpoint_status.text = "No manual checkpoint requested this session."
+	_content.add_child(_checkpoint_status)
+	_host_actions.assign([pickup, drop, drop_plate, save])
+	for action in _host_actions: action.disabled = true
+	_connect_client()
+
+
+## One volatile request reference and one bounded result; observations never confirm I/O.
+func _request_checkpoint() -> void:
+	var command := CheckpointRequest.new()
+	command.command_id = StringName("save-%s" % _remote.next_local_request_id())
+	_checkpoint_outcome_unknown = false
+	_checkpoint_request = command
+	_checkpoint_status.text = "Checkpoint requested; waiting for disk confirmation…"
+	var queued: ServiceResult = _remote.enqueue_command(command)
+	if not queued.is_success:
+		_checkpoint_request = null
+		_checkpoint_status.text = "Checkpoint not submitted: " + queued.message.left(512)
+	_reveal_checkpoint_status.call_deferred()
+
+
+## Reveal current feedback after wrapped text settles, without taking keyboard focus.
+func _reveal_checkpoint_status() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_inside_tree() and _checkpoint_status.is_visible_in_tree():
+		_scroll.ensure_control_visible(_checkpoint_status)
+
+## Reuse operator configuration in memory only; never display or journal credentials.
+func _connect_client() -> void:
+	if _reconnect.disabled: return
+	_reconnect.disabled = true
+	_connection_status.text = "Connecting; waiting for authentication and a fresh host observation…"
+	var url: String = OS.get_environment("FRONTIER_HOST_URL")
+	if url.is_empty(): url = "ws://127.0.0.1:27840"
+	var connected: ServiceResult = _remote.connect_host(url, OS.get_environment("FRONTIER_INVITE_KEY"))
+	if not connected.is_success:
+		_connection_status.text = connected.message + " Reconnect to retry."
+		_reconnect.disabled = false
+
+
+func _on_connection_closed(message: String) -> void:
+	if _checkpoint_request != null:
+		_checkpoint_outcome_unknown = true
+	if _checkpoint_outcome_unknown:
+		_checkpoint_status.text = "Checkpoint outcome unknown after disconnect; no request will be resubmitted."
+	else:
+		_checkpoint_status.text = "Checkpoint session ended; reconnect before requesting a new save."
+	_checkpoint_request = null
+	_status.text = message
+	_connection_status.text = message + ". Reconnect, then inspect fresh state; unacknowledged actions are not resubmitted."
+	_reconnect.disabled = false
+	for action in _host_actions: action.disabled = true
+	_latest = {}
+	_task_guide.observe({})
+	_body_initialized = false
+	_movement_pending = false
+	_movement_id = ""
+	_last_position = []
+	_hands_hud.text = "Hands unavailable until a fresh host observation."
+	_inventory_label.text = "Inventory unavailable until a fresh host observation."
+	_habitat.production.observe({})
+	_habitat.world_inventory.observe({})
+	_machinery_preview.observe({})
+	_terrain_preview.observe({})
+	for avatar in _avatars.values(): avatar.queue_free()
+	_avatars.clear()
+	# Production's disconnect contract releases its transport; rebuild on fresh data.
+	if _production_panel != null:
+		_production_panel.queue_free()
+		_production_panel = null
+
+
+func _navigate_to_workstation() -> void:
+	if _latest.is_empty() or not is_instance_valid(_production_panel) or _production_panel.is_queued_for_deletion():
+		return
+	_tabs.current_tab = 0
+	var target: Control = _production_panel.refining_focus_control()
+	# World selection must retain gameplay input for target feedback and sky clearing.
+	# Keyboard focus follows the visible GUI controls when the player enters the pane.
+	_scroll.ensure_control_visible(target)
 
 
 func _on_observation(record: Dictionary) -> void:
+	_connection_status.text = "Connected to shared colony · Crew %d" % (_remote.server_slot + 1)
+	_reconnect.disabled = true
+	for action in _host_actions: action.disabled = false
 	_latest = record
 	_task_guide.observe(record)
 	_inventory_panel.observe(record)
@@ -263,10 +356,6 @@ func _on_observation(record: Dictionary) -> void:
 		_production_panel.observation_changed.connect(_habitat.production.observe)
 		_habitat.production.source_selected.connect(_production_panel.select_source)
 		_habitat.production.extraction_requested.connect(_production_panel.extract_source)
-		_habitat.production.workstation_selected.connect(func() -> void:
-			_tabs.current_tab = 0
-			_scroll.ensure_control_visible(_production_panel.refining_focus_control())
-		)
 	if not _body_initialized:
 		var position: Array = record["position"]
 		_habitat.character.position = ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(float(position[0]), maxf(950.0, float(position[1])), float(position[2])) / 1000.0
@@ -332,8 +421,43 @@ func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
 			var position: Array = _latest["position"]
 			_habitat.character.position = ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(float(position[0]), float(position[1]), float(position[2])) / 1000.0
 	_status.text = result.message if not result.is_success else _status.text
-	if command is CheckpointRequest and result.is_success:
-		_status.text = "Shared world checkpoint confirmed on disk."
+	if command is CheckpointRequest and command == _checkpoint_request:
+		_checkpoint_request = null
+		if result.error_code == &"remote_disconnected":
+			_checkpoint_outcome_unknown = true
+			_checkpoint_status.text = "Checkpoint outcome unknown after disconnect; no request will be resubmitted."
+		elif result.is_success:
+			_checkpoint_status.text = "Shared world checkpoint confirmed on disk."
+		else:
+			_checkpoint_status.text = "Checkpoint failed: " + result.message.left(512)
+		_reveal_checkpoint_status.call_deferred()
+
+
+# A look gesture belongs to the preview, not to the root GUI mouse latch.
+# Dispatch it before GUI hit-testing so held RMB cannot pin later UI clicks
+# to the SubViewportContainer. Ordinary world selection keeps native routing.
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.is_action_pressed("look"):
+		if _habitat == null or not is_instance_valid(_habitat):
+			return
+		var viewport: SubViewport = _habitat.get_viewport()
+		var surface: SubViewportContainer = viewport.get_parent()
+		if not surface.is_visible_in_tree() or not surface.get_global_rect().has_point(event.position) or not WorldSelectionInput.gameplay_allowed(viewport):
+			return
+		_look_viewport = viewport
+	elif not (event.is_action_released("look") or event.is_action_pressed("release_cursor")) or not is_instance_valid(_look_viewport):
+		return
+	var forwarded: InputEvent = event
+	if event is InputEventMouse:
+		var surface: SubViewportContainer = _look_viewport.get_parent()
+		forwarded = event.xformed_by(surface.get_global_transform_with_canvas().affine_inverse())
+		if surface.stretch:
+			forwarded = forwarded.xformed_by(Transform2D().scaled(Vector2.ONE / surface.stretch_shrink))
+	_look_viewport.push_input(forwarded, true)
+	if event.is_action_released("look") or event.is_action_pressed("release_cursor"):
+		_look_viewport = null
+	if event is InputEventMouseButton:
+		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:

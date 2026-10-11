@@ -1,17 +1,32 @@
 param(
     [string]$Godot = 'godot',
-    [ValidateSet('basic', 'terrain', 'walls', 'machinery', 'equipment-fabrication', 'tool-parts')]
+    [switch]$PortsReserved,
+    [ValidateSet('basic', 'terrain', 'walls', 'machinery', 'equipment-fabrication', 'tool-parts', 'input-acceptance', 'client-acceptance', 'production-navigation', 'manual-reconnect')]
     [string]$Route = 'terrain',
     [ValidateRange(1, 300)][int]$TimeoutSeconds = 120
 )
 $ErrorActionPreference = 'Stop'
+if ($Route -eq 'client-acceptance' -and -not $PortsReserved) { throw 'Reserve loopback port 27850 through Coordinator before client-acceptance.' }
+if ($Route -eq 'manual-reconnect') {
+    if (-not $PortsReserved) { throw 'Reserve loopback port 27849 through Coordinator before manual-reconnect.' }
+    if (Get-NetTCPConnection -State Listen -LocalPort 27849 -ErrorAction SilentlyContinue) { throw 'Port 27849 is occupied; do not bind or terminate its owner.' }
+}
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $executable = (Get-Command $Godot -CommandType Application | Select-Object -First 1).Source
 $output = Join-Path $projectRoot "var/ci/render-$Route"
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 $stdout = Join-Path $output 'stdout.log'
 $stderr = Join-Path $output 'stderr.log'
-$arguments = @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility', '--path', '.', '--script', 'res://tests/godot/first_playable_client_render_check.gd', '--', "--$Route")
+$script = if ($Route -eq 'input-acceptance') { 'res://tests/godot/client_input_render_check.gd' } elseif ($Route -eq 'client-acceptance') { 'res://tests/godot/client_ui_acceptance_render_check.gd' } else { 'res://tests/godot/first_playable_client_render_check.gd' }
+$arguments = @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility', '--path', '.', '--script', $script, '--', "--$Route")
+if ($Route -eq 'client-acceptance') { $arguments += '--ports-reserved' }
+if ($Route -eq 'production-navigation') {
+    # Detached panel fixture: no client connection or listening ports.
+    $arguments = @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility', '--path', '.', '--script', 'res://tests/godot/production_panel_navigation_test.gd', '--', '--capture-production-navigation')
+}
+if ($Route -eq 'manual-reconnect') {
+    $arguments = @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility', '--path', '.', '--script', 'res://tests/godot/manual_reconnect_acceptance.gd', '--', '--capture-reconnect')
+}
 $launch = @{
     FilePath = $executable
     ArgumentList = $arguments
@@ -21,10 +36,23 @@ $launch = @{
     PassThru = $true
 }
 if ($IsWindows) { $launch.WindowStyle = 'Hidden' }
+$previousEventUrl = [Environment]::GetEnvironmentVariable('FRONTIER_EVENT_URL', 'Process')
+$previousEventToken = [Environment]::GetEnvironmentVariable('FRONTIER_EVENT_TOKEN', 'Process')
 $env:FRONTIER_EVENT_URL = ''
 $env:FRONTIER_EVENT_TOKEN = ''
-$process = Start-Process @launch
+$process = $null
+$overridePath = Join-Path $projectRoot 'override.cfg'
+$createdOverride = $false
 try {
+    if ($Route -eq 'manual-reconnect') {
+        if (Test-Path -LiteralPath $overridePath) { throw 'Preserve existing override.cfg; use a clean isolated worktree.' }
+        $profileName = 'FrontierSystems-reconnect-' + [Guid]::NewGuid().ToString('N')
+        [IO.File]::WriteAllText($overridePath, "[application]`nconfig/use_custom_user_dir=true`nconfig/custom_user_dir_name=`"$profileName`"`n")
+        $createdOverride = $true
+        $manifest = [ordered]@{ head_sha = (& git -C $projectRoot rev-parse HEAD).Trim(); dirty = @(& git -C $projectRoot status --porcelain); profile = $profileName; fixture = 'manual_reconnect_acceptance.gd'; renderer = 'gl_compatibility'; provenance = 'Ordinary Godot viewport captures; existing MIT geometry; no generative art.'; acceptance = 'Automated button-signal activation and real disposable loopback authentication/checkpoint recovery; no human/controller/VR/Linux graphical claim.' }
+        [IO.File]::WriteAllText((Join-Path $output 'manifest.json'), ($manifest | ConvertTo-Json -Depth 4))
+    }
+    $process = Start-Process @launch
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         $process.Kill($true)
         $process.WaitForExit()
@@ -37,6 +65,11 @@ try {
     }
     Write-Host "PASS graphical $Route route (native renderer; logs at $output)"
 } finally {
-    if (-not $process.HasExited) { $process.Kill($true) }
-    $process.Dispose()
+    if ($null -ne $process) {
+        if (-not $process.HasExited) { $process.Kill($true) }
+        $process.Dispose()
+    }
+    [Environment]::SetEnvironmentVariable('FRONTIER_EVENT_URL', $previousEventUrl, 'Process')
+    [Environment]::SetEnvironmentVariable('FRONTIER_EVENT_TOKEN', $previousEventToken, 'Process')
+    if ($createdOverride) { Remove-Item -LiteralPath $overridePath }
 }

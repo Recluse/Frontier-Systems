@@ -2,6 +2,29 @@ extends RefCounted
 class_name PlayerInventoryPresentation
 
 ## Disposable hints from scoped host observations; never an authorization owner.
+static func active_equipment(record: Dictionary, selected_item: String, selected_slot: String) -> String:
+	var lines := PackedStringArray(["Host-observed active equipment"])
+	var hand: String = str(record.get("active_hand_slot_id", ""))
+	if hand.is_empty() or not record.get("hand_slot_ids", []).has(hand) or not record.has("equipped"):
+		lines.append("Active hand/item: unavailable; wait for a fresh host observation.")
+	else:
+		lines.append("Active hand: " + hand)
+		var held: String = ""
+		for binding in record.get("equipped", []):
+			if binding["slot_id"] == hand: held = binding["item_id"]
+		var entry: Dictionary = item(record, held)
+		if held.is_empty():
+			lines.append("Active hand item: empty in this observation.")
+		elif entry.is_empty():
+			lines.append("Active hand item: unavailable in this observation.")
+		else:
+			lines.append("Active hand item: %s · %s" % [PlayerInventoryPanel.NAMES.get(entry["definition_id"], "Equipment"), held])
+	lines.append("Selected inventory item: " + (selected_item if not item(record, selected_item).is_empty() else "unavailable"))
+	lines.append("Selected equipment slot: " + (selected_slot if record.get("slot_ids", []).has(selected_slot) else "unavailable"))
+	lines.append("Selections do not change active equipment. Engineering actions use the active hand; the host rechecks tool requirements and reach.")
+	return "\n".join(lines)
+
+
 static func item(record: Dictionary, item_id: String) -> Dictionary:
 	for entry in record.get("items", []):
 		if entry["item_id"] == item_id:
@@ -71,3 +94,36 @@ static func storage_hint(record: Dictionary, destination: String) -> String:
 
 static func pending_text(payload: Dictionary) -> String:
 	return "Waiting for host · %s · item %s · source %s · destination %s · slot %s · revision %d. Outcome unconfirmed until host acknowledgement." % [payload.get("operation", ""), payload.get("item_id", ""), payload.get("source_container_id", payload.get("world_container_id", "")), payload.get("destination_container_id", ""), payload.get("slot_id", ""), payload.get("expected_revision", -1)]
+
+
+## Exact observed targets only; no projected after-load or fit decision.
+static func transfer_preview(record: Dictionary, item_id: String, destination: String, slot: String, nearby: Dictionary = {}, world_root: String = "") -> String:
+	var selected: Dictionary = item(record, item_id) if world_root.is_empty() else world_item(nearby, item_id, world_root)
+	var lines := PackedStringArray(["Observed owned move/equipment selections" if world_root.is_empty() else "Observed tray collection selections"])
+	if selected.is_empty():
+		lines.append("Item/source: unavailable; select a currently observed item.")
+	else:
+		lines.append("Item: %s · source: %s" % [selected["item_id"], selected["container_id"]])
+		var mass_text: String = "Loaded mass: unavailable in this observation."
+		if world_root.is_empty():
+			for detail in record.get("item_details", []):
+				if detail["item"]["item_id"] == selected["item_id"]:
+					mass_text = "Observed loaded mass: %.2f kg (nested contents and payload included)." % [float(detail["mass_milligrams"]) / 1000000.0]
+		lines.append(mass_text)
+	lines.append("Destination: %s" % [destination if record.get("container_ids", []).has(destination) else "unavailable"])
+	lines.append("Slot: %s" % [slot if record.get("slot_ids", []).has(slot) else "unavailable"])
+	for binding in record.get("equipped", []):
+		if binding["slot_id"] == slot:
+			lines.append("Observed slot item: %s" % binding["item_id"])
+	lines.append(storage_hint(record, destination) if record.get("container_ids", []).has(destination) else "Destination capacity: unavailable.")
+	lines.append("Host decides acceptance, ownership and current reach; no outcome is predicted.")
+	return "\n".join(lines)
+
+
+static func drop_preview(record: Dictionary, item_id: String, nearby: Dictionary, world_root: String) -> String:
+	var selected: Dictionary = item(record, item_id)
+	var destination: String = "unavailable"
+	for container in nearby.get("containers", []):
+		if container["container_id"] == world_root: destination = world_root
+	var source: String = str(selected["container_id"]) if not selected.is_empty() else "unavailable"
+	return "Observed tray drop selections\nItem: %s · source: %s · tray destination: %s\nTray capacity: unavailable in this observation. Host rechecks acceptance, ownership and reach." % [item_id if not selected.is_empty() else "unavailable", source, destination]

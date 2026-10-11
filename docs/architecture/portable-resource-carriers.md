@@ -35,3 +35,11 @@ Resource shell mass remains part of the inventory object's mass model; productio
 ## Verification and next work
 
 Windows cooperative acceptance now verifies scoped cargo, extraction capacity, physical plate restoration and active-batch JSON restart. The graphical route exercises component drop; see [acceptance evidence](../development/first-playable-acceptance.md). Broader nested/gas/terrain coverage remains follow-up work.
+
+## Inventory extraction feedback
+
+The inventory panel identifies the selected receiving canister by stable ID and displays scoped observed contents plus shell-inclusive loaded mass where item details are available. Missing fields are unavailable; the current payload observation provides no capacity quote. Missing selected canisters retain their ID without retargeting. Intended selection, pending intent and host-reserved/completed work remain distinct. See [the presentation milestone](../development/canister-extraction-feedback-milestone.md).
+
+## Unloading presentation
+
+The production panel names the scoped world/region production.store used by unloading; receiving station instance identity is unavailable in the existing observation. Intended IDs and milligrams, detached pending payload/revision/store, and exact host receipt remain separate. Removed canister/material selections stay unavailable without retargeting; only scoped existing cargo and stock are displayed. See [resource unloading feedback](../development/resource-unloading-feedback-milestone.md).
