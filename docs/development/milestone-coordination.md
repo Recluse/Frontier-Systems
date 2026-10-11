@@ -1,5 +1,19 @@
 # Coordinated milestone work
 
+## Terrain return and onboarding integration (2026-10-11 03:49 UTC)
+
+Reviewed PR #22 exact head `b0d799d23300c06085d55544d5cf47d7fc837c87`, base `8bcc1b4331dcf2b312b2131fd28ac89953496215`. Full PR/push CI `38108969221` / `38108967025`, focused client/schema `38108969219` / `38108967061`, and portable PR `38108969241` passed; all 26 head check runs were successful. Immutable review traced authenticated command routing, inventory ownership/revision validation, synchronous rollback on failed adoption, zero-mass returned projection, lifetime-slot preservation, legacy migration, retained receipt/provenance validation and cross-holder chronology rewind. Historical receipts are not matter and exact original retries cannot recreate returned items. Existing trusted-storage/expired-tail limits remain explicit; v3 recovery requires the updated runtime. No runtime PHP/platform changes or new creative assets.
+
+Verified squash merge `17be0b59aa19768e64c6ee135f8354935bc4e1a0`. CLI readiness/merge failed due GraphQL quota; marked ready through supported GitHub UI, then used REST merge with exact `sha` guard and verified `merged=true`. No admin bypass or failed/missing gate waiver.
+
+Reviewed and merged onboarding documentation PR #24 head `7245fa88b774d65575d8bd28a34a5d29429d1ecd` as `97e5d6b5fdfa1f8ba4c1e57717c933b867913b8f` after all 20 exact-head checks passed, using the same UI readiness/REST matching-head route. Record accurately distinguishes saved primary-interest mappings/permissionless roles/member preview from unverified fresh-member assignment and historical analytics. This doc-only community task receives no gameplay successor.
+
+Fast-forwarded clean primary checkout to `17be0b5`. Seven combined Windows checks passed: import/startup, checkpoint_recovery_test, first_playable_task_guide_test, repair_usability_test, terrain_return_client_test (18.52 s), terrain_return_test (2.34 s). Existing bounded runner uses temporary fixtures; logs/JUnit ignored under `var/ci/coordinator-terrain-return`. Only return-client port 19243 was used, prechecked/reserved and released after completion. No graphical/human/VR/controller acceptance or images; no media retention/upload needed. Existing final-head CI supplies Windows/Linux evidence.
+
+Successor **Clarify terrain parcel lifecycle and recovery feedback**, chat `01a12916-b5a0-7b90-9440-5abc4508ed18`, explicitly Sol/medium, starts after the verified merge in an isolated current-origin managed worktree/codex branch with attached draft PR and own milestone doc. Scope terrain presentation/helper/tests only: distinct owned escrow, carried parcels and fill-only returns, preserved stable selections, pending retry and honest lifetime/legacy limits. No canonical/network/schema/persistence/bootstrap or other active panel edits. Compact snapshot confirms it started; together with controls/navigation and workstation feedback, three gameplay chats are active. New handoff includes no AI-generated imagery at any art stage, MIT/CC0 provenance, no media pushes/public upload, and Coordinator-only approval routing.
+
+Website certificate still `new`; homepage-link PRs remain held. Recent Ko-fi post already announced the parcel-return direction; batch the completed lifecycle with a subsequent usable-demo stage rather than publishing another small update immediately.
+
 ## Art production policy
 
 Owner prohibits AI image generation in project artwork, including source imagery and generative editing/upscaling. Every successor handoff must permit only rights-cleared existing artwork and standard non-generative drawing/modeling/compositing/rendering tools, with provenance and existing MIT/CC0 requirements. Procedural geometry, independently authored vectors and ordinary engine captures remain allowed. This does not grant public upload clearance for current captures. Codex, Claude and all contributors follow the same rule.
