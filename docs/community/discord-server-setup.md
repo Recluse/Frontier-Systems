@@ -69,7 +69,15 @@ Tutelar Configuration uses Store-backed per-guild overrides. No bootstrap, proce
 
 Owner approved and the UI saved Moderator Manage Messages, Manage Threads and Posts, Timeout Members and View Audit Log. The role was reselected and all four checked states were verified; Administrator stays off. Developer has scoped Send Messages and Create Posts allow in START HERE and Send Messages allow in playtest-info. Ordinary members remain read-only.
 
-No human staff assignments specified or made. Update/playtest self-assignment workflows remain reserved. Moderator 2FA and member-prune restriction were disabled when inspected; not changed. Onboarding/Discovery, forum tags/default reactions and ticket panels are not configured in this pass. Verify ordinary-member views with an authorized non-staff account before broad invitations. Paid claims require a separately authorized entitlement test.
+No human staff assignments specified or made. Update/playtest self-assignment workflows remain reserved. Moderator 2FA and member-prune restriction were disabled when inspected; not changed. Discovery, forum tags/default reactions and ticket panels are not configured in this pass. Verify ordinary-member views with an authorized non-staff account before broad invitations. Paid claims require a separately authorized entitlement test.
+
+## FAQ and Server Guide (2026-10-11 UTC)
+
+The owner requested basic FAQ information and website links. Created public `faq` channel `1558677296108544100` under START HERE, with inherited read-only permissions. Verified @everyone cannot send messages, send in threads, or create public/private threads. Posted two FAQ messages covering the prototype and future scope, official website/support/availability/source links, current source-running instructions, development channels, Ko-fi support and memberships, supporter roles, playtesting, bug reports, suggestions and community rules. The FAQ explicitly states that support is not a preorder/key/access guarantee, sales are closed, and the website certificate is pending; users should not bypass security warnings.
+
+Enabled Onboarding and Server Guide, then verified the live guide shows the welcome message and `FAQ — Start here` resource. Opened that resource and confirmed both FAQ messages render. Default channels are general, welcome-and-rules, announcements and playtest-info; only general is chattable. No customization questions, role grants or private-channel access were added. Three custom tasks invite members to read the FAQ, check announcements and introduce themselves in general; Discord also includes its rules task.
+
+[FAQ resource](https://discord.com/channels/1558661083131019364/1558677296108544100). Local cropped guide proof is retained in ignored `var/ci/discord-faq/guide.jpg`; it is not public gallery media. Verification used the signed-in owner UI, not a new non-staff account. Revisit the FAQ certificate note when HTTPS is verified and availability claims when approved releases or playtests are announced.
 
 For future log changes use served `/config set` then `/config view` in this guild. Never bulk-overwrite commands or start a bot bootstrap as a test. Keep Bridge networks unlinked unless separately authorized. Verify UI save/reopen states because Discord transitions can lag.
 
