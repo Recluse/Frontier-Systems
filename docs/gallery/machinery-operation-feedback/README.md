@@ -1,6 +1,6 @@
 # Machinery operation feedback captures
 
-Captured and visually inspected on 2026-10-10 (America/New_York). Exact implementation and capture source: 8b8447836445dc8edcd1e96d43456f3c2ae71d54. Later gallery/documentation commits do not alter capture provenance. Windows Godot 4.7.2, D3D12 Forward+, NVIDIA RTX 3080 Ti, XR off, unedited 1920 x 1080 viewports.
+Captured and visually inspected on 2026-10-10 (America/New_York). Exact implementation and capture source: 236cbc535f6819493b6998be76ac7f0fa91ab3b5. Later gallery/documentation commits do not alter capture provenance. Windows Godot 4.7.2, D3D12 Forward+, NVIDIA RTX 3080 Ti, XR off, unedited 1920 x 1080 viewports.
 
 | File | Route and observed behavior | Acceptance limits | Author, rights and provenance |
 | --- | --- | --- | --- |
@@ -10,4 +10,4 @@ Captured and visually inspected on 2026-10-10 (America/New_York). Exact implemen
 
 Route completed with zero failures and actual disconnect cleanup. Seven focused bounded Windows checks passed at this source; damaged, broken, paused, empty-buffer and stale projection variants remain detached/headless evidence. Final Windows/Linux CI is separate in draft PR #13. No release, deployment or external gallery publication.
 
-Images were inspected for readable selected feedback, geometry, credentials, private data and distracting debug overlays. Only generated machine IDs and simulated quantities appear. Distant machine labels are small; the selected panel is the detailed reading surface. Local originals remain under ignored reports/machinery-operation-feedback. PNGs use the repository's existing LFS attributes; .gdignore excludes this documentation gallery from runtime imports/exports.
+Images were inspected for readable selected feedback, geometry, credentials, private data and distracting debug overlays. Only generated machine IDs and simulated quantities appear. Distant machine labels are small; the selected panel is the detailed reading surface. Local originals remain under ignored var/ci/machinery-operation-feedback. PNGs use the repository's existing LFS attributes; .gdignore excludes this documentation gallery from runtime imports/exports.
