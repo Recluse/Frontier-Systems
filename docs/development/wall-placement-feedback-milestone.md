@@ -22,7 +22,7 @@ Ghosts, footprints, labels and axes have no CollisionObject3D, picking surface, 
 Use the pinned Windows Godot 4.7.2 executable and the existing bounded runner:
 
 ~~~powershell
-./tools/ci/run-godot-checks.ps1 -Godot 'D:Godot_v4.7.2-stable_win64.exeGodot_v4.7.2-stable_win64_console.exe' -TestNames wall_placement_feedback_test.gd,machinery_placement_feedback_test.gd,machinery_preview_test.gd,spatial_wall_runtime_test.gd -TestTimeoutSeconds 120 -OutputDirectory var/ci/wall-placement-feedback
+./tools/ci/run-godot-checks.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' -TestNames wall_placement_feedback_test.gd,machinery_placement_feedback_test.gd,machinery_preview_test.gd,spatial_wall_runtime_test.gd -TestTimeoutSeconds 120 -OutputDirectory var/ci/wall-placement-feedback
 ~~~
 
 wall_placement_feedback_test.gd inherits the finite conserved spatial-wall fixture. It checks physical plate selection, X/Z geometry and footprints, DISPLAY_ORIGIN/height, no collision/picking/shadow, advisory floor/grid/reach, observed selection pose independent from target controls, frozen pending build/remove targets, duplicate suppression, actual host acceptance/rejection, plate preservation/recovery, snapshot/observation isolation, hiding/retirement and stale observation cleanup. Existing machine and wall regressions remain functional. CI discovers this new native test on Windows and Linux.
@@ -30,7 +30,7 @@ wall_placement_feedback_test.gd inherits the finite conserved spatial-wall fixtu
 The graphical capture requires native rendering and its own free loopback port 27852:
 
 ~~~powershell
-& 'D:Godot_v4.7.2-stable_win64.exeGodot_v4.7.2-stable_win64_console.exe' --path . --xr-mode off --audio-driver Dummy --rendering-method gl_compatibility --script res://tools/godot/capture_wall_placement_feedback.gd
+& 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' --path . --xr-mode off --audio-driver Dummy --rendering-method gl_compatibility --script res://tools/godot/capture_wall_placement_feedback.gd
 ~~~
 
 The capture tool first completes the finite wall/material integration fixture, then authenticates the actual client UI with a temporary local host. It checks floating-wall rejection, one queued build despite duplicate calls, a native ray hitting the settled collider through the decorative footprint, wall input-event selection, removal, exactly one recovered plate, rebuild and disconnection with a pending removal. Transport pauses for a rendered frame to expose genuine pending feedback. It uses no real player saves or external services, never stops another listener, and cleans up its client/host/world.
