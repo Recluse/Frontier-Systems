@@ -87,7 +87,7 @@ func _refresh() -> void:
 	_dig.disabled = true
 	_fill.disabled = true
 	_retry.disabled = true
-	if _record.is_empty():
+	if _record.is_empty() or not _remote.terrain_observation(null).is_success:
 		_status.text = "Waiting for authenticated terrain observation."
 		return
 	var terrain: Dictionary = _record["terrain"]

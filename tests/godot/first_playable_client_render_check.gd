@@ -21,6 +21,9 @@ func _run() -> void:
 		return
 	var client := FirstPlayableBootstrap.new()
 	root.add_child(client)
+	# Override before the first network poll; never read a player's real journal.
+	var retry_directory: String = "user://first-playable-render-intent-%d" % Time.get_ticks_usec()
+	client._remote.terrain_retry_directory = retry_directory
 	await create_timer(3.0).timeout
 	if client._latest.is_empty() or client._production_panel == null:
 		push_error("Graphical client failed to authenticate or build its production HUD.")
@@ -90,13 +93,13 @@ func _run() -> void:
 	var error: Error = image.save_png(directory.path_join("client.png"))
 	print("First playable graphical client completed its seven-step loop using local physics and authenticated guide commands; screenshot result: %d" % error)
 	client.free()
+	DirAccess.remove_absolute(retry_directory)
 	host.free()
 	world.free()
 	quit(0 if error == OK else 1)
 
 
 func _terrain_route(client: FirstPlayableBootstrap) -> bool:
-	client._remote.terrain_retry_directory = "user://terrain-render-%d" % Time.get_ticks_usec()
 	var production: LocalProductionPanel = client._production_panel
 	for _batch in range(3):
 		if not await _walk(client, Vector3(-9.0, 0.95, 1.0)): return false

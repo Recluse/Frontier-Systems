@@ -21,6 +21,8 @@ $launch = @{
     PassThru = $true
 }
 if ($IsWindows) { $launch.WindowStyle = 'Hidden' }
+$env:FRONTIER_EVENT_URL = ''
+$env:FRONTIER_EVENT_TOKEN = ''
 $process = Start-Process @launch
 try {
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {

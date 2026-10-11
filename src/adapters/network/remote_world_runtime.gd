@@ -120,6 +120,9 @@ func _receive(frame: Dictionary) -> void:
 				_requests.erase(frame["request_id"])
 				if command is TerrainCommand and frame["code"] != "request_pending":
 					if terrain_retry_directory.is_empty() or LocalTerrainRetryStore.clear_intent(_retry_path()).is_success: _terrain_intent = {}
+					# Wait for a post-completion projection before allocating fresh
+					# work; the pre-ack next ordinal may identify the retained receipt.
+					_terrain_record = {}
 				command_completed.emit(command, ServiceResult.success() if frame["ok"] else ServiceResult.failure(StringName(frame["code"]), frame["message"]))
 		"batch_completed":
 			if typeof(frame.get("recipe_id")) == TYPE_STRING and ControlContractValidation.is_integer(frame.get("tick_number"), 0, 9007199254740000):

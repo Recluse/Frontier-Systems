@@ -47,3 +47,5 @@ The existing Windows/Ubuntu CI discovery automatically includes `terrain_runtime
 ## Remaining bounded work
 
 Physical pickup and inventory/production transfers, shared payload aggregation, sustained digging/cancellation/wear, mesh/collision edits, streaming and arbitrary planets remain separate milestones. Future transfer integration must reserve capacity and atomically checkpoint both mass owners and receipts; it must not install a second independent inventory mass provider. UI/network terrain commands require a separate authenticated adapter and observations contract.
+
+The subsequent [cooperative terrain controls milestone](terrain-controls-milestone.md) adds that authenticated adapter and projection without adding physical transfers. It also normalizes validated wire intent integers before retaining allocations, so JSON transport commits match durable receipt decoding.
