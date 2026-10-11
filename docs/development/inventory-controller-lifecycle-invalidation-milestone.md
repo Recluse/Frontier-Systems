@@ -1,0 +1,31 @@
+# FP-01 controller lifecycle invalidation
+
+Serialized successor to PR #55 (`ec7c9dc8c8aad0165c78897239d0a6ef37ed2705`), the branch base. Implements the jobs/views/grips prerequisite from [authority design](inventory-authority-design-milestone.md) through the existing trusted canonical epoch API.
+
+## Owner and atomic boundary
+
+InventorySimulationSystem.commit_control_epoch compares the complete canonical body projection and requires exactly one exact-integer epoch increment. Before publication it calls PhysicalGripOwner.prepare_controller_invalidation(body_id), a bounded trusted preparation API returning a detached validated owner. Preparation never mutates the live owner, pauses surviving sessions, creates a player receipt, or invokes an external callback. It removes only that body's participation across sessions, deletes only sessions with no remaining members, preserves other participants and ordered hand IDs, and advances the grip revision once if membership changed. Revision exhaustion rejects only when a change is needed. Existing receipts remain byte-for-byte records of earlier player operations; replay acknowledges earlier intent without restoring removed participation.
+
+After all validation succeeds, the runtime publishes the body epoch and prepared grip owner, revokes views whose canonical job identifies that body as actor or target, and finishes corresponding active or paused jobs through the existing bounded outcome interface with controller_invalidated. Actor and target invalidation is deliberately conservative: a target control change is not represented by the existing target action epoch. Other-body jobs/views and grip reservations are retained. The shared ledger/equipment owner, stable items, containers, quantities, positions, action epochs and transfer receipts do not change. Releasing a reservation never moves, drops, clones or destroys an item or physical target. Remaining group movement still requires fresh assessment.
+
+There are no callbacks or fallible ServiceResult-producing operations after publication begins. Failed body comparison, invalid next epoch, canonical epoch exhaustion or grip preparation leaves canonical snapshot, jobs, views and authority token identities unchanged. The authority publishes its already-prepared token only after this owner operation succeeds. Grip preparation is an internal composition boundary, not a client-supplied candidate or standalone publication API. Trusted in-process ownership and synchronous serialization remain required; this is not a sandbox against arbitrary scripts.
+
+## Cadence, persistence, failure and profiling
+
+Lifecycle work is synchronous and explicitly invoked, bounded by 32 inventory jobs/bodies, 64 views and 32 grip sessions with at most 16 participants each. The existing InventorySimulationSystem tick priority is 200; no new queue or automatic tick lane is introduced. Future production composition must serialize lifecycle transitions before command application and job advancement. Production admission/network integration and revoked-context command gating remain deferred; development fixture authorization is unchanged.
+
+Canonical epochs, remaining jobs and grip revisions/membership persist in existing inventory v4 / grip v1 records. Views, tokens, sessions and the restore fence remain volatile. Restore still pauses jobs and grip sessions and clears views. Explicit authority reconciliation clears bindings; a subsequent fresh bind uses this same epoch transaction to invalidate that body's restored paused ownership. No automatic bind, startup rotation, schema, receipt/high-water or migration rollout is added. Failed reconciliation or unreconciled restore must not trigger invalidation.
+
+Existing profiling gauges expose jobs, search_views, grip sessions/participants/reserved hands/paused sessions/retained receipts, and authority binding/active/rejection counts. No new diagnostics grow with lifecycle traffic; cancellation uses the existing 16-entry outcome ring. At either required epoch or grip revision exhaustion, the transition rejects and retains the active controller; production must suspend unresolved revocations rather than bypass this failure. No network, service, process, port, dependency, configuration example, upstream reference or asset changes. First-party changes are MIT.
+
+## Verification
+
+The port-free versioned runner uses pinned Godot 4.7.2. inventory_controller_lifecycle_test.gd constructs validated four-body inventory and health owners, obtains actual runtime tokens, and creates search views, jobs and cooperative grips through actual canonical interfaces. It checks replacement/revocation/fresh restored bind, scoped actor/target cancellation, unrelated-body preservation, matter/receipt conservation, failed compare and grip-exhaustion atomicity, paused restore reconciliation, and target invalidation one tick before transfer completion. Existing authority/runtime/spatial/grip/search/checkpoint tests remain regression gates. The Windows/Linux Godot CI matrix automatically discovers the new test; no workflow change is needed.
+
+Local commands and exact-head CI evidence are reported with the PR. Headless verification establishes no graphical, controller, VR or production acceptance. No merge, deployment, live admission or media upload is authorized. Retain the managed worktree for Coordinator review.
+
+Local verification command (Windows, pinned Godot 4.7.2):
+
+    ./tools/ci/run-godot-checks.ps1 -Godot 'D:/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe' -TestNames inventory_controller_lifecycle_test.gd,inventory_controller_authority_test.gd,inventory_runtime_test.gd,inventory_spatial_test.gd,inventory_grip_runtime_test.gd,physical_grip_owner_test.gd,inventory_search_views_test.gd,checkpoint_recovery_test.gd
+
+All eight focused scripts, import and startup passed on the final source. Initial test-fixture failures (a lowered revision conflicting with its own retained receipt and an ID containing spaces that the existing ID validator accepts) were corrected; the failed logs remain local. No runtime ID policy or receipt contract was changed to satisfy the fixtures. Local Linux and graphical checks were not run; the existing Windows/Ubuntu CI matrix supplies remote platform evidence.

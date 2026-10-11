@@ -75,6 +75,18 @@ func _initialize() -> void:
 	_check(not separate.join(_request("same-target", "session.right", "body.human-1", 1), other_hand).is_success, "one target must not have competing sessions")
 	other_hand["target_id"] = "object.other"
 	_check(separate.join(_request("right", "session.right", "body.human-1", 1), other_hand).is_success, "distinct hands on the same body can hold different objects")
+	var prepared: ServiceResult = separate.prepare_controller_invalidation("body.human-1")
+	var separate_before: Dictionary = separate.to_record()
+	_check(prepared.is_success and prepared.value.to_record()["sessions"].is_empty(), "trusted preparation removes body's reservations across all sessions")
+	_check(separate.to_record() == separate_before and prepared.value.to_record()["receipts"] == separate_before["receipts"], "preparation preserves live owner and historical receipts")
+	_check(prepared.value.to_record()["state_revision"] == 3, "multiple affected sessions require one owner revision")
+	_check(prepared.value.join(_request("left", "session.left", "body.human-1", 0), first).is_success and prepared.value.to_record()["sessions"].is_empty(), "retained join acknowledgement cannot recreate invalidated ownership")
+	_check(not separate.prepare_controller_invalidation("").is_success and separate.to_record() == separate_before, "invalid lifecycle body rejects without mutation")
+	var bound_record: Dictionary = separate.to_record()
+	bound_record["state_revision"] = PhysicalGripOwner.MAX_EXACT_INTEGER
+	var at_bound: PhysicalGripOwner = PhysicalGripOwner.from_record(bound_record, false).value
+	_check(not at_bound.prepare_controller_invalidation("body.human-1").is_success and at_bound.to_record() == bound_record, "affected exhausted grip preparation preserves all reservations")
+	_check(at_bound.prepare_controller_invalidation("body.other").is_success and at_bound.to_record() == bound_record, "unaffected exhausted grips do not block another body's transition")
 	var bounded: PhysicalGripOwner = PhysicalGripOwner.create("grips.bounded").value
 	var simple: Dictionary = first.duplicate(true)
 	simple["required_force_millinewtons"] = 0

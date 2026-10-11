@@ -585,8 +585,8 @@ func controller_candidate() -> ServiceResult:
 	return ServiceResult.success(candidate)
 
 
-## One synchronous compare/validate/commit; only canonical body metadata changes.
-## No receipt, high-water, invalidation or startup fencing rollout is installed.
+## One synchronous compare/prepare/commit including body-scoped lifecycle invalidation.
+## No receipt, high-water, production admission or startup rollout is installed.
 func commit_control_epoch(expected: Dictionary, next_epoch: int) -> ServiceResult:
 	var current: ServiceResult = controller_candidate()
 	if not current.is_success:
@@ -598,9 +598,20 @@ func commit_control_epoch(expected: Dictionary, next_epoch: int) -> ServiceResul
 		return ServiceResult.failure(&"epoch_exhausted", "Canonical control epoch is exhausted.")
 	if next_epoch != int(expected["control_epoch"]) + 1:
 		return ServiceResult.failure(&"binding_conflict", "Control epoch must increment exactly once.")
+	# All fallible work precedes publication. Preparation neither mutates live grips
+	# nor pauses other participants. No callbacks occur in the publication section.
+	var grips: ServiceResult = _grips.prepare_controller_invalidation(String(id))
+	if not grips.is_success:
+		return grips
 	var candidate: Dictionary = _bodies[id].duplicate(true)
 	candidate["control_epoch"] = next_epoch
 	_bodies[id] = candidate
+	_grips = grips.value
+	_views.revoke_body(String(id))
+	for job_id in _jobs.keys():
+		var state: Dictionary = _jobs[job_id]["job"].to_record()
+		if state["actor_body_id"] == id or state["target_body_id"] == id:
+			_finish(job_id, ServiceResult.failure(&"controller_invalidated", "A participating body's controller changed."))
 	return ServiceResult.success(next_epoch)
 
 func capture_snapshot() -> ServiceResult:

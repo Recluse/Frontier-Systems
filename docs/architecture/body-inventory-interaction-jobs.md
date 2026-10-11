@@ -46,3 +46,7 @@ The [shared inventory coordinator](shared-inventory-transactions.md) now provide
 Windows Godot 4.7.2 import, `body_inventory_interaction_job_test.gd` and existing policy checks passed locally. Tests cover exact timing, duplicate/skipped ticks, same-tick interruption, epoch/revision changes, fresh completion, later-tick rejection, ready/partial restore, explicit resume, original-epoch preservation, terminal cancellation, invalid targets/progress/policy and detached records. Windows/Ubuntu CI includes the script; Linux execution is not locally verified.
 
 Next: authoritative body/action registry and bounded job system, typed resistance/start/cancel commands, shared inventory coordinator and atomic completion receipts, then scoped search views and target-body UI. The game still has no runtime pickpocket/search or multi-body transfer feature.
+
+## Controller lifecycle invalidation
+
+Trusted successful canonical controller epoch transitions finish active or paused jobs where the body is actor or target before later advancement, using the bounded outcome code `controller_invalidated`. Target participation is conservatively invalidated even though the old job context pins only target action epoch. Failed transitions preserve progress and ownership. Shared inventory mutation/receipts are never produced by cancellation. See [atomic lifecycle contract](../development/inventory-controller-lifecycle-invalidation-milestone.md).
