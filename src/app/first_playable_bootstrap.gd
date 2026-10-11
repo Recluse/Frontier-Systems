@@ -70,8 +70,13 @@ func _start_host() -> void:
 	print("First playable host listening on loopback port 27840; two invite slots and checkpoint persistence enabled.")
 
 
+## Presentation fixtures may supply a transport adapter without opening sockets.
+func _create_client_remote() -> RemoteWorldRuntime:
+	return RemoteWorldRuntime.new()
+
+
 func _start_client() -> void:
-	_remote = RemoteWorldRuntime.new()
+	_remote = _create_client_remote()
 	_remote.terrain_retry_directory = "user://terrain-client-intents"
 	add_child(_remote)
 	_remote.observation_received.connect(_on_observation)
@@ -105,6 +110,8 @@ func _start_client() -> void:
 	var scroll := ScrollContainer.new()
 	_scroll = scroll
 	scroll.name = "Workstation"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
 	_tabs.add_child(scroll)
 	_content = VBoxContainer.new()
 	_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -144,6 +151,7 @@ func _start_client() -> void:
 	_task_guide.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	guide_scroll.add_child(_task_guide)
 	_status = Label.new()
+	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.text = "Connecting to the shared host…"
 	_content.add_child(_status)
 	var theme_selector := OverlayThemeController.new()

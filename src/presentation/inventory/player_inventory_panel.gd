@@ -512,6 +512,7 @@ func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 		_result.text = "Host accepted action. Inventory follows the latest host view." if result.is_success else "Host rejected action: " + result.message
 		if was_world: _world_status.text = _result.text
 		_update_buttons()
+		if get_parent() is ScrollContainer: _reveal_feedback.call_deferred(_pending)
 
 
 func _update_buttons() -> void:

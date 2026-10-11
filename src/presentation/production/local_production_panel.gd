@@ -249,6 +249,7 @@ func _send(operation: String, payload: Dictionary) -> void:
 	var queued: ServiceResult = _world.enqueue_command(command)
 	_pending = String(command.command_id) if queued.is_success else ""
 	_feedback.text = "Queued " + operation if queued.is_success else queued.message
+	_reveal_receipt.call_deferred()
 	refresh()
 
 
@@ -421,7 +422,21 @@ func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
 	if result.is_success:
 		_guide.note_command(command.operation, command.payload)
 	_feedback.text = "Applied " + command.operation if result.is_success else "Rejected: " + result.message
+	_reveal_receipt.call_deferred()
 	refresh()
+
+
+## The actual client adds headers and an outer scroll above this panel.
+func _reveal_receipt() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree() or not _feedback.is_visible_in_tree(): return
+	var ancestor: Node = get_parent()
+	while ancestor != null:
+		if ancestor is ScrollContainer:
+			(ancestor as ScrollContainer).ensure_control_visible(_feedback)
+			return
+		ancestor = ancestor.get_parent()
 
 
 func _on_batch_completed(recipe_id: String, _tick: int) -> void:
