@@ -12,3 +12,13 @@ Manual workflow dispatch accepts one issue number, synchronizes missing category
 
 Offline Node tests use injected HTTP responses, with no real Discord sends. Live forum webhook configuration and genuine labeled/closed delivery must be verified separately. No game release/deployment or game media upload is involved.
 
+
+## Live verification — 2026-10-11
+
+Configured dedicated incoming hooks Frontier GitHub Bugs (ID1558862598881943685) in forum1558669102741065838 and Frontier GitHub Suggestions (ID1558861372429828169) in forum1558669253161390130. Both named Actions secrets are saved and independently listed. No webhook URLs or tokens are recorded here.
+
+PR79 head9ba4528bae49ad1e48434f2cf7e9846b361e75a7 merged asfd7ccea7d795b6e45b2cd9e4cf538e86da3cb133 after eight offline tests and all13 exact-head CI checks passed, including both OS routing contracts. CI run38150919274 tested syntheticcb68b0af26d3c22029e117220d121f29d87c3e26 againstf9f708513116656cbe16d9128da247e29053eb38.
+
+Owner explicitly approved one public verification issue and four Discord messages after automatic approval review required specific live-test authorization. [Issue80](https://github.com/Valgorithms/Frontier-Systems/issues/80) is closed. Bug label run38151787393 created thread1558865266669256715; enhancement label run38151865989 created thread1558865518390153227. Both labels were removed before closure2026-10-11T15:35:52Z. Successful closure run38151939659 posted messages1558865786045599929 and1558865802718093435 into those original respective threads; persisted routing records confirm both closed timestamps. The separate state branch now exists with credential-free issue80 mappings. No game images, release, deployment or external outreach occurred.
+
+Webhook receipt/channel IDs plus successful workflow/state writes establish live delivery. Discord per-user push/notification preferences and concurrent-event/uncertain-send recovery are not claimed as verified. Test issue and clearly marked forum threads remain as closed verification evidence.
