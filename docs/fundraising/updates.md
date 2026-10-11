@@ -24,6 +24,8 @@ First supporter roundup and higher-tier engineering note due by 2026-11-09. Coor
 
 ## Next development update draft
 
+Owner's daily publishing rule (2026-10-11): Coordinator checks every ten minutes and publishes a free text-only progress update at least once per rolling 24 hours when meaningful unreported work exists. Begin batching at 23 hours after the last confirmed public post. Substantive verified gameplay, usability, recovery, community/website availability or material delay/scope changes qualify; a major demo stage is not required. Skip only when there truly is no meaningful unreported change, recording evaluation date/reason here. Deduplicate against the public feed and confirmed ledger; drafts/failed sends do not count. Account or approval blockers require a preserved draft and a Coordinator notification. Existing image, financial and monthly-supporter boundaries remain unchanged.
+
 The older draft below was superseded by the published 2026-10-11 update; do not publish it separately.
 
 Our cooperative prototype now has clearer machinery feedback: the UI shows observed component condition, stored energy and batch progress. An enabled machine is no longer presented as automatically ready. When a batch disappears, the display keeps its outcome uncertain because the current projection does not distinguish completion from cancellation.
