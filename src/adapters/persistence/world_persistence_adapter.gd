@@ -11,9 +11,13 @@ class CheckpointTask extends RefCounted:
 	var snapshot_json: String
 	var files: CheckpointFileIO
 	var result: ServiceResult
+	var history: CheckpointHistoryPolicy
+	var backup_result: ServiceResult
 
 	func execute() -> void:
 		result = LocalWorldSaveStore.write_checkpoint(directory, sequence, snapshot_json, files)
+		if result.is_success and history != null:
+			backup_result = CheckpointBackupHistory.archive_committed(directory, sequence, snapshot_json, history, files)
 
 
 var _world: WorldRuntime
@@ -26,13 +30,19 @@ var _saved_tick: int = -1
 var _elapsed: float = 0.0
 var _last_error: String = ""
 var _closed: bool = false
+var _history: CheckpointHistoryPolicy
+var _backup_error: String = ""
+var _backup_error_code: StringName = &""
+var _backup_sequence: int = 0
 
 
 ## Configure before starting the world; startup reads occur before fixed ticks.
 ## Optional filesystem boundary is for isolated tests; production uses native file I/O.
-func configure(world: WorldRuntime, directory: String, files: CheckpointFileIO = null) -> ServiceResult:
+func configure(world: WorldRuntime, directory: String, files: CheckpointFileIO = null, history: CheckpointHistoryPolicy = null) -> ServiceResult:
 	if _closed or _world != null or not is_instance_valid(world) or directory.is_empty():
 		return ServiceResult.failure(&"persistence_configuration", "Configure one world and save directory.")
+	if history != null and not history.validate().is_success:
+		return history.validate()
 	var latest: ServiceResult = LocalWorldSaveStore.read_latest(directory, files)
 	if not latest.is_success:
 		_last_error = latest.message
@@ -47,8 +57,58 @@ func configure(world: WorldRuntime, directory: String, files: CheckpointFileIO =
 	_world = world
 	_directory = directory
 	_files = files
+	_history = history.detached() if history != null else null
 	_last_error = ""
 	return ServiceResult.success()
+
+
+## Explicit stopped-world startup recovery only. Never modifies the source save directory.
+## Destination must be absent; the selected original sequence remains in source history.
+## On seeding failure discard this startup world/adapter; no save was acknowledged.
+func configure_from_backup(world: WorldRuntime, source: String, selection: Dictionary, destination: String, io: CheckpointFileIO = null, history: CheckpointHistoryPolicy = null) -> ServiceResult:
+	if not is_instance_valid(world) or source.is_empty() or destination.is_empty():
+		return ServiceResult.failure(&"backup_recovery", "Recovery requires a fresh adapter/world and explicit source, selection and destination.")
+	if _world != null or _closed or (history != null and not history.validate().is_success):
+		return ServiceResult.failure(&"backup_recovery", "Recovery requires an unconfigured adapter and a valid policy.")
+	# Operational preflight avoids storage calls from active tick callbacks. The owner
+	# still makes the authoritative has-started/domain checks during restore below.
+	var runtime_status: Dictionary = world.profiling_snapshot()
+	if runtime_status.is_empty():
+		return ServiceResult.failure(&"runtime_not_ready", "Initialize the startup world before selecting recovery.")
+	if runtime_status["simulation_running"] or runtime_status["tick_number"] != 0 or runtime_status["queued_external_commands"] != 0:
+		return ServiceResult.failure(&"simulation_already_started", "Recovery requires a fresh stopped startup world without commands.")
+	var files: CheckpointFileIO = io if io != null else CheckpointFileIO.new()
+	var absolute: String = ProjectSettings.globalize_path(destination).simplify_path()
+	var source_absolute: String = ProjectSettings.globalize_path(source).simplify_path().replace("\\", "/").trim_suffix("/")
+	var destination_absolute: String = absolute.replace("\\", "/").trim_suffix("/")
+	if OS.get_name() == "Windows":
+		source_absolute = source_absolute.to_lower()
+		destination_absolute = destination_absolute.to_lower()
+	if not absolute.is_absolute_path() or destination_absolute == source_absolute or destination_absolute.begins_with(source_absolute + "/"):
+		return ServiceResult.failure(&"backup_destination", "Recovery destination must be absolute and outside the source directory.")
+	if files.exists(absolute):
+		return ServiceResult.failure(&"backup_destination", "Recovery destination must not exist; preserve the source and existing saves.")
+	var selected: ServiceResult = CheckpointBackupHistory.select_candidate(source, selection, files)
+	if not selected.is_success:
+		return selected
+	# WorldRuntime validates identity, every system, cross-system links and pre-start state.
+	var restored: ServiceResult = world.restore_world_snapshot_json(selected.value["snapshot_json"])
+	if not restored.is_success:
+		return restored
+	var seeded: ServiceResult = LocalWorldSaveStore.write_checkpoint(absolute, 1, selected.value["snapshot_json"], files)
+	if not seeded.is_success:
+		_closed = true
+		_last_error = seeded.message
+		return seeded
+	# Adopt the verified seed without restoring twice (the restored world now has a tick).
+	_world = world
+	_directory = absolute
+	_files = io
+	_history = history.detached() if history != null else null
+	_sequence = 1
+	_saved_tick = world.current_tick_number()
+	_last_error = ""
+	return ServiceResult.success({"source_sequence": int(selected.value["sequence"]), "sequence": 1, "tick_number": world.current_tick_number()})
 
 
 func request_checkpoint() -> ServiceResult:
@@ -67,6 +127,7 @@ func request_checkpoint() -> ServiceResult:
 	_task.tick = _world.current_tick_number()
 	_task.snapshot_json = captured.value
 	_task.files = _files
+	_task.history = _history.detached() if _history != null else null
 	_task_id = WorkerThreadPool.add_task(_task.execute, false, "World checkpoint")
 	# Queue acceptance is not a storage acknowledgement; completion reports the captured tick.
 	return ServiceResult.success({"tick_number": _task.tick})
@@ -87,6 +148,14 @@ func _finish_task(emit_completion: bool) -> void:
 		_sequence = completed.sequence
 		_saved_tick = completed.tick
 		_last_error = ""
+		if completed.history != null:
+			var backup: ServiceResult = completed.backup_result
+			if backup == null or (backup.is_success and (typeof(backup.value) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(backup.value, PackedStringArray(["sequence"])) or not ControlContractValidation.is_integer(backup.value.get("sequence"), completed.sequence, completed.sequence))):
+				backup = ServiceResult.failure(&"backup_acknowledgement", "Worker did not return a matching history acknowledgement.")
+			_backup_error = "" if backup.is_success else backup.message
+			_backup_error_code = &"" if backup.is_success else backup.error_code
+			if backup.is_success:
+				_backup_sequence = completed.sequence
 	else:
 		_last_error = result.message
 	if emit_completion:
@@ -106,6 +175,12 @@ func _process(delta: float) -> void:
 
 func status() -> Dictionary:
 	return {"saved_tick": _saved_tick, "busy": _task_id >= 0, "last_error": _last_error}
+
+
+## Separate bounded operator diagnostics; existing checkpoint/network status stays unchanged.
+## Sequence is the latest successful history acknowledgement in this adapter session.
+func backup_status() -> Dictionary:
+	return {"enabled": _history != null, "sequence": _backup_sequence, "last_error": _backup_error, "error_code": String(_backup_error_code)}
 
 
 func _exit_tree() -> void:

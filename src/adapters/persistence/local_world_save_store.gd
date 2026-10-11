@@ -24,7 +24,7 @@ static func read_latest(directory: String, io: CheckpointFileIO = null) -> Servi
 		if not read.is_success:
 			unreadable = unreadable or read.error_code == &"save_read"
 			continue
-		var validated: ServiceResult = _decode(read.value)
+		var validated: ServiceResult = decode_checkpoint(read.value)
 		if not validated.is_success:
 			continue
 		var value: Dictionary = validated.value
@@ -40,7 +40,10 @@ static func read_latest(directory: String, io: CheckpointFileIO = null) -> Servi
 	return ServiceResult.success(best)
 
 
-static func _decode(text: String) -> ServiceResult:
+## Shared v1 decoder for bounded committed slots and operator history candidates.
+static func decode_checkpoint(text: String) -> ServiceResult:
+	if text.to_utf8_buffer().size() > MAX_BYTES:
+		return ServiceResult.failure(&"save_bounds", "Checkpoint envelope exceeds its byte bound.")
 	var parser := JSON.new()
 	if parser.parse(text) != OK or typeof(parser.data) != TYPE_DICTIONARY:
 		return ServiceResult.failure(&"save_corrupt", "Checkpoint envelope is invalid JSON.")
