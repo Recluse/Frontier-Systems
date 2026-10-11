@@ -44,6 +44,60 @@ func controller_authority() -> InventoryControllerAuthority:
 	return _gate.controller_authority()
 
 
+## Scoped reads use this queue's exact gate/authority without exposing dispatch.
+## Busy reads fence provider reentrancy; restore detection clears volatile intent.
+func own_inventory_observation(token: InventoryControllerToken, context: AuthenticatedCommandContext, include_details: bool = false) -> ServiceResult:
+	return _observe(token, context, &"own", include_details)
+
+
+func world_inventory_observation(token: InventoryControllerToken, context: AuthenticatedCommandContext) -> ServiceResult:
+	return _observe(token, context, &"world")
+
+
+func local_grip_observation(token: InventoryControllerToken, context: AuthenticatedCommandContext) -> ServiceResult:
+	return _observe(token, context, &"grip")
+
+
+func local_observation(token: InventoryControllerToken, context: AuthenticatedCommandContext) -> ServiceResult:
+	return _observe(token, context, &"local")
+
+
+func read_search(token: InventoryControllerToken, context: AuthenticatedCommandContext, view_id: String) -> ServiceResult:
+	return _observe(token, context, &"search", false, view_id)
+
+
+func _observe(token: InventoryControllerToken, context: AuthenticatedCommandContext, projection: StringName, include_details: bool = false, view_id: String = "") -> ServiceResult:
+	if _busy or not is_instance_valid(_inventory):
+		return _reject(&"queue_unavailable")
+	if _sync_restore():
+		return _reject(&"queue_restored")
+	var snapshot: ServiceResult = _inventory.capture_snapshot()
+	if not snapshot.is_success or int(snapshot.value["last_tick"]) != _last_tick:
+		return _reject(&"queue_tick_mismatch")
+	_busy = true
+	var result: ServiceResult
+	match projection:
+		&"own": result = _gate.own_inventory_observation(token, context, include_details)
+		&"world": result = _gate.world_inventory_observation(token, context)
+		&"grip": result = _gate.local_grip_observation(token, context)
+		&"local": result = _gate.local_observation(token, context)
+		&"search": result = _gate.read_search(token, context, view_id)
+		_: result = _reject(&"unsupported_operation")
+	# The session provider is synchronous trusted code, but may free or advance
+	# the actual runtime. Recheck ownership before publishing any projection.
+	if not is_instance_valid(_inventory):
+		_busy = false
+		return _reject(&"queue_unavailable")
+	if _sync_restore():
+		_busy = false
+		return _reject(&"queue_restored")
+	snapshot = _inventory.capture_snapshot()
+	_busy = false
+	if not snapshot.is_success or int(snapshot.value["last_tick"]) != _last_tick:
+		return _reject(&"queue_tick_mismatch")
+	return result
+
+
 ## Token is opaque identity; trusted context and bounded plain intent are detached.
 ## Acceptance is only queue admission, never a canonical operation receipt.
 func enqueue(token: InventoryControllerToken, context: AuthenticatedCommandContext, request_id: String, operation: String, payload: Dictionary) -> ServiceResult:
