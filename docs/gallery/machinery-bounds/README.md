@@ -1,0 +1,16 @@
+# Machinery bounds presentation captures
+
+Captured and visually reviewed on 2026-10-10 with Windows Godot 4.7.2, Compatibility/OpenGL on NVIDIA RTX 3080 Ti. Source and capture tool were at 51cccd73b1cf0267967ff27b157ccf32e858a38d, rebased onto 407f49e. This later gallery metadata commit does not change that capture provenance.
+
+| File | Verified commit | Capture route and demonstrated behavior | Limitations | Author / license / provenance |
+| --- | --- | --- | --- | --- |
+| [advisory-expanded-ghost.png](advisory-expanded-ghost.png) | 51cccd73b1cf0267967ff27b157ccf32e858a38d | tools/godot/capture_machinery_bounds.gd; actual authenticated scoped observation of a fitted expander reserves 2.50 × 1.50 × 1.30 m. Cyan ghost, axes and UI explicitly separate estimated reach from host clearance. | Display-only envelope; blue does not certify overlap, hands, ownership or revision. Prototype workshop, fixed orientation; no terrain/VR/controller/human acceptance. | Frontier Systems project, captured by Codex; MIT first-party procedural scene/UI; no imported creative assets. Godot's built-in UI font is rendered by the existing engine, no font file added. |
+| [selected-expanded-envelope.png](selected-expanded-envelope.png) | 51cccd73b1cf0267967ff27b157ccf32e858a38d | Same route after actual host deployment succeeds; yellow twelve-edge selected envelope encloses the prototype printer and expander reservation. | A selected outline does not certify grandfathered checkpoint clearance. Same graphical/platform limits; this image does not demonstrate broken/six-socket variants. | Frontier Systems project, captured by Codex; MIT first-party procedural scene/UI; same engine-rendered text and no imported creative assets. |
+
+The route builds its fixture from finite materials, authenticates a temporary loopback host/client on Coordinator-reserved 27851, verifies expanded ghost dimensions, genuine floor rejection, queued pending state, accepted deployment and disconnect cleanup with zero failures. The pending/rejected images were inspected but not selected: the two retained views communicate this milestone with less repetition; host rejection text itself is outside their scroll position.
+
+Seven bounded Windows checks passed: import, startup, machinery authority, bounds, machine feedback, machine preview and wall feedback. Empty/broken/retained/removed-expander/extra-socket variants are covered by detached headless observation fixtures and mesh checks; these captures show an actual expanded printer only. Remote Windows/Linux checks are tracked separately in draft PR #11. No release/deployment or external public gallery hosting is authorized.
+
+Images are unedited full viewport captures, visually checked for readable UI/geometry, credentials, personal data and distracting debug overlays. They show generated machine IDs and simulated energy only. Original four images are retained in local ignored verification output after successful LFS upload. Gallery PNGs are Git LFS pointers in Git; metadata stays plain text.
+
+The gallery folder has .gdignore so documentation captures stay outside runtime import/export. CI deliberately keeps LFS pointers for documentation media; Godot must not interpret those pointers as PNG assets.

@@ -44,10 +44,27 @@ func finish() -> void:
 	panel._axes[0].value = 12
 	var held: MeshInstance3D = preview._feedback_root.get_child(0)
 	check(is_equal_approx(held.position.x, ProceduralWorldInventoryPreview.DISPLAY_ORIGIN.x + 0.8), "submitted ghost stays frozen even if controls change")
+	var pending_size: Vector3 = (held.mesh as BoxMesh).size
+	var changed: Dictionary = view_record().duplicate(true)
+	for module in changed["production"]["machinery"]["mounts"].keys():
+		if changed["production"]["machinery"]["parts"][module]["kind"] == "expander":
+			changed["production"]["machinery"]["mounts"].erase(module)
+	panel.observe(changed)
+	panel.select_machine(changed["production"]["machinery"]["parts"].keys()[0])
+	panel._mode.select(1)
+	panel._refresh_placement()
+	held = preview._feedback_root.get_child(0)
+	check((held.mesh as BoxMesh).size == pending_size and panel._placement_status.text.contains("2.50 × 1.50 × 1.30"), "pending envelope and text stay frozen through changed mount observations")
+	check(panel._placement_status.text.contains("Target X 0.80 / Y 0.10 / Z -0.40"), "pending target and floor mode survive observation and selection changes")
+	var request: String = panel._pending
+	panel._send("machine_deploy")
+	check(panel._pending == request, "pending deployment suppresses duplicate submission")
+	panel.observe(view_record())
 	step()
 	check(not last.is_success and panel._pending.is_empty(), "actual host rejects floor Y rather than trusting client preview")
 	check(not production.capture_snapshot().value["machinery"]["placements"].has(printer), "rejection creates no physical placement")
 	check(panel._show_placement.button_pressed and not panel._feedback.text.is_empty(), "rejected ghost stays available for correction")
+	panel.select_machine(printer)
 	panel._axes[0].value = 0.8
 	panel._axes[0].value = 0.0
 	panel._axes[2].value = -1.0
@@ -58,13 +75,13 @@ func finish() -> void:
 	check(last.is_success and not panel._show_placement.button_pressed, "host accepts freeform placement and retires ghost on completion")
 	panel.observe(view_record())
 	preview.observe(panel._record["production"])
-	check(preview._feedback_root.get_child_count() == 5, "settled selected machine shows footprint and selection label only")
-	var selected_label: Label3D = preview._feedback_root.get_child(4)
+	check(preview._feedback_root.get_child_count() == 13, "settled selected machine shows full reserved envelope and selection label")
+	var selected_label: Label3D = preview._feedback_root.get_child(12)
 	check(selected_label.text.contains(printer.right(8)), "world selection and picker share stable selected identity")
 	panel.hide()
 	check(preview._feedback_root.get_child_count() == 0, "hidden panel clears placement and selection decorations")
 	panel.show()
-	check(preview._feedback_root.get_child_count() == 5, "returning to panel restores selection")
+	check(preview._feedback_root.get_child_count() == 13, "returning to panel restores selection")
 	var missing: Dictionary = view_record()
 	missing["production"]["machinery"]["parts"].erase(printer)
 	panel.observe(missing)

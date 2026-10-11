@@ -223,6 +223,7 @@ func _send(action: String) -> void:
 	_feedback.text = "Queued " + action + "; waiting for host" if queued.is_success else queued.message
 	if action == "machine_deploy" and queued.is_success:
 		_pending_deploy = payload.duplicate(true)
+		_pending_deploy["display_size"] = MachineryPlacementFeedback.envelope(_record["production"]["machinery"], payload["machine_id"])
 	if action in ["wall_build", "wall_remove"] and queued.is_success:
 		_pending_wall = payload.duplicate(true)
 		_pending_wall["operation"] = action
@@ -326,7 +327,7 @@ func _refresh_placement() -> void:
 		coords = _pending_deploy["position"].duplicate()
 		machine_id = _pending_deploy["machine_id"]
 		mode = _pending_deploy["mode"]
-	var feedback: Dictionary = MachineryPlacementFeedback.describe(_record, machine_id, coords, mode, _show_placement.button_pressed, not _pending_deploy.is_empty())
+	var feedback: Dictionary = MachineryPlacementFeedback.describe(_record, machine_id, coords, mode, _show_placement.button_pressed, not _pending_deploy.is_empty(), _pending_deploy.get("display_size", Vector3.ZERO))
 	if not _pending_wall.is_empty() or (_pending_deploy.is_empty() and _placement_kind.selected == 1):
 		var plate_id: String = _pending_wall.get("item_id", _selected(_part))
 		var wall_id: String = _pending_wall.get("wall_id", _selected(_wall))
