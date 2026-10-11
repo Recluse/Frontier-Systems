@@ -32,6 +32,11 @@ func finish() -> void:
 	var ghost: MeshInstance3D = preview._feedback_root.get_child(0)
 	check(ghost.position.is_equal_approx(ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(0.8, 0.85, -0.4)), "XYZ target uses millimetres and DISPLAY_ORIGIN, with height above base")
 	check(preview._feedback_root.find_children("*", "CollisionObject3D", true, false).is_empty(), "ghost has no physics or picking authority")
+	var target: Vector3 = MachineryPlacementFeedback.display_position([800, 100, -400])
+	var directions: Dictionary = {"+X": Vector3.RIGHT, "+Y": Vector3.UP, "+Z": Vector3.BACK}
+	for label in preview._feedback_root.find_children("*", "Label3D", true, false):
+		if directions.has(label.text):
+			check(label.position.is_equal_approx(target + Vector3(0, 0.1, 0) + directions[label.text]), "axis " + label.text + " matches positive world direction")
 	check(JSON.stringify(world.capture_world_snapshot_json().value) == before and JSON.stringify(panel._record) == observation, "ghost and intent never enter world snapshots or observations")
 	panel._send("machine_deploy")
 	check(not panel._pending.is_empty() and panel._placement_status.text.contains("Waiting for host"), "queued deployment has explicit pending feedback")
@@ -53,7 +58,7 @@ func finish() -> void:
 	preview.observe(panel._record["production"])
 	check(preview._feedback_root.get_child_count() == 5, "settled selected machine shows footprint and selection label only")
 	var selected_label: Label3D = preview._feedback_root.get_child(4)
-	check(selected_label.text.contains(printer), "world selection and picker share stable selected identity")
+	check(selected_label.text.contains(printer.right(8)), "world selection and picker share stable selected identity")
 	panel.hide()
 	check(preview._feedback_root.get_child_count() == 0, "hidden panel clears placement and selection decorations")
 	panel.show()

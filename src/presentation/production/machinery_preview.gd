@@ -186,12 +186,12 @@ func present_feedback(feedback: Dictionary) -> void:
 	var selected: Array = feedback["selected_position"]
 	if not selected.is_empty():
 		_footprint(_feedback_root, MachineryPlacementFeedback.display_position(selected), size, Color(1.0, 0.85, 0.2))
-		_feedback_label(_feedback_root, MachineryPlacementFeedback.display_position(selected) + Vector3(0, size.y + 0.5, 0), "SELECTED " + String(feedback["selected_id"]), Color(1.0, 0.85, 0.2))
+		_feedback_label(_feedback_root, MachineryPlacementFeedback.display_position(selected) + Vector3(0, size.y + 0.75, 0), "SELECTED · " + String(feedback["selected_id"]).right(8), Color(1.0, 0.85, 0.2))
 	if not feedback["ghost_visible"]: return
 	var target: Vector3 = MachineryPlacementFeedback.display_position(feedback["position"])
 	var color := Color(0.2, 0.85, 0.95, 0.24) if feedback["advisory_ok"] else Color(1.0, 0.35, 0.2, 0.24)
 	if feedback["pending"]: color = Color(1.0, 0.8, 0.2, 0.24)
-	_box(_feedback_root, size, color, target + Vector3(0, size.y / 2.0, 0))
+	_feedback_box(_feedback_root, size, color, target + Vector3(0, size.y / 2.0, 0))
 	var ghost: MeshInstance3D = _feedback_root.get_child(_feedback_root.get_child_count() - 1)
 	ghost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	var material: StandardMaterial3D = ghost.material_override
@@ -201,15 +201,15 @@ func present_feedback(feedback: Dictionary) -> void:
 	var colors: Array[Color] = [Color(1, 0.2, 0.2), Color(0.2, 1, 0.2), Color(0.2, 0.45, 1)]
 	for index in range(3):
 		var extent: Vector3 = Vector3(0.018, 0.018, 0.018) + axes[index] * 0.9
-		_box(_feedback_root, extent, colors[index], target + Vector3(0, 0.04, 0) + axes[index] * 0.45)
+		_feedback_box(_feedback_root, extent, colors[index], target + Vector3(0, 0.04, 0) + axes[index] * 0.45)
 		_feedback_label(_feedback_root, target + Vector3(0, 0.1, 0) + axes[index], ["+X", "+Y", "+Z"][index], colors[index])
 	_feedback_label(_feedback_root, target + Vector3(0, size.y + 0.35, 0), "PENDING HOST" if feedback["pending"] else "PLACEMENT PREVIEW", Color(color, 1.0))
 
 
 static func _footprint(parent: Node3D, base: Vector3, size: Vector3, color: Color) -> void:
 	for side in [-1.0, 1.0]:
-		_box(parent, Vector3(size.x, 0.025, 0.025), color, base + Vector3(0, 0.02, side * size.z / 2.0))
-		_box(parent, Vector3(0.025, 0.025, size.z), color, base + Vector3(side * size.x / 2.0, 0.02, 0))
+		_feedback_box(parent, Vector3(size.x, 0.025, 0.025), color, base + Vector3(0, 0.02, side * size.z / 2.0))
+		_feedback_box(parent, Vector3(0.025, 0.025, size.z), color, base + Vector3(side * size.x / 2.0, 0.02, 0))
 
 
 static func _feedback_label(parent: Node3D, at: Vector3, text: String, color: Color) -> void:
@@ -221,3 +221,12 @@ static func _feedback_label(parent: Node3D, at: Vector3, text: String, color: Co
 	label.pixel_size = 0.003
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	parent.add_child(label)
+
+
+
+static func _feedback_box(parent: Node3D, size: Vector3, color: Color, at: Vector3) -> void:
+	_box(parent, size, color, at)
+	var visual: MeshInstance3D = parent.get_child(parent.get_child_count() - 1)
+	visual.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var material: StandardMaterial3D = visual.material_override
+	material.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED

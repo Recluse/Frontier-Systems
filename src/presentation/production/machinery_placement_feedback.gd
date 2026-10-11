@@ -20,11 +20,12 @@ static func describe(record: Dictionary, machine_id: String, coords: Array, mode
 	var placements: Dictionary = workshop.get("placements", {})
 	var exists: bool = workshop.get("parts", {}).get(machine_id, {}).get("kind", "") == "frame"
 	var deployed: bool = placements.has(machine_id)
-	var valid_position: bool = InventorySpatialMath.is_position(coords)
+	var displayed: Array = placements[machine_id]["position"] if deployed else coords
+	var valid_position: bool = InventorySpatialMath.is_position(displayed)
 	var distance: float = 0.0
 	var reachable: bool = false
 	if valid_position and InventorySpatialMath.is_position(record.get("position", [])):
-		distance = InventorySpatialMath.distance_millimetres(record["position"], coords) / 1000.0
+		distance = InventorySpatialMath.distance_millimetres(record["position"], displayed) / 1000.0
 		reachable = distance <= float(InventorySimulationSystem.WORLD_REACH_MILLIMETRES) / 1000.0
 	var floor_ok: bool = valid_position and (mode == "freeform" or int(coords[1]) == 0)
 	var advisory: String = "Within estimated reach; host checks ownership, hands and revision."
@@ -35,7 +36,7 @@ static func describe(record: Dictionary, machine_id: String, coords: Array, mode
 	if pending: advisory = "Waiting for host command result; target held at submitted coordinates."
 	var text: String = "%s\nFixed orientation · +X red / +Y up green / +Z blue" % machine_id
 	if valid_position:
-		text += "\nTarget X %.2f / Y %.2f / Z %.2f m · distance %.2f m\n%s" % [float(coords[0]) / 1000.0, float(coords[1]) / 1000.0, float(coords[2]) / 1000.0, distance, advisory]
+		text += "\n%s X %.2f / Y %.2f / Z %.2f m · distance %.2f m\n%s" % ["Selected" if deployed else "Target", float(displayed[0]) / 1000.0, float(displayed[1]) / 1000.0, float(displayed[2]) / 1000.0, distance, advisory]
 	return {
 		"selected_id": machine_id if exists else "",
 		"selected_position": placements.get(machine_id, {}).get("position", []).duplicate(),

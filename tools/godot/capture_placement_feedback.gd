@@ -1,7 +1,7 @@
 extends "res://tests/godot/machinery_runtime_test.gd"
 
 
-## Captures only presentation over the real finite-material workshop fixture.
+## Retains the real finite-material workshop and renders authenticated client UI.
 func finish() -> void:
 	if failures > 0:
 		world.free()
@@ -13,45 +13,55 @@ func finish() -> void:
 		if production.capture_snapshot().value["machinery"]["parts"][id]["kind"] == "printhead":
 			printer = production.capture_snapshot().value["machinery"]["mounts"][id]
 	command("machine_pack", {"machine_id": printer})
-	var habitat := ProceduralHabitatPreview.new()
-	root.add_child(habitat)
-	habitat.character.read_local_keyboard = false
-	var preview := MachineryPreview.new()
-	habitat.add_child(preview)
-	preview.observe(production.observation(context).value)
-	var canvas := CanvasLayer.new()
-	root.add_child(canvas)
-	var panel := MachineryPanel.new()
-	panel.position = Vector2(12, 12)
-	panel.custom_minimum_size.x = 510
-	canvas.add_child(panel)
-	panel.configure(world)
-	panel.bind_preview(preview)
-	panel.observe({"production": production.observation(context).value, "inventory": inventory.own_inventory_observation(context).value, "position": inventory.own_position(context).value})
+	var host := FirstPlayableHost.new()
+	root.add_child(host)
+	var key: String = "placement-capture-player-one-000000000"
+	check(host.configure(world, [key, "placement-capture-player-two-000000000"], 27851).is_success, "local capture host opens")
+	OS.set_environment("FRONTIER_HOST_URL", "ws://127.0.0.1:27851")
+	OS.set_environment("FRONTIER_INVITE_KEY", key)
+	runner.set_physics_process(true)
+	var client := FirstPlayableBootstrap.new()
+	root.add_child(client)
+	await create_timer(1.0).timeout
+	check(not client._latest.is_empty(), "client receives actual scoped workshop")
+	if client._latest.is_empty():
+		client.free()
+		host.free()
+		world.free()
+		quit(1)
+		return
+	client._habitat.character.read_local_keyboard = false
+	client._tabs.current_tab = 3
+	var panel: MachineryPanel = client._machinery_panel
 	panel.select_machine(printer)
-	panel._axes[0].value = 0.9
-	panel._axes[2].value = 0.4
+	panel._axes[0].value = -0.9
+	panel._axes[2].value = -0.4
 	panel._show_placement.button_pressed = true
-	habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW)
-	habitat.camera.position = Vector3(-2.5, 4, 7)
-	habitat.camera.look_at(Vector3(-5.1, 0.6, 2.4))
-	DirAccess.make_dir_recursive_absolute("res://reports/placement-feedback")
+	client._habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW)
+	client._habitat.camera.position = Vector3(-8.8, 4.0, 4.5)
+	client._habitat.camera.look_at(Vector3(-6.9, 0.6, 1.6))
 	await process_frame
+	var scroll: ScrollContainer = panel.get_parent()
+	scroll.scroll_vertical = maxi(0, roundi(panel._mode.position.y) - 180)
+	DirAccess.make_dir_recursive_absolute("res://reports/placement-feedback")
 	await RenderingServer.frame_post_draw
-	check(root.get_texture().get_image().save_png("res://reports/placement-feedback/ghost.png") == OK, "graphical ghost capture saved")
+	check(root.get_texture().get_image().save_png("res://reports/placement-feedback/ghost.png") == OK, "authenticated graphical ghost capture saved")
+	# Hold transport polling for one rendered frame to capture genuine queued state.
+	host.set_process(false)
 	panel._send("machine_deploy")
 	await process_frame
 	await RenderingServer.frame_post_draw
-	check(root.get_texture().get_image().save_png("res://reports/placement-feedback/pending.png") == OK, "pending command capture saved before simulation validation")
-	step()
-	panel.observe({"production": production.observation(context).value, "inventory": inventory.own_inventory_observation(context).value, "position": inventory.own_position(context).value})
-	preview.observe(panel._record["production"])
-	await process_frame
+	check(not panel._pending.is_empty(), "client is waiting for actual host result")
+	check(root.get_texture().get_image().save_png("res://reports/placement-feedback/pending.png") == OK, "pending command capture saved")
+	host.set_process(true)
+	await create_timer(0.5).timeout
+	check(panel._feedback.text == "Completed", "authenticated host accepts UI placement")
 	await RenderingServer.frame_post_draw
 	check(root.get_texture().get_image().save_png("res://reports/placement-feedback/selected.png") == OK, "selected settled frame capture saved")
-	panel.free()
-	canvas.free()
-	habitat.free()
+	host.free()
+	await create_timer(0.2).timeout
+	check(panel._record.is_empty() and client._machinery_preview._feedback_root.get_child_count() == 0, "disconnect clears stale client ghost and selection")
+	client.free()
 	world.free()
 	print("Placement graphical capture: %d failures" % failures)
 	quit(1 if failures else 0)

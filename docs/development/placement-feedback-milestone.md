@@ -19,7 +19,7 @@ The helper updates only on input, visibility, observation or command-result even
 Use the repository runner with the executable pinned in FIRST_PLAYABLE_HANDOFF.md:
 
 ~~~powershell
-./tools/ci/run-godot-checks.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' -TestNames machinery_placement_feedback_test.gd,machinery_preview_test.gd,machinery_runtime_test.gd -TestTimeoutSeconds 120
+./tools/ci/run-godot-checks.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' -TestNames machinery_placement_feedback_test.gd,machinery_preview_test.gd,spatial_wall_runtime_test.gd -TestTimeoutSeconds 120
 ~~~
 
 The new focused native test inherits the finite-material workshop integration and exercises real panel commands: rejection of floor Y, frozen pending targets, host-approved freeform placement, snapshot/observation separation, display origin/axes, selection and cleanup. CI discovers the new test automatically on Windows and Linux.
@@ -30,7 +30,9 @@ Graphical reproduction (requires a rendering-capable environment):
 & 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' --path . --xr-mode off --audio-driver Dummy --rendering-method gl_compatibility --script res://tools/godot/capture_placement_feedback.gd
 ~~~
 
-The capture tool retains the actual verified workshop and saves ghost, pending and selected views under reports/placement-feedback. It uses local fixture commands and no live services.
+The capture tool retains the actual verified workshop, connects the real authenticated client to a temporary loopback host, and saves [ghost](../../reports/placement-feedback/ghost.png), [pending](../../reports/placement-feedback/pending.png) and [selected](../../reports/placement-feedback/selected.png) views. It pauses host transport polling for one rendered frame to expose genuine queued feedback, then resumes polling and checks host completion and disconnect cleanup. It uses no external services.
+
+Verified on Windows with native Godot 4.7.2: import/startup, machinery_placement_feedback_test.gd, machinery_preview_test.gd and spatial_wall_runtime_test.gd passed against coordinator baseline 45921a317f0ad38d1fa857626b7304019891dbed. The presentation tests also execute the complete finite-material machinery runtime fixture. Compatibility/OpenGL graphical capture passed with zero failures through the actual authenticated client. All three captures were inspected for readable geometry and UI feedback. Local logs/JUnit remain under ignored var/ci/godot; full GitHub CI remains a separate merge gate.
 
 ## Limits
 
