@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:terrain-owner-seed:v1",
+  "description": "Trusted commissioning record. Cell revisions start at zero; recovery uses a complete owner snapshot instead.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["state", "capacity_milligrams", "origin_id", "generation_revision"],
+  "properties": {
+    "state": {
+      "allOf": [
+        { "$ref": "urn:frontier-systems:schema:terrain-material-state:v1" },
+        { "properties": { "state_revision": { "const": 0 } } }
+      ]
+    },
+    "capacity_milligrams": { "type": "integer", "minimum": 0, "maximum": 9007199254740990 },
+    "origin_id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" },
+    "generation_revision": { "type": "integer", "minimum": 1, "maximum": 9007199254740990 }
+  }
+}
