@@ -38,7 +38,7 @@ static func describe(record: Dictionary, machine_id: String, coords: Array, mode
 	text += "\nServer envelope %.2f × %.2f × %.2f m (X/Y/Z).\nIncludes empty/broken mounts and retained sockets.\nAdvisory only; host decides overlap, ownership, hands and revision." % [size.x, size.y, size.z]
 	return {
 		"selected_id": machine_id if exists else "",
-		"selected_position": placements.get(machine_id, {}).get("position", []).duplicate(),
+		"selected_position": placements.get(machine_id, {}).get("position", []).duplicate() if exists else [],
 		"ghost_visible": shown and exists and not deployed and valid_position,
 		"position": coords.duplicate(), "size": size, "machine_envelope": true,
 		"pending": pending, "advisory_ok": reachable and floor_ok, "text": text

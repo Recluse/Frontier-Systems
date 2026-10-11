@@ -46,6 +46,9 @@ func run() -> void:
 	check(pending["text"].contains("Waiting for host") and pending["text"].contains("Advisory only"), "pending is not host approval")
 	var absent: Dictionary = MachineryPlacementFeedback.describe({}, "", [0, 0, 0], "surface", true, false)
 	check(not absent["ghost_visible"] and absent["selected_position"].is_empty(), "missing observation retires feedback")
+	var stale: Dictionary = {"production": {"machinery": {"parts": {}, "mounts": {}, "placements": {"frame": {"position": [0, 0, -1000]}}}}}
+	var removed: Dictionary = MachineryPlacementFeedback.describe(stale, "frame", [0, 0, 0], "surface", true, false)
+	check(removed["selected_position"].is_empty() and not removed["ghost_visible"], "removed frame cannot leave stale selection geometry")
 	print("Machinery placement bounds: %d failures" % failures)
 	quit(1 if failures else 0)
 
