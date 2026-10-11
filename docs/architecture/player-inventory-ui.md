@@ -33,3 +33,9 @@ Component presentation now wraps full selected IDs outside clipped pickers, flow
 ## Cursor and controls
 
 Hold Left Alt (default) to access panels during navigation. The Settings tab provides rebinding and sensitivity; see [player controls](player-controls.md). Inventory, hand and tool shortcuts use the same configured action registry.
+
+Transfer selections now show exact observed source, owned destination and equipment
+slot IDs together, with loaded item mass and destination load/capacity. Tray drop and
+collection have separate summaries so their different destinations stay explicit.
+Unavailable observation fields remain unavailable; the panel predicts no fit or
+authoritative outcome. See [inventory transfer preview](../development/inventory-transfer-preview-milestone.md).

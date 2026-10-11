@@ -16,6 +16,8 @@ var _pending_world: Dictionary = {}
 var _pending_inventory: Dictionary = {}
 var _inventory_buttons: Dictionary = {}
 var _storage_status := Label.new()
+var _transfer_preview := Label.new()
+var _world_transfer_preview := Label.new()
 var _initialized_pickers: Dictionary = {}
 var _source := OptionButton.new()
 var _destination := OptionButton.new()
@@ -81,6 +83,8 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_destination)
 	_storage_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_storage_status)
+	_transfer_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_transfer_preview)
 	_destination.item_selected.connect(func(_index: int) -> void: _update_buttons())
 	_slot.item_selected.connect(func(_index: int) -> void: _update_buttons())
 	_button(self, "Move selected item into destination", _self_action.bind("move"), "move")
@@ -94,6 +98,8 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_world_items)
 	_world_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_world_details)
+	_world_transfer_preview.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_world_transfer_preview)
 	var world_actions := HFlowContainer.new()
 	add_child(world_actions)
 	_button(world_actions, "Collect selected", _world_action.bind("pickup"), "pickup")
@@ -376,7 +382,7 @@ func _disconnected(message: String) -> void:
 	_initialized_pickers.clear()
 	for list in [_items, _world_items]: list.clear()
 	for picker in [_source, _destination, _slot, _world_root, _carrier, _tool_parts, _tool_mounts, _loose_parts, _part_blueprints]: picker.clear()
-	for label in [_summary, _equipment, _details, _world_details, _work_status, _storage_status]: label.text = ""
+	for label in [_summary, _equipment, _details, _world_details, _work_status, _storage_status, _transfer_preview, _world_transfer_preview]: label.text = ""
 	_result.text = message + "; pending target cleared; its outcome is unknown. Reconnect and refresh before retrying."
 	_world_status.text = _result.text
 	_update_buttons()
@@ -516,6 +522,12 @@ func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 
 
 func _update_buttons() -> void:
+	_transfer_preview.text = PlayerInventoryPresentation.transfer_preview(_record, _selected_id(_items), _picker_id(_destination), _picker_id(_slot)) if not _record.is_empty() else ""
+	_world_transfer_preview.text = ""
+	if not _record.is_empty():
+		_world_transfer_preview.text = PlayerInventoryPresentation.drop_preview(_record, _selected_id(_items), _nearby, _picker_id(_world_root))
+		if not _picker_id(_world_root).is_empty():
+			_world_transfer_preview.text += "\n" + PlayerInventoryPresentation.transfer_preview(_record, _selected_id(_world_items), _picker_id(_destination), "", _nearby, _picker_id(_world_root))
 	if _shown_pending != _pending:
 		_shown_pending = _pending
 		if not _pending.is_empty() and get_parent() is ScrollContainer:
