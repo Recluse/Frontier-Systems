@@ -53,6 +53,38 @@ static func active_equipment(record: Dictionary, selected_item: String, selected
 	return "\n".join(lines)
 
 
+## Operation-specific paths; the selected move destination is not an equip target.
+static func equipment_access(record: Dictionary, selected_item: String, slot: String, destination: String) -> String:
+	var selected: Dictionary = item(record, selected_item)
+	var occupant: String = ""
+	for binding in record.get("equipped", []):
+		if binding["slot_id"] == slot: occupant = binding["item_id"]
+	var equipped_item: Dictionary = item(record, occupant)
+	var lines := PackedStringArray([
+		"Equip item: %s · source: %s · target slot: %s" % [selected_item if not selected.is_empty() else "unavailable", selected.get("container_id", "unavailable"), slot if record.get("slot_ids", []).has(slot) else "unavailable"],
+		access_hint(record, str(selected.get("container_id", "")), "Equip source"),
+		access_hint(record, str(record.get("body_container_id", "")), "Equip body-root target"),
+		"Equip uses the body root and selected slot; the storage destination selection is not used.",
+		"Unequip slot item: %s · source: %s · destination: %s" % [occupant if not equipped_item.is_empty() else "unavailable", equipped_item.get("container_id", "unavailable"), destination if record.get("container_ids", []).has(destination) else "unavailable"],
+		access_hint(record, str(equipped_item.get("container_id", "")), "Unequip source"),
+		access_hint(record, destination, "Unequip destination"),
+		"Container shells use their containing path; equipping or unequipping a shell does not access its contents.",
+		"Select hand uses the configured selected hand slot; switch hand cycles configured hands. Neither moves items or opens storage. The host decides acceptance."
+	])
+	return "\n".join(lines)
+
+
+## Detached submission-time observation, kept separate from the command payload.
+static func equipment_submission(record: Dictionary, payload: Dictionary) -> String:
+	var slot: String = str(payload.get("slot_id", ""))
+	var occupant: String = "empty"
+	if not record.has("equipped") or not record.get("slot_ids", []).has(slot):
+		occupant = "unavailable"
+	else:
+		for binding in record["equipped"]:
+			if binding["slot_id"] == slot: occupant = binding["item_id"]
+	return "Submitted equipment observation · slot %s · slot item %s · active hand %s. These are observed identities, not a predicted outcome." % [slot if not slot.is_empty() else "not used", occupant if not slot.is_empty() else "not used", record.get("active_hand_slot_id", "unavailable")]
+
 static func item(record: Dictionary, item_id: String) -> Dictionary:
 	for entry in record.get("items", []):
 		if entry["item_id"] == item_id:

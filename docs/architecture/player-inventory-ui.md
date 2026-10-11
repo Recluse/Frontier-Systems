@@ -77,3 +77,12 @@ evidence, never a promise of hands, reach, capacity or transfer success. Moving 
 closed shell checks its containing path, not the shell's contents. No hint opens,
 retries or changes a target or pending request. See
 [owned nested access guidance](../development/owned-nested-transfer-access-guidance-milestone.md).
+
+Equipment guidance distinguishes the selected item's equip source and body-root
+slot target from the selected slot occupant's unequip source and owned storage
+destination. It uses the same bounded fresh owned closure evidence: a closed
+shell's exterior remains distinct from its contents, and unknown stays unknown.
+Selecting or switching hands moves no items and opens no storage. Pending and
+receipt feedback retain the submission-time observed slot occupant and active
+hand separately from newer observations, without adding fields to commands.
+See [equipment access guidance](../development/owned-equipment-access-guidance-milestone.md).

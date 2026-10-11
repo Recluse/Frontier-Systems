@@ -50,6 +50,8 @@ func closure(operation: String) -> void:
 func transfer(id: String, source: String, destination: String, success: bool = true) -> void:
 	apply("self", {"operation": "move", "item_id": id, "source_container_id": source, "destination_container_id": destination, "slot_id": "", "expected_revision": frame()["inventory"]["inventory_revision"]}, false, success)
 
+func equipment(operation: String, id: String = "", source: String = "", destination: String = "", slot: String = "hand.right", success: bool = true) -> void:
+	apply("self", {"operation": operation, "item_id": id, "source_container_id": source, "destination_container_id": destination, "slot_id": slot, "expected_revision": frame()["inventory"]["inventory_revision"]}, false, success)
 func choose(picker: OptionButton, id: String) -> void:
 	for index in range(picker.item_count):
 		if picker.get_item_metadata(index) == id:
@@ -135,9 +137,66 @@ func run() -> void:
 	transfer(plate, "body.human-1", "storage.pouch-1")
 	panel.observe(frame())
 	check(remote.sent.is_empty(), "browsing/hints never queue open or retry")
+	# Actual paid nested equipment: source and destination must follow the operation.
+	closure("close_container")
+	panel.observe(frame())
+	choose(panel._source, "*")
+	select_item(plate)
+	choose(panel._slot, "hand.right")
+	choose(panel._destination, "storage.pouch-1")
+	check(panel._equipment.text.contains("Equip source physical access: observed closed container storage.backpack-1"), "equip names actual paid nested source")
+	check(panel._equipment.text.contains("storage destination selection is not used"), "equip target differs from move destination")
+	before = inventory.capture_snapshot().value
+	equipment("equip", plate, "storage.pouch-1", "", "hand.right", false)
+	check(last.error_code == &"inventory_container_closed" and inventory.capture_snapshot().value["owner"] == before["owner"], "closed equip rejection is atomic")
+	closure("open_container")
+	equipment("equip", plate, "storage.pouch-1")
+	closure("close_container")
+	panel.observe(frame())
+	select_item("crowbar-1")
+	check(panel._equipment.text.contains("Unequip slot item: %s · source: body.human-1 · destination: storage.pouch-1" % plate), "unequip uses slot occupant rather than selected crowbar")
+	check(panel._equipment.text.contains("Unequip destination physical access: observed closed container storage.backpack-1") and panel._inventory_buttons["unequip"].disabled, "unequip names nested destination blocker")
+	before = inventory.capture_snapshot().value
+	equipment("unequip", "", "", "storage.pouch-1", "hand.right", false)
+	check(last.error_code == &"inventory_container_closed" and inventory.capture_snapshot().value["owner"] == before["owner"], "closed unequip rejection is atomic")
+	# Selecting a configured hand does not access the paid item or closed contents.
+	var ledger_before: Dictionary = before["owner"]["ledger"].duplicate(true)
+	equipment("select_hand")
+	check(inventory.capture_snapshot().value["owner"]["ledger"] == ledger_before, "hand selection moves no matter")
+	equipment("switch_hand", "", "", "", "")
+	check(inventory.capture_snapshot().value["owner"]["ledger"] == ledger_before, "hand switch moves no matter")
+	panel.observe(frame())
+	check(panel._equipment.text.contains("Neither moves items or opens storage"), "hand selection explanation remains explicit")
+	# A closed shell remains externally accessible for same-root equipment changes.
+	equipment("unequip", "", "", "body.human-1", "back")
+	equipment("equip", "backpack-1", "body.human-1", "", "back")
+	check(not PlayerInventoryPresentation.equipment_access(frame()["inventory"], "backpack-1", "back", "body.human-1").contains("Equip source physical access: observed closed"), "closed shell uses exterior source")
+	closure("open_container")
+	panel.observe(frame())
+	choose(panel._slot, "hand.right")
+	choose(panel._destination, "body.human-1")
+	panel._self_action("unequip")
+	check(remote.sent.size() == 1 and panel._pending_equipment_observation.contains("slot item " + plate), "submission freezes actual paid slot occupant")
+	var pending_payload: Dictionary = remote.sent[0].payload.duplicate(true)
+	equipment("unequip", "", "", "body.human-1")
+	var unequip_result: ServiceResult = last
+	equipment("equip", "crowbar-1", "body.human-1")
+	panel.observe(frame())
+	check(panel._equipment.text.contains("Unequip slot item: crowbar-1") and panel._equipment.text.contains("Submitted equipment observation · slot hand.right · slot item " + plate), "fresh slot occupant does not replace submitted identity")
+	check(remote.sent[0].payload == pending_payload and not pending_payload.has("observed_slot_item"), "presentation metadata never enters command payload")
+	remote.command_completed.emit(remote.sent[0], unequip_result)
+	check(panel._pending_equipment_observation.is_empty() and panel._pending.is_empty() and panel._result.text.contains("slot item " + plate), "matching receipt retains submitted identity in feedback")
+	for field in ["deposits", "store", "cargo", "energy_joules", "state_revision", "components", "structures"]:
+		check(world.production_observation(actor).value[field] == paid_before[field], "equipment conserves paid " + field)
+	# Return the exact paid item to its nested location for freshness checks below.
+	equipment("unequip", "", "", "body.human-1")
+	transfer(plate, "body.human-1", "storage.pouch-1")
+	panel.observe(frame())
+	select_item(plate)
+	choose(panel._destination, "storage.pouch-1")
 	# Earlier closed state must not replace current closure evidence or stable selections.
 	panel.observe(closed)
-	check(panel._transfer_preview.text.contains("Source physical access: unknown") and not panel._transfer_preview.text.contains("observed closed container"), "older revision fences transfer closure claims")
+	check(panel._equipment.text.contains("Equip source physical access: unknown") and panel._transfer_preview.text.contains("Source physical access: unknown") and not panel._transfer_preview.text.contains("observed closed container"), "older revision fences transfer closure claims")
 	panel.observe(frame())
 	var malformed: Dictionary = frame()["inventory"].duplicate(true)
 	for container in malformed["container_records"]:
@@ -168,7 +227,7 @@ func run() -> void:
 	while Time.get_ticks_msec() - panel._equipment_observed_at <= panel.EQUIPMENT_OBSERVATION_TIMEOUT_MSEC + 100:
 		await process_frame
 	panel._process(0.0)
-	check(panel._transfer_preview.text.contains("Source physical access: unknown"), "aged transfer hint refreshes through existing freshness fence: now=%s at=%s empty=%s text=%s" % [Time.get_ticks_msec(), panel._equipment_observed_at, panel._equipment_record.is_empty(), panel._transfer_preview.text])
+	check(panel._equipment.text.contains("Equip source physical access: unknown") and panel._transfer_preview.text.contains("Source physical access: unknown"), "aged transfer hint refreshes through existing freshness fence: now=%s at=%s empty=%s text=%s" % [Time.get_ticks_msec(), panel._equipment_observed_at, panel._equipment_record.is_empty(), panel._transfer_preview.text])
 	panel.observe({})
 	check(panel._transfer_preview.text.is_empty(), "unavailable inventory removes disposable hints")
 	check(PlayerInventoryPresentation.access_hint({}, "retained.id", "Source").contains("unknown"), "unavailable closure honest")
