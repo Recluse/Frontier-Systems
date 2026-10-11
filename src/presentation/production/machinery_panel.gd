@@ -15,6 +15,14 @@ var _recipe := OptionButton.new()
 var _eject_amount := SpinBox.new()
 var _mode := OptionButton.new()
 var _axes: Array[SpinBox] = []
+var _coordinate_text_edits: Array[bool] = []
+var _coordinate_grid := GridContainer.new()
+var _coordinate_title := Label.new()
+var _coordinate_labels: Array[Label] = []
+var _wall_input_hint := Label.new()
+var _new_wall := Button.new()
+var _wall_build_button: Button
+var _wall_remove_button: Button
 var _status := Label.new()
 var _feedback := Label.new()
 var _pending: String = ""
@@ -52,18 +60,36 @@ func configure(world: WorldRuntime) -> void:
 	_button("Remove module / printed part", "machine_unfit")
 	_button("Insert canister", "machine_insert")
 	_button("Remove canister", "machine_remove")
-	_label("Placement coordinates, metres relative to workbench")
-	var row := HBoxContainer.new()
+	_coordinate_title.text = "Placement coordinates, metres relative to workbench"
+	_coordinate_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_coordinate_title)
+	var row: GridContainer = _coordinate_grid
+	row.columns = 6
 	add_child(row)
 	for axis in ["X", "Y", "Z"]:
 		var title := Label.new()
 		title.text = axis
+		_coordinate_labels.append(title)
 		row.add_child(title)
 		var field := SpinBox.new()
 		field.min_value = -100
 		field.max_value = 100
 		field.step = 0.1
-		field.value_changed.connect(func(_value: float) -> void: _refresh_placement())
+		field.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		field.get_line_edit().select_all_on_focus = true
+		field.get_line_edit().tooltip_text = "%s coordinate in metres relative to workbench; 0.1 m steps, ±100 m." % axis
+		var coordinate_index: int = _axes.size()
+		_coordinate_text_edits.append(false)
+		field.get_line_edit().focus_entered.connect(_reveal_wall_control.bind(field))
+		field.get_line_edit().text_changed.connect(func(_text: String) -> void: _coordinate_text_edits[coordinate_index] = true)
+		field.get_line_edit().gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventKey and event.pressed and (event.unicode > 0 or event.keycode in [KEY_BACKSPACE, KEY_DELETE] or (event.ctrl_pressed and event.keycode in [KEY_V, KEY_X])):
+				_coordinate_text_edits[coordinate_index] = true
+		)
+		field.value_changed.connect(func(_value: float) -> void:
+			_coordinate_text_edits[coordinate_index] = false
+			_refresh_placement()
+		)
 		row.add_child(field)
 		_axes.append(field)
 	_mode.add_item("Floor surface", 0)
@@ -74,12 +100,18 @@ func configure(world: WorldRuntime) -> void:
 	_placement_kind.add_item("Machine placement preview", 0)
 	_placement_kind.add_item("Physical wall placement preview", 1)
 	add_child(_placement_kind)
-	_placement_kind.item_selected.connect(func(_index: int) -> void: _refresh_placement())
+	_placement_kind.item_selected.connect(func(index: int) -> void:
+		if index == 1: _begin_wall_placement()
+		else: _refresh_placement()
+	)
 	_part.item_selected.connect(func(_index: int) -> void: _refresh_placement())
 	_wall.item_selected.connect(func(_index: int) -> void: select_wall(_selected(_wall)))
 	_wall_turn.item_selected.connect(func(_index: int) -> void: _refresh_placement())
 	_show_placement.text = "Show placement ghost / footprint"
-	_show_placement.toggled.connect(func(_shown: bool) -> void: _refresh_placement())
+	_show_placement.toggled.connect(func(shown: bool) -> void:
+		if shown and _placement_kind.selected == 1 and _pending.is_empty(): _begin_wall_placement(false)
+		else: _refresh_placement()
+	)
 	add_child(_show_placement)
 	_placement_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_placement_status)
@@ -87,12 +119,25 @@ func configure(world: WorldRuntime) -> void:
 	_button("Use current player position (floor)", "position")
 	_button("Deploy assembled frame", "machine_deploy")
 	_label("Walls: select an owned physical plate above. Floor panels are 1 × 2 × 0.1 m and snap to the 0.1 m coordinate grid.")
-	_wall_turn.add_item("Wall along X", 0)
-	_wall_turn.add_item("Wall along Z", 1)
+	_new_wall.text = "Place a new wall\n(keep draft coordinates)"
+	_new_wall.pressed.connect(_begin_wall_placement)
+	add_child(_new_wall)
+	_wall_input_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_wall_input_hint)
+	move_child(_new_wall, _coordinate_title.get_index())
+	move_child(_wall_input_hint, _coordinate_grid.get_index())
+	_wall_turn.add_item("Wall along X — width follows X", 0)
+	_wall_turn.add_item("Wall along Z — width follows Z", 1)
 	add_child(_wall_turn)
-	_button("Build wall from selected physical plate", "wall_build")
+	_wall_build_button = _button("Build wall from selected\nphysical plate", "wall_build")
 	add_child(_wall)
-	_button("Remove selected wall and recover plate", "wall_remove")
+	_wall_remove_button = _button("Remove selected wall\nand recover plate", "wall_remove")
+	_wall.fit_to_longest_item = false
+	_wall_turn.fit_to_longest_item = false
+	_wall.tooltip_text = "Inspect an observed wall by stable ID, or click its physical panel in the world."
+	_wall_turn.tooltip_text = "New wall orientation. Existing walls keep their observed orientation."
+	_wall_turn.focus_entered.connect(_reveal_wall_control.bind(_wall_turn))
+
 	_button("Pack machine with its nested contents", "machine_pack")
 	_label("Other cable endpoint")
 	add_child(_other)
@@ -151,6 +196,7 @@ func observe(record: Dictionary) -> void:
 	if not _operation_feedback.observe(record.get("production", {})): record = {}
 	_record = record
 	if record.is_empty():
+		if not _selected(_wall).is_empty(): _wall_selection_lost = true
 		_status.text = _operation_feedback.grid_text
 		_show_placement.set_pressed_no_signal(false)
 		for picker in [_machine, _part, _wall, _other, _socket]: picker.clear()
@@ -191,6 +237,10 @@ func _send(action: String) -> void:
 	if action == "position":
 		for index in range(3): _axes[index].value = 0 if index == 1 else float(_record["position"][index]) / 1000.0
 		return
+	if action == "wall_build":
+		for index in range(_axes.size()):
+			if _coordinate_text_edits[index]: _axes[index].apply()
+			_coordinate_text_edits[index] = false
 	if action in ["wall_build", "wall_remove"]: _placement_kind.select(1)
 	var operation: String = action
 	var payload: Dictionary = {"expected_revision": _record["production"]["state_revision"]}
@@ -241,6 +291,31 @@ func select_machine(id: String) -> void:
 			return
 
 
+## Explicit presentation transition; retain the draft and any settled result.
+func _begin_wall_placement(focus_coordinate: bool = true) -> void:
+	if not _pending.is_empty(): return
+	if _record.is_empty():
+		_refresh_placement()
+		return
+	_wall_selection_lost = true
+	_wall.select(-1)
+	_placement_kind.select(1)
+	_show_placement.set_pressed_no_signal(true)
+	_refresh_placement()
+	if focus_coordinate: _axes[0].get_line_edit().grab_focus()
+
+
+## Keep keyboard-focused wall controls in view without changing other tabs.
+func _reveal_wall_control(control: Control) -> void:
+	if _placement_kind.selected == 1 and get_parent() is ScrollContainer:
+		(get_parent() as ScrollContainer).call_deferred("ensure_control_visible", control)
+
+
+func _link_focus(first: Control, next: Control) -> void:
+	first.focus_next = first.get_path_to(next)
+	next.focus_previous = next.get_path_to(first)
+
+
 func select_wall(id: String) -> void:
 	for index in range(_wall.item_count):
 		if _wall.get_item_metadata(index) == id:
@@ -253,12 +328,13 @@ func select_wall(id: String) -> void:
 			return
 
 
-func _button(title: String, action: String) -> void:
+func _button(title: String, action: String) -> Button:
 	var button := Button.new()
 	button.text = title
 	button.pressed.connect(_send.bind(action))
 	_action_buttons.append(button)
 	add_child(button)
+	return button
 
 
 func _label(title: String) -> void:
@@ -326,11 +402,43 @@ func _refresh_placement() -> void:
 				if amount > 0: content.append("%s %.3f kg" % [material, float(amount) / 1000000.0])
 			if not content.is_empty(): _status.text += "\n%s: %s" % [id.right(8), ", ".join(content)]
 	var waiting: bool = not _pending.is_empty()
+	var wall_mode: bool = _placement_kind.selected == 1 or not _pending_wall.is_empty()
+	var inspecting: bool = wall_mode and not _selected(_wall).is_empty() and not _show_placement.button_pressed and _pending_wall.is_empty()
+	var unavailable: bool = _record.is_empty()
+	_coordinate_grid.columns = 2 if wall_mode else 6
+	_coordinate_grid.visible = not inspecting
+	_coordinate_title.visible = not inspecting
+	_coordinate_title.text = "New wall target, metres relative to workbench" if wall_mode else "Placement coordinates, metres relative to workbench"
+	_new_wall.visible = wall_mode
+	for index in range(_coordinate_labels.size()):
+		_coordinate_labels[index].text = ["X", "Y", "Z"][index] + (" (m)" if wall_mode else "")
+		_axes[index].custom_minimum_size.x = 140 if wall_mode else 0
+		_axes[index].size_flags_horizontal = Control.SIZE_EXPAND_FILL if wall_mode else Control.SIZE_FILL
+		_axes[index].get_line_edit().select_all_on_focus = wall_mode
+		_axes[index].get_line_edit().focus_next = NodePath("")
+		_axes[index].get_line_edit().focus_previous = NodePath("")
+	_wall_turn.focus_previous = NodePath("")
+	_wall_turn.focus_next = NodePath("")
+	_wall_build_button.focus_previous = NodePath("")
+	if wall_mode:
+		for index in range(2): _link_focus(_axes[index].get_line_edit(), _axes[index + 1].get_line_edit())
+		_link_focus(_axes[2].get_line_edit(), _wall_turn)
+		_link_focus(_wall_turn, _wall_build_button)
+	_mode.visible = not wall_mode
+	_wall_turn.visible = not inspecting
+	_new_wall.disabled = waiting or unavailable
+	_wall_input_hint.text = "Inspecting an observed wall. Its pose below is read-only. Choose Place a new wall to edit your saved draft." if inspecting else "New wall draft: X / Z are floor coordinates; Y must be 0. Enter metres, press Enter to apply, or Tab / Shift+Tab between coordinates and orientation. Preview and reach hints are advisory; the host decides placement."
+	if waiting and wall_mode: _wall_input_hint.text = "Waiting for host; the submitted wall target is frozen. Draft controls cannot retarget this request."
+	_wall_input_hint.visible = wall_mode
+	_show_placement.text = "Preview new wall at draft coordinates" if wall_mode else "Show placement ghost / footprint"
+	_show_placement.disabled = waiting or (wall_mode and (unavailable or inspecting))
 	for button in _action_buttons: button.disabled = waiting or _record.is_empty()
-	for field in _axes: field.editable = not waiting
+	for field in _axes: field.editable = not waiting and (not wall_mode or not unavailable)
 	_mode.disabled = waiting
 	_machine.disabled = waiting
-	for picker in [_part, _wall, _wall_turn, _placement_kind]: picker.disabled = waiting
+	for picker in [_part, _wall, _wall_turn, _placement_kind]: picker.disabled = waiting or (wall_mode and unavailable)
+	_wall_build_button.disabled = waiting or unavailable or inspecting
+	_wall_remove_button.disabled = waiting or unavailable or _selected(_wall).is_empty()
 	if _axes.size() != 3: return
 	var coords: Array = [roundi(_axes[0].value * 1000), roundi(_axes[1].value * 1000), roundi(_axes[2].value * 1000)]
 	var machine_id: String = _selected(_machine)
