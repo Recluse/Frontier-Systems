@@ -29,3 +29,7 @@ The focused `tests/godot/inventory_controller_authority_test.gd` checks candidat
 Local verification results and final-head CI are reported with the PR. CI runs the ordinary wider suite; this component test opens no ports and uses no services. No configuration examples change. No upstream research or creative assets were added; first-party code remains MIT.
 
 The serialized successor must integrate the single canonical epoch, actual shared owner body/root validation, lifecycle ordering/capacity reconciliation, jobs/views/grips invalidation and startup fencing. Receipt/high-water atomic transactions and snapshot v5 remain separate required work before production admission. No inventory runtime, shared schemas, transport, UI, input or guide changes accompany this increment. No merge or deployment is authorized.
+
+## Serialized successor
+
+The [canonical controller epoch increment](canonical-controller-epoch-milestone.md) supersedes this increment's copied-fixture initialize API with a validated canonical owner interface. Historical verification above describes PR #50; current lifecycle epoch storage belongs solely to InventorySimulationSystem. Production gating and recovery remain unintegrated.

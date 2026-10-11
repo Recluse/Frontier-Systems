@@ -567,6 +567,41 @@ func world_inventory_observation(context: AuthenticatedCommandContext) -> Servic
 	return ServiceResult.success({"schema_version": 2, "inventory_revision": int(record["state_revision"]), "containers": containers})
 
 
+## Trusted lifecycle projection, independently validated against the actual shared
+## ledger/equipment owner. It is not a snapshot, client claim or admission API.
+func controller_candidate() -> ServiceResult:
+	if _setup == null or not _setup.is_success or _owner == null:
+		return _failure("A configured canonical inventory owner is required.")
+	var snapshot: Dictionary = capture_snapshot().value
+	var checked: ServiceResult = _decode(snapshot, _last_tick)
+	if not checked.is_success:
+		return checked
+	var candidate: Dictionary = {}
+	for body in snapshot["owner"]["bodies"]:
+		var metadata: Dictionary = snapshot["bodies"].filter(func(entry: Dictionary) -> bool: return entry["body_id"] == body["body_id"])[0]
+		candidate[body["body_id"]] = {"body_id": body["body_id"], "principal_id": metadata["principal_id"],
+			"body_container_id": body["body_container_id"], "control_epoch": int(metadata["control_epoch"])}
+	return ServiceResult.success(candidate)
+
+
+## One synchronous compare/validate/commit; only canonical body metadata changes.
+## No receipt, high-water, invalidation or startup fencing rollout is installed.
+func commit_control_epoch(expected: Dictionary, next_epoch: int) -> ServiceResult:
+	var current: ServiceResult = controller_candidate()
+	if not current.is_success:
+		return current
+	var id: Variant = expected.get("body_id")
+	if not current.value.has(id) or current.value[id] != expected:
+		return ServiceResult.failure(&"binding_conflict", "Canonical body metadata changed.")
+	if int(expected["control_epoch"]) >= MAX_EXACT_INTEGER:
+		return ServiceResult.failure(&"epoch_exhausted", "Canonical control epoch is exhausted.")
+	if next_epoch != int(expected["control_epoch"]) + 1:
+		return ServiceResult.failure(&"binding_conflict", "Control epoch must increment exactly once.")
+	var candidate: Dictionary = _bodies[id].duplicate(true)
+	candidate["control_epoch"] = next_epoch
+	_bodies[id] = candidate
+	return ServiceResult.success(next_epoch)
+
 func capture_snapshot() -> ServiceResult:
 	var jobs: Array = []
 	for entry in _jobs.values():

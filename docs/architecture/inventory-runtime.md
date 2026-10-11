@@ -4,6 +4,10 @@ Current extension: [inventory/grip arbitration](inventory-grip-runtime.md) adds 
 
 Current payload extension: [portable terrain material](../development/terrain-portable-milestone.md) composes disjoint Production and Terrain payloads through one catalog provider, including prospective factory checks and candidate-world recovery. Physical ledger records and inventory snapshot v4 are unchanged.
 
+## Canonical controller owner boundary
+
+The [canonical controller epoch increment](../development/canonical-controller-epoch-milestone.md) adds trusted controller_candidate and commit_control_epoch methods plus an explicit InventoryRuntimeControllerOwner interface adapter. It derives principal/body/root agreement from validated canonical inventory candidates and commits lifecycle increments to the existing v4 body metadata. InventoryControllerAuthority uses that sole epoch; session tokens pin it for freshness. The component remains unintegrated with production admission, commands, receipts, jobs/views/grips invalidation and startup fencing. Existing development authorization and command behavior are unchanged.
+
 ## Runnable development slice
 
 `InventorySimulationSystem` is now registered in `WorldRuntime` at tick priority 200, after machine controls. It owns the shared inventory coordinator, logical body/action records, bounded interaction jobs, volatile search views and limited command-outcome metadata. Startup loads trusted catalogs and the existing two-human shared fixture outside simulation ticks.

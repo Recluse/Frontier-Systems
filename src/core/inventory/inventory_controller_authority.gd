@@ -1,42 +1,35 @@
 extends RefCounted
 class_name InventoryControllerAuthority
 
-## Standalone FP-01 binding domain. Not composed into inventory or admission.
-## Lifecycle entrypoints are trusted tick-boundary calls, never client payloads.
+## FP-01 session/token component. Canonical epochs belong exclusively to owner.
+## Not composed into production admission. Lifecycle calls are trusted/synchronous.
 const MAX_BINDINGS: int = 32
 const MAX_EXACT_INTEGER: int = 9007199254740990
 
 var _world: StringName
 var _region: StringName
 var _provider: InventoryControllerSessionProvider
+var _owner: InventoryControllerOwner
 var _bindings: Dictionary = {}
 var _initialized: bool = false
 var _rejections: int = 0
 
 
-## Atomic initial candidate: body IDs must exactly match the supplied owner IDs.
-## Records are isolated fixtures, not canonical inventory metadata or persistence.
-func initialize(world: StringName, region: StringName, bodies: Array, owner_body_ids: PackedStringArray, provider: InventoryControllerSessionProvider) -> ServiceResult:
-	if _initialized or not ControlContractValidation.is_id(String(world)) or not ControlContractValidation.is_id(String(region)) or provider == null or bodies.size() > MAX_BINDINGS or owner_body_ids.size() != bodies.size():
+func initialize(world: StringName, region: StringName, owner: InventoryControllerOwner, provider: InventoryControllerSessionProvider) -> ServiceResult:
+	if _initialized or not ControlContractValidation.is_id(String(world)) or not ControlContractValidation.is_id(String(region)) or owner == null or provider == null:
+		return _reject(&"invalid_candidate")
+	var checked: ServiceResult = _read_candidate(owner)
+	if not checked.is_success:
 		return _reject(&"invalid_candidate")
 	var candidate: Dictionary = {}
-	var principals: Dictionary = {}
-	for id in owner_body_ids:
-		if not ControlContractValidation.is_id(id) or owner_body_ids.count(id) != 1:
-			return _reject(&"invalid_candidate")
-	for raw in bodies:
-		if typeof(raw) != TYPE_DICTIONARY:
-			return _reject(&"invalid_candidate")
-		var body: Dictionary = raw
-		if not ControlContractValidation.has_exact_fields(body, PackedStringArray(["body_id", "principal_id", "control_epoch"])) or not ControlContractValidation.is_id(body.get("body_id")) or not ControlContractValidation.is_id(body.get("principal_id")) or not ControlContractValidation.is_integer(body.get("control_epoch"), 0, MAX_EXACT_INTEGER):
-			return _reject(&"invalid_candidate")
-		if candidate.has(body["body_id"]) or principals.has(body["principal_id"]) or not owner_body_ids.has(body["body_id"]):
-			return _reject(&"invalid_candidate")
-		candidate[body["body_id"]] = {"principal_id": body["principal_id"], "control_epoch": int(body["control_epoch"]), "session_id": &"", "token": null}
-		principals[body["principal_id"]] = true
+	for id in checked.value:
+		var body: Dictionary = checked.value[id]
+		candidate[id] = {"principal_id": body["principal_id"], "body_container_id": body["body_container_id"],
+			"session_id": &"", "token": null, "token_epoch": -1}
 	_world = world
 	_region = region
 	_provider = provider
+	_owner = owner
 	_bindings = candidate
 	_initialized = true
 	return ServiceResult.success()
@@ -54,43 +47,54 @@ func revoke(body_id: StringName, principal: StringName, expected_epoch: int) -> 
 	return _transition(body_id, principal, &"", expected_epoch, &"revoke")
 
 
-## At most one opaque token per active binding; repeated pin has bounded storage.
 func pin(context: AuthenticatedCommandContext) -> ServiceResult:
 	if not _context_valid(context):
 		return _reject(&"session_denied")
+	var checked: ServiceResult = _current()
+	if not checked.is_success:
+		return _reject(&"invalid_candidate")
 	for id in _bindings:
 		var binding: Dictionary = _bindings[id]
-		if StringName(binding["principal_id"]) == context.principal_id and binding["session_id"] == context.session_id and binding["token"] != null:
+		if StringName(binding["principal_id"]) == context.principal_id and binding["session_id"] == context.session_id and binding["token"] != null and binding["token_epoch"] == checked.value[id]["control_epoch"]:
 			return ServiceResult.success(binding["token"])
 	return _reject(&"session_denied")
 
 
-## Recheck current identity, grant, session liveness and issuing object identity.
-## Expected body is server-owned command routing, never a client-selected actor.
+## Server-derived expected body; current owner agreement precedes token admission.
 func validate(token: InventoryControllerToken, context: AuthenticatedCommandContext, expected_body: StringName) -> ServiceResult:
 	if token == null or not _bindings.has(String(expected_body)):
 		return _reject(&"stale_or_foreign_token")
-	var binding: Dictionary = _bindings[String(expected_body)]
-	if binding["token"] != token:
-		return _reject(&"stale_or_foreign_token")
-	if not _context_valid(context) or StringName(binding["principal_id"]) != context.principal_id or binding["session_id"] != context.session_id:
+	if not _context_valid(context):
 		return _reject(&"session_denied")
-	return ServiceResult.success({"body_id": String(expected_body), "control_epoch": binding["control_epoch"]})
+	var checked: ServiceResult = _current()
+	if not checked.is_success:
+		return _reject(&"invalid_candidate")
+	var binding: Dictionary = _bindings[String(expected_body)]
+	if binding["token"] != token or binding["token_epoch"] != checked.value[String(expected_body)]["control_epoch"]:
+		return _reject(&"stale_or_foreign_token")
+	if StringName(binding["principal_id"]) != context.principal_id or binding["session_id"] != context.session_id:
+		return _reject(&"session_denied")
+	return ServiceResult.success(checked.value[String(expected_body)].duplicate(true))
 
 
-## Detached observation, explicitly not a durable snapshot or canonical body copy.
+## Detached live projection, never durable state. Invalid owner yields no claims.
 func observation() -> Dictionary:
+	var checked: ServiceResult = _current()
+	if not checked.is_success:
+		return {}
 	var result: Dictionary = {}
 	for id in _bindings:
 		var binding: Dictionary = _bindings[id]
-		result[id] = {"principal_id": binding["principal_id"], "control_epoch": binding["control_epoch"], "active": binding["token"] != null}
+		result[id] = {"principal_id": binding["principal_id"], "body_container_id": binding["body_container_id"],
+			"control_epoch": checked.value[id]["control_epoch"],
+			"active": binding["token"] != null and binding["token_epoch"] == checked.value[id]["control_epoch"]}
 	return result
 
 
 func profiling_counters() -> Dictionary:
 	var active: int = 0
-	for binding in _bindings.values():
-		if binding["token"] != null:
+	for body in observation().values():
+		if body["active"]:
 			active += 1
 	return {"bindings": _bindings.size(), "active_controllers": active, "rejections": _rejections}
 
@@ -98,10 +102,14 @@ func profiling_counters() -> Dictionary:
 func _transition(body_id: StringName, principal: StringName, session: StringName, expected_epoch: int, operation: StringName) -> ServiceResult:
 	if not _initialized or not _bindings.has(String(body_id)):
 		return _reject(&"unknown_body")
+	var checked: ServiceResult = _current()
+	if not checked.is_success:
+		return _reject(&"invalid_candidate")
+	var body: Dictionary = checked.value[String(body_id)]
 	var current: Dictionary = _bindings[String(body_id)]
-	if StringName(current["principal_id"]) != principal or current["control_epoch"] != expected_epoch:
+	if StringName(body["principal_id"]) != principal or body["control_epoch"] != expected_epoch:
 		return _reject(&"binding_conflict")
-	if current["control_epoch"] >= MAX_EXACT_INTEGER:
+	if body["control_epoch"] >= MAX_EXACT_INTEGER:
 		return _reject(&"epoch_exhausted")
 	var active: bool = current["token"] != null
 	if (operation == &"bind" and active) or (operation != &"bind" and not active) or (operation == &"replace" and current["session_id"] == session):
@@ -112,13 +120,49 @@ func _transition(body_id: StringName, principal: StringName, session: StringName
 		for other in _bindings.values():
 			if other["session_id"] == session:
 				return _reject(&"binding_conflict")
-	# No fallible mutation after candidate preparation. Retired identities are dropped.
+	var next_epoch: int = int(body["control_epoch"]) + 1
 	var candidate: Dictionary = current.duplicate()
-	candidate["control_epoch"] = int(current["control_epoch"]) + 1
 	candidate["session_id"] = session
 	candidate["token"] = null if operation == &"revoke" else InventoryControllerToken.new()
+	candidate["token_epoch"] = next_epoch if operation != &"revoke" else -1
+	var committed: ServiceResult = _owner.commit_control_epoch(body, next_epoch)
+	if not committed.is_success:
+		return _reject(committed.error_code)
+	# No fallible work/callback between canonical commit and token publication.
 	_bindings[String(body_id)] = candidate
-	return ServiceResult.success(candidate["control_epoch"])
+	return ServiceResult.success(next_epoch)
+
+
+func _current() -> ServiceResult:
+	if not _initialized:
+		return ServiceResult.failure(&"invalid_candidate", "Uninitialized authority.")
+	var checked: ServiceResult = _read_candidate(_owner)
+	if not checked.is_success or checked.value.size() != _bindings.size():
+		return ServiceResult.failure(&"invalid_candidate", "Canonical owner changed.")
+	for id in checked.value:
+		var body: Dictionary = checked.value[id]
+		if not _bindings.has(id) or body["principal_id"] != _bindings[id]["principal_id"] or body["body_container_id"] != _bindings[id]["body_container_id"]:
+			return ServiceResult.failure(&"invalid_candidate", "Canonical body/root identity changed.")
+	return checked
+
+
+func _read_candidate(owner: InventoryControllerOwner) -> ServiceResult:
+	var checked: ServiceResult = owner.controller_candidate()
+	if not checked.is_success or typeof(checked.value) != TYPE_DICTIONARY or checked.value.size() > MAX_BINDINGS:
+		return ServiceResult.failure(&"invalid_candidate", "Invalid canonical owner.")
+	var principals: Dictionary = {}
+	var roots: Dictionary = {}
+	for id in checked.value:
+		var body: Variant = checked.value[id]
+		if typeof(body) != TYPE_DICTIONARY or not ControlContractValidation.has_exact_fields(body, PackedStringArray(["body_id", "principal_id", "body_container_id", "control_epoch"])):
+			return ServiceResult.failure(&"invalid_candidate", "Invalid canonical body.")
+		if id != body["body_id"] or not ControlContractValidation.is_id(id) or not ControlContractValidation.is_id(body["principal_id"]) or not ControlContractValidation.is_id(body["body_container_id"]) or not ControlContractValidation.is_integer(body["control_epoch"], 0, MAX_EXACT_INTEGER):
+			return ServiceResult.failure(&"invalid_candidate", "Invalid canonical body identity.")
+		if principals.has(body["principal_id"]) or roots.has(body["body_container_id"]):
+			return ServiceResult.failure(&"invalid_candidate", "Duplicate canonical principal/root.")
+		principals[body["principal_id"]] = true
+		roots[body["body_container_id"]] = true
+	return ServiceResult.success(checked.value.duplicate(true))
 
 
 func _context_valid(context: AuthenticatedCommandContext) -> bool:
