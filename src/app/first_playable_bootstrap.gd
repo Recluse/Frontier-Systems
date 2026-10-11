@@ -62,7 +62,13 @@ func _start_client() -> void:
 	_remote = RemoteWorldRuntime.new()
 	add_child(_remote)
 	_remote.observation_received.connect(_on_observation)
-	_remote.connection_closed.connect(func(message: String) -> void: _status.text = message)
+	_remote.connection_closed.connect(func(message: String) -> void:
+		_status.text = message
+		_latest = {}
+		_body_initialized = false
+		_habitat.production.observe({})
+		_machinery_preview.observe({})
+	)
 	_remote.command_completed.connect(_on_completed)
 	var canvas := CanvasLayer.new()
 	add_child(canvas)
