@@ -1,5 +1,13 @@
 # Coordinated milestone work
 
+## Tutorial readiness review (2026-10-11 05:20 UTC)
+
+Reviewed #35 immutable `b6b45edc174caac050e49549ecb045220bb699e9`: verification-only capture destination, basic route option, bounded sequential runners, unique temporary profile, existing-override refusal, environment restoration and explicit scripted versus human limits. All 20 exact-head PR/push checks passed (runs `38113774728` / `38113772183`). Verified matching-head squash merge `8ad5bceaa2fc06d0da544f75f09fcf03abe471f0`; no admin bypass. Clean primary fast-forwarded. Reused six successful worker Windows checks and native scripted loop evidence; no runtime interaction changes warrant repeating these checks. Tutorial gate remains **not met**. Internal capture stays local; no gallery/LFS/public media upload.
+
+Successor **Verify actual client input and recovery routes**, `01a1296b-43ed-7fd1-9763-6d766c5d0286`, explicitly Sol/medium, started in Frontier project. Requires isolated current-origin worktree, descriptive branch without `codex/`, attached draft PR/own doc. Owns bounded actual-client input/UI/construction/recovery verification and fresh-user checklist; preserves inventory and target-feedback workers' exclusive runtime scopes. Injected input cannot establish human acceptance. No ports granted; request reservation before binding. All human approvals route through Coordinator, no generative art, no media publication. Three implementation chats remain assigned.
+
+Completed workers #36 target hints (`ea606de3deca65dbbeeb6ce55f5a6a917c0e3aac`) and #37 component controls (`191e5e453468da2c81a9b15ffad52fcd1521d857`) await immutable review and exact-head gates; development exports remain running. No merge or successor duplicates for these. Website TLS remains `new`, enforcement false. Last confirmed public Ko-fi post is under 23 hours old; substantive merged changes remain available for the next daily batch, not a no-progress skip.
+
 ## Long-term civilization and station capability parity
 
 Owner added [broad Civ13/Space Station 13 player-capability parity](civilization-station-capability-parity.md): almost everything players can do should eventually be possible in Frontier. Treat this as a milestone family with a source-pinned capability matrix, dependencies, concrete acceptance and explicit owner-approved exclusions, rather than one unbounded PR or an engineering-only subset. Start foundational gameplay and tutorial readiness first; retain active chat scopes and all authority, conservation, persistence, platform and reference-rights rules.
