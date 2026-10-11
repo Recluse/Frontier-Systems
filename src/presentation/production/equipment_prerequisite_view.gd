@@ -57,6 +57,13 @@ static func part_text(tools: Dictionary, production: Dictionary, blueprint_id: S
 	for part in tools["loose_parts"]:
 		if part["part_id"] == loose_id:
 			lines.append("%s · %s · integrity %d / 1000000 ppm." % [part["name"], part["material_name"], part["integrity_ppm"]])
+			var matched: bool = false
+			for blueprint in tools["part_blueprints"].values():
+				if blueprint["definition_id"] != part["definition_id"] or blueprint["material_id"] != part["material_id"]: continue
+				matched = true
+				lines.append("Matching recycling specification: %d J; recoverable materials: %s." % [blueprint["salvage_energy_joules"], WorkstationResourceView.stock_text(blueprint["materials"])])
+				break
+			if not matched: lines.append("No matching recycling specification in the current host view.")
 	var found: bool = false
 	for assembly in tools["assemblies"]:
 		if assembly["assembly_id"] != tool_id: continue
@@ -71,5 +78,7 @@ static func part_text(tools: Dictionary, production: Dictionary, blueprint_id: S
 	lines.append("Fit replaces the installed part and returns it to loose inventory. Detach retains the part; unaffected functions may remain usable. Make inventory room.")
 	lines.append("Mount compatibility does not guarantee useful capability. Starter shells cannot be modified by manufactured-part actions. Damage causes and future capability recovery are not observed.")
 	lines.append("Fit/detach require construction power, station energy and current ownership/capacity; their energy cost is not quoted in this observation. Recycling also requires the host's matching specification, recycler power, energy and receiving capacity.")
+	if WorkstationResourceView.valid(production):
+		lines.append("Station reserve: %d J; construction power: %s; recycler power: %s; workstation access: %s." % [production["energy_joules"], "on" if production["powered"].get("construction", false) else "off", "on" if production["powered"].get("recycler", false) else "off", "available" if production["can_operate"] else "unavailable"])
 	if pending: lines.append("Command pending: no fabricated output or changed mount confirmed; wait for the host receipt.")
 	return "\n".join(lines)
