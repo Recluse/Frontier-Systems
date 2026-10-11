@@ -2,6 +2,8 @@
 
 Frontier Systems is a cooperative, persistent engineering simulation set across Moon and Mars colonies, spacecraft, and orbital infrastructure. First-party code and created assets are licensed under MIT; see `THIRD_PARTY_NOTICES.md` before adding external content.
 
+Visit the [Frontier Systems website](https://frontier-systems.discordphp.org/) for the game overview, [fundraisers](https://frontier-systems.discordphp.org/support.html) and [release availability](https://frontier-systems.discordphp.org/buy.html). The game is in development; support is not a finished-game preorder.
+
 ## Current foundation
 
 Support initial development through the [Frontier Systems funding goal](https://ko-fi.com/valgorithms) or [monthly memberships](https://ko-fi.com/valgorithms/tiers). Support funds prototype work and verified progress reports; it is not a finished-game preorder or a promised release date. [Campaign scope and upkeep](docs/fundraising/README.md).

@@ -6,6 +6,8 @@ Current campaign media policy: text only. The owner rejected the current screens
 
 ## Campaigns
 
+The [public marketing website](https://frontier-systems.discordphp.org/support.html) presents both campaigns. [Website hosting, preview evidence and sale boundary](../development/marketing-website.md) are recorded separately. Current gameplay captures remain internal; its original conceptual branding is not gameplay imagery.
+
 - [Initial development goal](initial-development.md): $5,000 gross, one-time contributions, suggested $5; no all-or-nothing funding gate. Starting progress is zero, not invented support.
 - [Ongoing memberships](memberships.md): $5/$15/$30 monthly, modest digital benefits and optional recognition. No game keys, release dates, physical goods or paid gameplay advantages promised.
 
