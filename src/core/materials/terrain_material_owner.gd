@@ -411,4 +411,3 @@ static func _exact(raw: Variant, fields: Array) -> bool:
 
 static func _failure(message: String) -> ServiceResult:
 	return ServiceResult.failure(&"invalid_terrain_owner", message)
-
