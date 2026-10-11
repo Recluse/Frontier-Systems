@@ -20,6 +20,13 @@ var _transfer_preview := Label.new()
 var _world_transfer_preview := Label.new()
 var _initialized_pickers: Dictionary = {}
 var _source := OptionButton.new()
+var _closure_target := OptionButton.new()
+var _closure_selected_id: String = ""
+var _closure_picker_key: String = ""
+var _closure_status := Label.new()
+var _closure_feedback := Label.new()
+var _closure_buttons: Dictionary = {}
+var _pending_closure: Dictionary = {}
 var _destination := OptionButton.new()
 var _slot := OptionButton.new()
 var _deposit := OptionButton.new()
@@ -71,7 +78,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_summary)
 	add_child(_equipment)
-	_label("Browse container (double-click a backpack or pouch to open)")
+	_label("Browse owned knowledge (double-click a backpack or pouch to browse)")
 	add_child(_source)
 	_source.item_selected.connect(func(_index: int) -> void: _fill_items(); _inspect(); _update_buttons())
 	_items.custom_minimum_size.y = 180
@@ -79,6 +86,19 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_items.item_activated.connect(_open_storage)
 	add_child(_items)
 	add_child(_details)
+	_label("Physical owned-container closure · select the exact container")
+	_closure_target.fit_to_longest_item = false
+	_closure_target.clip_text = true
+	add_child(_closure_target)
+	_closure_target.item_selected.connect(func(index: int) -> void: _closure_selected_id = str(_closure_target.get_item_metadata(index)); _update_buttons())
+	for label in [_closure_status, _closure_feedback]:
+		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		add_child(label)
+	var closure_actions := HFlowContainer.new()
+	add_child(closure_actions)
+	for operation in ["open_container", "close_container"]:
+		_button(closure_actions, "Open container" if operation == "open_container" else "Close container", _closure_action.bind(operation))
+		_closure_buttons[operation] = _buttons[-1]
 	_label("Selected equipment slot · selection alone does not make a hand active")
 	add_child(_slot)
 	var equipment_actions := HFlowContainer.new()
@@ -158,7 +178,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	for picker in [_part_blueprints, _loose_parts, _tool_mounts, _tool_parts]:
 		picker.item_selected.connect(func(_index: int) -> void: _update_buttons())
 	_label("Equip the extractor in a hand, make that hand active, carry a canister and approach the source. Mounted extraction remains available through Workstation. Crowbar world interactions are a later integration.")
-	for guidance: Label in [_equipment, _active_tool, _maintenance_targets, _component_details, _work_status, _work_targets, _storage_status, _transfer_preview, _world_transfer_preview, _world_status, _result]:
+	for guidance: Label in [_equipment, _active_tool, _maintenance_targets, _component_details, _work_status, _work_targets, _storage_status, _transfer_preview, _world_transfer_preview, _world_status, _result, _closure_status, _closure_feedback]:
 		guidance.focus_mode = Control.FOCUS_ALL
 		guidance.gui_input.connect(_guidance_input.bind(guidance))
 		guidance.tooltip_text = "Tab to review; Up/Down or Page Up/Page Down scroll the Inventory pane."
@@ -199,6 +219,7 @@ func observe(frame: Dictionary) -> void:
 		world_containers.append(container["container_id"])
 	var view_key: String = JSON.stringify([_record, _production, _tools, _nearby])
 	if view_key == _view_key:
+		_update_closure()
 		return
 	_view_key = view_key
 	_summary.text = "Owned including nested storage: %.2f kg · %d items" % [float(_record["mass_milligrams"]) / 1000000.0, _record["items"].size()]
@@ -237,6 +258,7 @@ func _process(_delta: float) -> void:
 	if not _equipment_record.is_empty() and _equipment_observed_at >= 0 and Time.get_ticks_msec() - _equipment_observed_at > EQUIPMENT_OBSERVATION_TIMEOUT_MSEC:
 		_equipment_record = {}
 		_update_active_equipment()
+		_update_closure()
 
 
 func _update_active_equipment() -> void:
@@ -370,6 +392,46 @@ func _inventory_prerequisite(operation: String) -> String:
 	return PlayerInventoryPresentation.prerequisite(operation, _record, _nearby, _selected_id(list), _picker_id(_destination), _picker_id(_slot), root_id)
 
 
+func _fill_closure_target() -> void:
+	var ids: Array[String] = []
+	for container in _record.get("container_records", []):
+		if not str(container.get("owner_item_id", "")).is_empty(): ids.append(str(container["container_id"]))
+	var key: String = JSON.stringify([ids, _closure_selected_id])
+	if key == _closure_picker_key: return
+	_closure_picker_key = key
+	_closure_target.clear()
+	_closure_target.add_item("Select owned storage")
+	_closure_target.set_item_metadata(0, "")
+	var selected: int = 0
+	for id in ids:
+		_closure_target.add_item(id)
+		_closure_target.set_item_metadata(_closure_target.item_count - 1, id)
+		if id == _closure_selected_id: selected = _closure_target.item_count - 1
+	if selected == 0 and not _closure_selected_id.is_empty():
+		_closure_target.add_item(_closure_selected_id + " · unavailable")
+		selected = _closure_target.item_count - 1
+		_closure_target.set_item_metadata(selected, _closure_selected_id)
+	_closure_target.select(selected)
+
+
+func _closure_action(operation: String) -> void:
+	if not _pending.is_empty() or not operation in ["open_container", "close_container"]: return
+	var reason: String = PlayerInventoryPresentation.closure_prerequisite(_equipment_record, _closure_selected_id)
+	if not reason.is_empty():
+		_closure_feedback.text = reason
+		return
+	var payload: Dictionary = {"container_id": _closure_selected_id, "expected_revision": int(_equipment_record["inventory_revision"])}
+	_submit(operation, payload)
+	if not _pending.is_empty():
+		_pending_closure = payload.duplicate(true)
+		_pending_closure["operation"] = operation
+		_pending_closure["request_id"] = _pending
+		_closure_feedback.text = "Waiting for host · " + PlayerInventoryPresentation.closure_targets(_pending_closure) + "\nOutcome unconfirmed; no automatic retry."
+		_result.text = _closure_feedback.text
+	else:
+		_closure_feedback.text = _result.text
+
+
 func _self_action(operation: String) -> void:
 	if not _pending.is_empty(): return
 	var reason: String = _inventory_prerequisite(operation)
@@ -424,6 +486,9 @@ func _inspect_world() -> void:
 
 
 func _disconnected(message: String) -> void:
+	if not _pending_closure.is_empty():
+		_closure_feedback.text = "Disconnected · outcome unknown · " + PlayerInventoryPresentation.closure_targets(_pending_closure) + "\nRefresh host observation; no automatic retry."
+	_pending_closure.clear()
 	_equipment_record = {}
 	_equipment_observed_at = -1
 	_equipment_tick = -1
@@ -582,6 +647,15 @@ func _submit(operation: String, payload: Dictionary, production: bool = false) -
 
 func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 	if String(command.command_id) == _pending:
+		if not _pending_closure.is_empty():
+			var expected: Dictionary = {"container_id": _pending_closure["container_id"], "expected_revision": _pending_closure["expected_revision"]}
+			if command.operation != _pending_closure["operation"] or command.payload != expected: return
+			if not result.is_success and result.error_code == &"remote_disconnected":
+				_disconnected("Host connection closed")
+				return
+			_closure_feedback.text = ("Host accepted · " if result.is_success else "Host rejected · ") + PlayerInventoryPresentation.closure_targets(_pending_closure)
+			_closure_feedback.text += "\nClosure follows fresh host observations." if result.is_success else "\n" + result.message
+			_pending_closure.clear()
 		var was_world: bool = not _pending_world.is_empty()
 		var exact_targets: String = _pending_component_text() if not _pending_component.is_empty() else ""
 		_pending = ""
@@ -610,6 +684,7 @@ func _update_buttons() -> void:
 			_reveal_feedback.call_deferred(_pending)
 	for button in _buttons:
 		button.disabled = _record.is_empty() or not _pending.is_empty()
+	_update_closure()
 	for operation in _component_buttons:
 		var component_button: Button = _component_buttons[operation]
 		var reason: String = _component_prerequisite(operation)
@@ -698,6 +773,17 @@ func _label(text: String) -> void:
 	label.text = text
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(label)
+
+
+func _update_closure() -> void:
+	_fill_closure_target()
+	_closure_status.text = PlayerInventoryPresentation.closure_status(_equipment_record, _closure_selected_id)
+	_closure_target.disabled = _equipment_record.is_empty() or not _pending.is_empty()
+	for operation in _closure_buttons:
+		var button: Button = _closure_buttons[operation]
+		var reason: String = PlayerInventoryPresentation.closure_prerequisite(_equipment_record, _closure_selected_id)
+		button.disabled = not _pending.is_empty() or not reason.is_empty()
+		button.tooltip_text = reason if not reason.is_empty() else "Host checks physical ownership, open ancestors, hands and revision; no lock or other-body access is implied."
 
 
 func _button(parent: Node, text: String, callback: Callable, inventory_operation: String = "") -> void:

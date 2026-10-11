@@ -1,6 +1,34 @@
 extends RefCounted
 class_name PlayerInventoryPresentation
 
+static func owned_container(record: Dictionary, id: String) -> Dictionary:
+	for container in record.get("container_records", []):
+		if container.get("container_id") == id and record.get("container_ids", []).has(id): return container
+	return {}
+
+
+static func closure_prerequisite(record: Dictionary, id: String) -> String:
+	if not ControlContractValidation.is_integer(record.get("schema_version"), 3, 4) or not ControlContractValidation.is_integer(record.get("inventory_revision"), 0, 9007199254740990):
+		return "Closure observation/revision unavailable; wait for a fresh detailed owned observation."
+	var container: Dictionary = owned_container(record, id)
+	if container.is_empty(): return "Select a currently observed owned container; retained target %s is unavailable." % id
+	if str(container.get("owner_item_id", "")).is_empty(): return "Body roots do not support closure. Select item-hosted owned storage."
+	if record.get("schema_version") == 4 and typeof(container.get("is_open")) != TYPE_BOOL:
+		return "Closure field unavailable; wait for a complete host observation."
+	return ""
+
+
+static func closure_status(record: Dictionary, id: String) -> String:
+	var container: Dictionary = owned_container(record, id)
+	var state: String = "unavailable"
+	if record.get("schema_version") == 4 and not container.is_empty() and typeof(container.get("is_open")) == TYPE_BOOL:
+		state = "open" if container["is_open"] else "closed"
+	return "Selected owned container: %s\nHost-observed closure: %s\nOwned descendant knowledge remains visible. It does not establish physical access or a lock. The host checks open ancestors, available hands and revision." % [id if not id.is_empty() else "unavailable", state]
+
+
+static func closure_targets(payload: Dictionary) -> String:
+	return "%s · container %s · revision %s · request %s" % [payload.get("operation", ""), payload.get("container_id", ""), payload.get("expected_revision", ""), payload.get("request_id", "")]
+
 ## Disposable hints from scoped host observations; never an authorization owner.
 static func active_equipment(record: Dictionary, selected_item: String, selected_slot: String) -> String:
 	var lines := PackedStringArray(["Host-observed active equipment"])

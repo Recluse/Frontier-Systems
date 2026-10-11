@@ -149,7 +149,7 @@ func _receive(id: int, value: Dictionary) -> void:
 		production_command.operation = value["operation"] if typeof(value["operation"]) == TYPE_STRING else ""
 		production_command.payload = value["payload"]
 		command = production_command
-	elif value["system"] == "inventory" and value["operation"] in ["move_to", "world", "self"]:
+	elif value["system"] == "inventory" and value["operation"] in ["move_to", "world", "self", "open_container", "close_container"]:
 		if value["operation"] == "move_to":
 			var position: Variant = value["payload"].get("position_millimetres")
 			var inventory := _world.get_simulation_system(InventorySimulationSystem.SYSTEM_ID) as InventorySimulationSystem
