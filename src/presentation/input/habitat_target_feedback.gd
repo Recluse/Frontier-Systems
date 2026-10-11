@@ -27,7 +27,7 @@ func _ready() -> void:
 	var rows := VBoxContainer.new()
 	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(rows)
-	for index in range(4):
+	for index in range(5):
 		var line := Label.new()
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		line.add_theme_font_size_override("font_size", 16)
@@ -77,6 +77,32 @@ func hint(info: Dictionary) -> String:
 	if info["action"] in ["Request collection", "Request extraction"]:
 		return "%s: select · double-click: %s" % [binding, String(info["action"]).to_lower()] if events[0] is InputEventMouseButton else "%s: select and %s" % [binding, String(info["action"]).to_lower()]
 	return "%s: %s" % [binding, String(info["action"]).to_lower()]
+
+
+## Selection advice names existing UI routes, never availability from a pose.
+func selection_hint(info: Dictionary) -> String:
+	if info.is_empty(): return ""
+	var route: String = ""
+	var events: Array[InputEvent] = InputMap.action_get_events("world_select")
+	var mouse_selection: bool = not events.is_empty() and events[0] is InputEventMouseButton
+	match info.get("action", ""):
+		"Request extraction":
+			route = "Workstation → Gather / carry: extraction controls."
+			if mouse_selection:
+				route += " Single selection chooses the source without extracting."
+		"Select recipes":
+			route = "Workstation → Refine / collect / recycle: Run selected recipe requests work; selection only opens recipes."
+		"Select to inspect":
+			route = "Construction: selection inspects only. Place a new wall opens a placement draft; it does not build."
+		"Request collection":
+			route = "Inventory: choose a world-storage item, then Collect selected."
+			if mouse_selection:
+				route += " Single selection inspects; it does not collect."
+	if route.is_empty(): return ""
+	var controls: PlayerInputSettings = PlayerInputSettings.instance()
+	if InputMap.action_get_events("ui_cursor").is_empty():
+		return route + " UI cursor unbound — open Controls."
+	return route + " While looking, hold %s for UI." % controls.binding_label("ui_cursor")
 
 
 func _register(target: CollisionObject3D) -> void:
@@ -158,6 +184,8 @@ func _update_card(info: Dictionary, selection: Dictionary, extent: Vector2) -> v
 	_lines[1].text = hint(info) if not info.is_empty() else "World selection: " + PlayerInputSettings.instance().binding_label("world_select")
 	_lines[2].text = "Selected: " + String(selection["name"]) if not selection.is_empty() else "Selected: none"
 	_lines[3].text = "Requests: reach, permission and resources rechecked at tick. Success not guaranteed."
+	_lines[4].text = selection_hint(selection)
+	_lines[4].visible = not _lines[4].text.is_empty()
 	_layout_card(extent)
 
 
