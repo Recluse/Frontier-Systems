@@ -1,0 +1,21 @@
+# Engineering request failure guidance milestone
+
+Scope: Workstation (`LocalProductionPanel`), Inventory (`PlayerInventoryPanel`), and Construction (`MachineryPanel`) receipt presentation only.
+
+Audit: these panels preserve rejection messages but mostly omit the code and a next step. Production uses `production_rejected` for multiple reasons; inventory uses `inventory_development_rejected` and `shared_inventory_conflict`; wall validation uses `wall_construction_denied`. These broad codes must not be interpreted as a specific stale, resource, capacity or reach diagnosis. Specific inventory revision/source and equipment slot capacity codes can receive specific advice. Unknown codes receive no guessed recovery advice.
+
+Acceptance: retain original code/message and wall-removal uncertainty; add only code-selected advisory text. A fresh observation is a review opportunity, not proof that an action succeeded or can succeed. The next action remains explicit. No retry, replay, pose-derived permission, schema, canonical state, epoch or reconnect changes. Existing tutorial human acceptance remains unverified.
+
+Verification pending: focused actual-panel fixtures, existing bounded Godot runner, and exact-head Windows/Linux CI. No sockets/ports, live services, media upload, release, deployment or merge.
+
+## Implementation and verification
+
+`EngineeringFailureGuidance` is a read-only presentation formatter used by the three actual panels for enqueue errors and matching host receipts, including Workstation maintenance. It retains existing receipt wording and appends the error code. Known code advice directs players to the existing observed prerequisites/selection controls; no message parsing or cause inference occurs. Unknown codes receive no next-step guess. New explicit queued requests and successful receipts replace earlier guidance; a refresh alone keeps the settled rejection visible. Disconnect behavior remains owned by existing panels/transport.
+
+Verified code sources: `InventoryLedger` and `BodyInventoryState` (revision/source conflicts), `InventoryEquipmentProfile` (slot capacity), `SharedInventoryCoordinator` (broad conflict), `InventorySimulationSystem` (broad access/reach rejection), `ProductionSimulationSystem` (broad revisions/resources/power/capacity), `MachineryConstruction` (broad part/material/placement rejection), and `SpatialWallConstruction` (broad plate/pose/reach rejection). Broad codes can include nonrecoverable causes; advice is a review opportunity, never a promise of recovery.
+
+Local Windows Godot 4.7.2: existing bounded runner import/startup, `engineering_failure_guidance_test.gd`, `production_panel_navigation_test.gd`, `player_inventory_feedback_test.gd`, and `wall_placement_feedback_test.gd` pass. The new actual-panel fixture uses injected enqueue adapters and detached host receipts, proving preserved reasons/codes, matching-request isolation, advice replacement, maintenance/removal uncertainty, no retries or unintended commands, and unchanged canonical snapshot/observation dictionaries. The existing wall fixture additionally exercises real paid domain commands and authoritative rejection. The first new-fixture attempt failed due to expected-count bookkeeping and early teardown of deferred UI callbacks; those fixture errors were corrected and rerun.
+
+Exact-head CI is recorded in the PR checks after pushing. No graphical/human/controller/VR or integrated live-network claim is made. The existing tutorial human gate remains unverified. No ports were opened, no assets were created, and no schema/configuration/runtime authority contract changed. The managed worktree is retained for review.
+
+The first full exact-head CI run (38127789124 at 8f380b999f09acc506359f8f77b8eee13a96d031) reported a Linux handoff assertion expecting the queue message to equal `Queue unavailable` exactly; the new formatter intentionally retains that message and appends `Code: offline`. `engineering_failure_guidance_test` passed in that Linux artifact. The existing handoff fixture now checks the preserved message, original code, no guessed advice and no pending ownership claim. This fixes an outdated presentation expectation, not a domain contract.

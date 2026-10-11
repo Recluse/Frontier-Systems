@@ -498,7 +498,7 @@ func _submit(operation: String, payload: Dictionary, production: bool = false) -
 		_pending = String(command.command_id)
 		_result.text = "Waiting for server…"
 	else:
-		_result.text = queued.message
+		_result.text = EngineeringFailureGuidance.describe(queued, queued.message)
 	_update_buttons()
 
 
@@ -509,7 +509,7 @@ func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 		_pending_world.clear()
 		_pending_inventory.clear()
 		_pending_component.clear()
-		_result.text = "Host accepted action. Inventory follows the latest host view." if result.is_success else "Host rejected action: " + result.message
+		_result.text = "Host accepted action. Inventory follows the latest host view." if result.is_success else EngineeringFailureGuidance.describe(result, "Host rejected action: " + result.message)
 		if was_world: _world_status.text = _result.text
 		_update_buttons()
 		if get_parent() is ScrollContainer: _reveal_feedback.call_deferred(_pending)

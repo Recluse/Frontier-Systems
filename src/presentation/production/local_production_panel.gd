@@ -248,7 +248,7 @@ func _send(operation: String, payload: Dictionary) -> void:
 	command.payload["expected_revision"] = _record["state_revision"]
 	var queued: ServiceResult = _world.enqueue_command(command)
 	_pending = String(command.command_id) if queued.is_success else ""
-	_feedback.text = "Queued " + operation if queued.is_success else queued.message
+	_feedback.text = "Queued " + operation if queued.is_success else EngineeringFailureGuidance.describe(queued, queued.message)
 	_reveal_receipt.call_deferred()
 	refresh()
 
@@ -416,12 +416,12 @@ func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
 		return
 	_pending = ""
 	if command.operation == "repair_tool_component":
-		_maintenance_feedback.text = ("Accepted: maintenance command completed. Await current condition observation." if result.is_success else "Rejected: " + result.message)
+		_maintenance_feedback.text = ("Accepted: maintenance command completed. Await current condition observation." if result.is_success else EngineeringFailureGuidance.describe(result, "Rejected: " + result.message))
 		refresh()
 		return
 	if result.is_success:
 		_guide.note_command(command.operation, command.payload)
-	_feedback.text = "Applied " + command.operation if result.is_success else "Rejected: " + result.message
+	_feedback.text = "Applied " + command.operation if result.is_success else EngineeringFailureGuidance.describe(result, "Rejected: " + result.message)
 	_reveal_receipt.call_deferred()
 	refresh()
 
