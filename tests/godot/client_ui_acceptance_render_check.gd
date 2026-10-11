@@ -2,6 +2,7 @@ extends "res://tests/godot/first_playable_client_render_check.gd"
 
 ## Actual client with injected input/GUI activation. Never physical or human acceptance.
 var _failed: bool = false
+var _last_ui_outcome: Dictionary = {}
 
 
 func _run() -> void:
@@ -121,7 +122,7 @@ func _exercise(client: FirstPlayableBootstrap) -> void:
 	for _step in range(8):
 		if not await _guide_action(client): _failed = true; return
 	if not client._production_panel._guide._recrafted: _failed = true; return
-	if not await _press_named(client._production_panel, "Collect printed plate into inventory"): _failed = true; return
+	if not await _collect_reprinted_plate(client): _failed = true; return
 	if not await _wait_until(func() -> bool: return client._latest["production"]["components"].size() == 1): _failed = true; return
 	# Extra paid material for a carrier; all extraction/refinement use visible controls.
 	for _batch in range(2):
@@ -211,6 +212,7 @@ func _guide_action(client: FirstPlayableBootstrap) -> bool:
 	return false
 
 func _press(button: Button, allow_stale_retry: bool = false) -> bool:
+	_last_ui_outcome.clear()
 	PlayerInputSettings.instance().release_all()
 	if button != null:
 		_reveal_task_section(button)
@@ -249,6 +251,8 @@ func _press(button: Button, allow_stale_retry: bool = false) -> bool:
 		if command is ProductionDevelopmentCommand:
 			outcome["success"] = result.is_success
 			outcome["message"] = result.message
+			outcome["expected_revision"] = command.payload.get("expected_revision", -1)
+			outcome["request_id"] = String(command.command_id)
 	if transport != null: transport.command_completed.connect(completed)
 	print("UI activate: " + button.text.replace("\n", " "))
 	var fired: Array[bool] = [false]
@@ -264,7 +268,8 @@ func _press(button: Button, allow_stale_retry: bool = false) -> bool:
 	if transport != null:
 		var acknowledged: bool = await _wait_until(func() -> bool: return outcome.has("success"))
 		transport.command_completed.disconnect(completed)
-		if not acknowledged: return false
+		if not acknowledged or not fired[0]: return false
+		_last_ui_outcome = outcome.duplicate(true)
 		if not outcome["success"]:
 			if allow_stale_retry and outcome["message"].contains("revision is stale"): return true
 			push_error("Visible UI command rejected at " + button.text + ": " + outcome["message"])
@@ -273,14 +278,34 @@ func _press(button: Button, allow_stale_retry: bool = false) -> bool:
 	return fired[0]
 
 
-func _press_named(parent: Node, title: String) -> bool:
+func _collect_reprinted_plate(client: FirstPlayableBootstrap) -> bool:
+	# Completion events precede periodic observations. A guide flag is not stock.
+	if not await _wait_until(func() -> bool: return client._latest["production"]["job"].is_empty() and client._latest["production"]["store"]["plate"] >= 1000000, 6.0): return false
+	for attempt in range(3):
+		if not await _press_named(client._production_panel, "Collect printed plate into inventory", true): return false
+		if _last_ui_outcome.get("success", false):
+			print("Collection accepted request %s at submitted revision %d." % [_last_ui_outcome["request_id"], _last_ui_outcome["expected_revision"]])
+			return true
+		if _last_ui_outcome.get("message", "") != "The production revision is stale or exhausted.":
+			push_error("Collection requires a successful matching host receipt.")
+			return false
+		var revision: int = _last_ui_outcome["expected_revision"]
+		if not client._production_panel._feedback.text.begins_with("Rejected") or not client._production_panel._feedback.text.contains(_last_ui_outcome["message"]):
+			push_error("Collection stale rejection must remain visible before retry.")
+			return false
+		print("Collection stale request %s revision %d, attempt %d: visible rejection; awaiting newer observation before same-button retry." % [_last_ui_outcome["request_id"], revision, attempt + 1])
+		if not await _wait_until(func() -> bool: return client._latest["production"]["state_revision"] > revision and client._production_panel._record["state_revision"] > revision, 3.0): return false
+	push_error("Collection exhausted three explicit stale-revision attempts.")
+	return false
+
+func _press_named(parent: Node, title: String, allow_stale_retry: bool = false) -> bool:
 	var matches: Array[Button] = []
 	for candidate in parent.find_children("*", "Button", true, false):
 		if candidate.text == title: matches.append(candidate)
 	if matches.size() != 1:
 		push_error("Expected one button in intended panel for '%s'; found %d." % [title, matches.size()])
 		return false
-	return await _press(matches[0])
+	return await _press(matches[0], allow_stale_retry)
 
 
 func _reveal_task_section(control: Control) -> void:
