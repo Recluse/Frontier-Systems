@@ -1,5 +1,13 @@
 # Coordinated milestone work
 
+## Review checkpoint (2026-10-11 04:29 UTC)
+
+Terrain preview draft #30 exact head `d2d65021e7bbc0bfe14a8dab3099215f8411ca4b` reviewed without blocking source findings: detached exact mass/capacity, independent depleted/full and host-work readiness, two known marker bound, preserved observed anchors/context labels and disconnect retirement. Tests exercise empty/partial/full/depleted/zero-capacity and unavailable states without mutating matter. No graphical capture supplied, so no gallery assessment/upload. Push CI `38111404025` and focused PR runs `38111415845` / `38111415864` succeeded, but full PR `38111415799` still has its required gate queued; merge is held until all exact-head gates complete. No successor duplicate created.
+
+Targeting #29 remains held for its routed GUI-input regression. Worker is investigating native capture fixture failures; earlier green source cannot certify the unpublished fix. Maintenance #31 head `216b93e1da5ce24ef6c82c98d758f23a01fb0fc1` remains in final verification, not yet frozen/reviewed. Three existing gameplay chats retain their exclusive boundaries. No ports requested or acquired. Website TLS remains `new`, no repeated reset or link publication.
+
+Separate owner-requested Ko-fi About chat `01a12935-c877-7f32-b59e-cc887ab45ebd` reports saved/publicly verified text covering DiscordPHP/ReactPHP, TwitchPHP/TelegramPHP, Civilizationbot and Frontier Systems prototype status/support boundaries. It omitted the still-unavailable HTTPS website and changed no media, payment settings, prices or rewards. This profile edit is not a public progress post and does not reset the daily publication timer. Recent confirmed progress post remains under 23 hours old; meaningful merged progress is available for the next batched daily update, so this is not a no-progress skip.
+
 ## Terrain lifecycle and recipe requirements integration (2026-10-11 04:19 UTC heartbeat)
 
 Reused immutable source review for PR #27 head `87303b5064ac7377ffd5cc2fb62280b6012fca6a`: exact mass/material display, pinned missing/reappearing selections, original pending retry, authenticated observation guards, legacy unavailable state and unchanged canonical ownership. All 24 exact-head checks passed; main PR/push `38110432302` / `38110424268`, focused PR `38110432364` / `38110432464`. Verified matching-head squash merge `2f783088548f373d8c8a216763f7d4af3772ee44`. Five combined Windows checks passed on that merge: import/startup, terrain_parcel_usability_test, terrain_return_test and first_playable_task_guide_test (`var/ci/coordinator-terrain-lifecycle`, ignored). No images were supplied.
