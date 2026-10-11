@@ -3,11 +3,9 @@ extends "res://tests/godot/machinery_resume_recovery_test.gd"
 ## Reuse PR96 transport helpers and its original paid machinery fixture.
 func finish() -> void:
 	create_timer(60.0).timeout.connect(func() -> void: push_error("Machinery recovery deadline"); quit(1))
-	var machine: String = ""
-	for module in production.capture_snapshot().value["machinery"]["mounts"]:
-		if production.capture_snapshot().value["machinery"]["parts"][module]["kind"] == "extractor":
-			machine = production.capture_snapshot().value["machinery"]["mounts"][module]
-	check(not machine.is_empty(), "paid base fixture supplies finite canister extractor")
+	var machine: String = recovery_machine()
+	check(not machine.is_empty(), 'paid base fixture supplies recovery machine')
+
 	directory = "user://machinery-cancel-recovery-%d" % Time.get_ticks_usec()
 	store = WorldPersistenceAdapter.new()
 	root.add_child(store)
@@ -28,7 +26,7 @@ func finish() -> void:
 	client._habitat.character.set_physics_process(false)
 	var panel: MachineryPanel = client._machinery_panel
 	panel.select_machine(machine)
-	select_id(panel._recipe, "extract.ice")
+	select_id(panel._recipe, recovery_recipe())
 	check((await panel_action("machine_run")).is_success, "client starts paid finite batch")
 	step(30)
 	var paid: Dictionary = production.capture_snapshot().value
@@ -228,3 +226,15 @@ func cancel_rejection_probes(snapshot: String, machine: String) -> void:
 	runner = live_runner
 	production = live_production
 	inventory = live_inventory
+
+
+## Narrow successor fixtures choose a genuinely prepared machine and catalog recipe.
+func recovery_machine() -> String:
+	var machinery: Dictionary = production.capture_snapshot().value["machinery"]
+	for module in machinery["mounts"]:
+		if machinery["parts"][module]["kind"] == "extractor": return machinery["mounts"][module]
+	return ""
+
+
+func recovery_recipe() -> String:
+	return "extract.ice"
