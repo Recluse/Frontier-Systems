@@ -13,3 +13,9 @@ func controller_candidate() -> ServiceResult:
 ## Success must perform no callbacks and return before binding publishes a token.
 func commit_control_epoch(_expected: Dictionary, _next_epoch: int) -> ServiceResult:
 	return ServiceResult.failure(&"invalid_candidate", "No canonical owner is installed.")
+
+
+## Volatile same-process restore fence, never serialized with canonical epochs.
+## Owners that support restore must advance this on each successful restore.
+func controller_restore_generation() -> ServiceResult:
+	return ServiceResult.success(0)

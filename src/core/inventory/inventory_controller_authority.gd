@@ -11,6 +11,7 @@ var _region: StringName
 var _provider: InventoryControllerSessionProvider
 var _owner: InventoryControllerOwner
 var _bindings: Dictionary = {}
+var _restore_generation: int = -1
 var _initialized: bool = false
 var _rejections: int = 0
 
@@ -21,18 +22,44 @@ func initialize(world: StringName, region: StringName, owner: InventoryControlle
 	var checked: ServiceResult = _read_candidate(owner)
 	if not checked.is_success:
 		return _reject(&"invalid_candidate")
-	var candidate: Dictionary = {}
-	for id in checked.value:
-		var body: Dictionary = checked.value[id]
-		candidate[id] = {"principal_id": body["principal_id"], "body_container_id": body["body_container_id"],
-			"session_id": &"", "token": null, "token_epoch": -1}
+	var generation: ServiceResult = _read_generation(owner)
+	if not generation.is_success:
+		return _reject(&"invalid_candidate")
+	var candidate: Dictionary = _empty_bindings(checked.value)
 	_world = world
 	_region = region
 	_provider = provider
 	_owner = owner
+	_restore_generation = generation.value
 	_bindings = candidate
 	_initialized = true
 	return ServiceResult.success()
+
+
+## Trusted synchronous reset after successful canonical restore. No auto-binding.
+## Validate the complete bounded owner before atomically retiring all identities.
+func reconcile_after_restore() -> ServiceResult:
+	if not _initialized:
+		return _reject(&"invalid_candidate")
+	var generation: ServiceResult = _read_generation(_owner)
+	if not generation.is_success or generation.value <= _restore_generation:
+		return _reject(&"restore_conflict")
+	var checked: ServiceResult = _read_candidate(_owner)
+	if not checked.is_success:
+		return _reject(&"invalid_candidate")
+	var candidate: Dictionary = _empty_bindings(checked.value)
+	_bindings = candidate
+	_restore_generation = generation.value
+	return ServiceResult.success()
+
+
+func _empty_bindings(bodies: Dictionary) -> Dictionary:
+	var candidate: Dictionary = {}
+	for id in bodies:
+		var body: Dictionary = bodies[id]
+		candidate[id] = {"principal_id": body["principal_id"], "body_container_id": body["body_container_id"],
+			"session_id": &"", "token": null, "token_epoch": -1}
+	return candidate
 
 
 func bind(body_id: StringName, principal: StringName, session: StringName, expected_epoch: int) -> ServiceResult:
@@ -96,7 +123,7 @@ func profiling_counters() -> Dictionary:
 	for body in observation().values():
 		if body["active"]:
 			active += 1
-	return {"bindings": _bindings.size(), "active_controllers": active, "rejections": _rejections}
+	return {"bindings": _bindings.size(), "active_controllers": active, "rejections": _rejections, "reconciled_restore_generation": _restore_generation}
 
 
 func _transition(body_id: StringName, principal: StringName, session: StringName, expected_epoch: int, operation: StringName) -> ServiceResult:
@@ -105,6 +132,7 @@ func _transition(body_id: StringName, principal: StringName, session: StringName
 	var checked: ServiceResult = _current()
 	if not checked.is_success:
 		return _reject(&"invalid_candidate")
+	var transition_generation: int = _restore_generation
 	var body: Dictionary = checked.value[String(body_id)]
 	var current: Dictionary = _bindings[String(body_id)]
 	if StringName(body["principal_id"]) != principal or body["control_epoch"] != expected_epoch:
@@ -125,6 +153,10 @@ func _transition(body_id: StringName, principal: StringName, session: StringName
 	candidate["session_id"] = session
 	candidate["token"] = null if operation == &"revoke" else InventoryControllerToken.new()
 	candidate["token_epoch"] = next_epoch if operation != &"revoke" else -1
+	# Provider callbacks may restore identical epochs; recheck the volatile fence.
+	var rechecked: ServiceResult = _current()
+	if not rechecked.is_success or _restore_generation != transition_generation:
+		return _reject(&"restore_conflict")
 	var committed: ServiceResult = _owner.commit_control_epoch(body, next_epoch)
 	if not committed.is_success:
 		return _reject(committed.error_code)
@@ -136,6 +168,9 @@ func _transition(body_id: StringName, principal: StringName, session: StringName
 func _current() -> ServiceResult:
 	if not _initialized:
 		return ServiceResult.failure(&"invalid_candidate", "Uninitialized authority.")
+	var generation: ServiceResult = _read_generation(_owner)
+	if not generation.is_success or generation.value != _restore_generation:
+		return ServiceResult.failure(&"restore_conflict", "Canonical restore requires explicit reconciliation.")
 	var checked: ServiceResult = _read_candidate(_owner)
 	if not checked.is_success or checked.value.size() != _bindings.size():
 		return ServiceResult.failure(&"invalid_candidate", "Canonical owner changed.")
@@ -144,6 +179,13 @@ func _current() -> ServiceResult:
 		if not _bindings.has(id) or body["principal_id"] != _bindings[id]["principal_id"] or body["body_container_id"] != _bindings[id]["body_container_id"]:
 			return ServiceResult.failure(&"invalid_candidate", "Canonical body/root identity changed.")
 	return checked
+
+
+func _read_generation(owner: InventoryControllerOwner) -> ServiceResult:
+	var generation: ServiceResult = owner.controller_restore_generation()
+	if not generation.is_success or not ControlContractValidation.is_integer(generation.value, 0, MAX_EXACT_INTEGER):
+		return ServiceResult.failure(&"invalid_candidate", "Invalid restore generation.")
+	return generation
 
 
 func _read_candidate(owner: InventoryControllerOwner) -> ServiceResult:

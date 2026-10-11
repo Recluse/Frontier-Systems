@@ -14,6 +14,7 @@ var _jobs: Dictionary = {}
 var _views := InventorySearchViews.new()
 var _last_tick: int = 0
 var _outcomes: Array = []
+var _controller_restore_generation: int = 0
 var _setup: ServiceResult
 var _world_storage: Dictionary = {}
 var _grips: PhysicalGripOwner
@@ -610,10 +611,20 @@ func capture_snapshot() -> ServiceResult:
 
 
 func validate_snapshot_record(record: Dictionary, snapshot_tick_number: int) -> ServiceResult:
+	# Runner validates all systems before any restore; exhaustion must fail there.
+	if _controller_restore_generation >= MAX_EXACT_INTEGER:
+		return ServiceResult.failure(&"restore_generation_exhausted", "Restore fence cannot wrap.")
 	return _decode(record, snapshot_tick_number)
 
 
+## Volatile fence is owned here so every direct or runner restore retires tokens.
+func controller_restore_generation() -> int:
+	return _controller_restore_generation
+
+
 func restore_snapshot_record(record: Dictionary, snapshot_tick_number: int) -> ServiceResult:
+	if _controller_restore_generation >= MAX_EXACT_INTEGER:
+		return ServiceResult.failure(&"restore_generation_exhausted", "Restore fence cannot wrap.")
 	var decoded: ServiceResult = _decode(record, snapshot_tick_number)
 	if not decoded.is_success:
 		return decoded
@@ -625,6 +636,7 @@ func restore_snapshot_record(record: Dictionary, snapshot_tick_number: int) -> S
 	_last_tick = snapshot_tick_number
 	_views = InventorySearchViews.new()
 	_outcomes.clear()
+	_controller_restore_generation += 1
 	return ServiceResult.success()
 
 

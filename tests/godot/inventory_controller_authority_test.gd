@@ -12,6 +12,9 @@ class FixtureOwner extends InventoryControllerOwner:
 	var bodies: Array
 	var ids: PackedStringArray
 	var deny_commit: bool = false
+	var restore_generation: int = 0
+	func controller_restore_generation() -> ServiceResult:
+		return ServiceResult.success(restore_generation)
 	func _init(records: Array, expected_ids: PackedStringArray) -> void:
 		bodies = records.duplicate(true)
 		ids = expected_ids.duplicate()
@@ -84,6 +87,7 @@ func _initialize() -> void:
 	_check(authority.profiling_counters()["active_controllers"] == 1, "bounded gauge")
 	_test_candidates(sessions)
 	_test_owner(sessions)
+	_test_restore(sessions)
 	print("Inventory controller authority: %d failures" % _failures)
 	quit(0 if _failures == 0 else 1)
 
@@ -162,7 +166,8 @@ func _test_owner(sessions: Sessions) -> void:
 		if record["body_id"] == "body.human-2":
 			record["control_epoch"] = InventoryControllerAuthority.MAX_EXACT_INTEGER - 1
 	_check(inventory.restore_snapshot_record(changed, 0).is_success, "canonical near exhaustion")
-	_check(authority.replace(&"body.human-2", &"local-inventory-actor", &"one", InventoryControllerAuthority.MAX_EXACT_INTEGER - 1).is_success, "last canonical transition")
+	_check(authority.reconcile_after_restore().is_success, "explicit exhaustion restore reconciliation")
+	_check(authority.bind(&"body.human-2", &"local-inventory-actor", &"one", InventoryControllerAuthority.MAX_EXACT_INTEGER - 1).is_success, "last canonical transition")
 	before = inventory.capture_snapshot().value
 	var binding_before: Dictionary = authority.observation()
 	token = authority.pin(_context(&"local-inventory-actor", &"one")).value
@@ -176,6 +181,13 @@ func _test_owner(sessions: Sessions) -> void:
 	_check(not isolated.bind(&"body.a", &"alice", &"one", 0).is_success and fixture.bodies[0]["control_epoch"] == 0 and not isolated.observation()["body.a"]["active"], "failed canonical commit publishes nothing")
 	fixture.deny_commit = false
 	_check(isolated.bind(&"body.a", &"alice", &"one", 0).is_success, "owner recovery")
+	var retained_bindings: Dictionary = isolated._bindings.duplicate()
+	fixture.restore_generation = 1
+	fixture.bodies.append(_body("body.b", "alice", 0))
+	_check(not isolated.reconcile_after_restore().is_success and isolated._bindings == retained_bindings and isolated._restore_generation == 0, "invalid reconciliation preserves identities and fence")
+	fixture.bodies.pop_back()
+	_check(isolated.reconcile_after_restore().is_success and not isolated.pin(_context(&"alice", &"one")).is_success, "valid reconciliation retires all bindings")
+	_check(isolated.bind(&"body.a", &"alice", &"one", 1).is_success, "fresh binding after candidate repair")
 	var race_owner := FixtureOwner.new([_body("body.race", "alice", 0)], PackedStringArray(["body.race"]))
 	var race := InventoryControllerAuthority.new()
 	_check(race.initialize(&"world.test", &"region.test", race_owner, sessions).is_success, "race owner initialized")
@@ -187,6 +199,75 @@ func _test_owner(sessions: Sessions) -> void:
 	_check(not isolated.validate(token, _context(&"alice", &"one"), &"body.a").is_success and not isolated.revoke(&"body.a", &"alice", 1).is_success and isolated.observation().is_empty(), "changed owner root fails closed")
 	inventory.free()
 	_check(not owner.controller_candidate().is_success, "freed runtime owner fails closed")
+
+func _test_restore(sessions: Sessions) -> void:
+	var inventory := InventorySimulationSystem.new()
+	_check(inventory.configure_defaults().is_success, "restore fixture")
+	var owner := InventoryRuntimeControllerOwner.new(inventory)
+	var authority := InventoryControllerAuthority.new()
+	var principal: StringName = &"local-inventory-actor"
+	var body_id: StringName = &"body.human-2"
+	var context := _context(principal, &"one")
+	_check(authority.initialize(&"world.test", &"region.test", owner, sessions).is_success, "restore authority")
+	_check(authority.bind(body_id, principal, &"one", 0).is_success, "restore initial bind")
+	var old_token: InventoryControllerToken = authority.pin(context).value
+	var snapshot: Dictionary = inventory.capture_snapshot().value
+	var invalid: Dictionary = snapshot.duplicate(true)
+	invalid["bodies"][0]["control_epoch"] = -1
+	_check(not inventory.restore_snapshot_record(invalid, 0).is_success, "invalid restore rejected")
+	_check(inventory.capture_snapshot().value == snapshot and inventory.controller_restore_generation() == 0 and authority.pin(context).value == old_token, "failed restore preserves canonical generation and identity")
+	_check(not authority.reconcile_after_restore().is_success and authority.pin(context).value == old_token, "reset without restore rejected atomically")
+	# Identical snapshot still replaces the canonical lineage in this process.
+	_check(inventory.restore_snapshot_record(snapshot, 0).is_success, "same epoch actual runtime restore")
+	_check(inventory.capture_snapshot().value == snapshot and inventory.controller_restore_generation() == 1, "restore preserves canonical record and advances only volatile fence")
+	_check(not authority.validate(old_token, context, body_id).is_success and not authority.pin(context).is_success, "same epoch cannot revive pre-restore token")
+	_check(authority.observation().is_empty() and authority.profiling_counters()["active_controllers"] == 0, "unreconciled restore makes no active claims")
+	_check(not authority.bind(body_id, principal, &"two", 1).is_success and not authority.replace(body_id, principal, &"two", 1).is_success and not authority.revoke(body_id, principal, 1).is_success, "lifecycle blocked until explicit reconciliation")
+	_check(authority.reconcile_after_restore().is_success and not authority.pin(context).is_success, "reset does not auto-bind session")
+	_check(inventory.capture_snapshot().value == snapshot and not authority.observation()[String(body_id)]["active"], "reconciliation preserves canonical epochs and quantities")
+	_check(authority.bind(body_id, principal, &"one", 1).value == 2, "fresh explicit session reuse bind")
+	var fresh_token: InventoryControllerToken = authority.pin(context).value
+	_check(fresh_token != old_token and authority.validate(fresh_token, context, body_id).is_success and not authority.validate(old_token, context, body_id).is_success, "session reuse cannot revive retired object")
+	# Roll back and deliberately reuse the same numerical epoch as fresh_token.
+	_check(inventory.restore_snapshot_record(snapshot, 0).is_success and authority.reconcile_after_restore().is_success, "older checkpoint reset")
+	_check(authority.bind(body_id, principal, &"one", 1).value == 2 and not authority.validate(fresh_token, context, body_id).is_success, "equal epoch after rollback retains identity fence")
+	var runner := SimulationRunner.new()
+	_check(runner.register_system(inventory), "restore runner registration")
+	fresh_token = authority.pin(context).value
+	var current: Dictionary = inventory.capture_snapshot().value
+	_check(runner.restore_snapshot(0, {"inventory": current}).is_success and not authority.validate(fresh_token, context, body_id).is_success, "runner restore fences tokens too")
+	_check(authority.reconcile_after_restore().is_success, "runner explicit reset")
+	# Trusted provider callback restoring identical metadata must not publish token.
+	sessions.before_permit = func() -> void: inventory.restore_snapshot_record(current, 0)
+	_check(not authority.bind(body_id, principal, &"one", 2).is_success, "provider restore cannot publish token")
+	sessions.before_permit = Callable()
+	_check(inventory.capture_snapshot().value == current and authority.reconcile_after_restore().is_success and not authority.pin(context).is_success, "provider restore preserved epoch and left inactive binding")
+	sessions.before_permit = func() -> void:
+		inventory.restore_snapshot_record(current, 0)
+		authority.reconcile_after_restore()
+	_check(not authority.bind(body_id, principal, &"one", 2).is_success, "provider restore plus reset cannot publish pre-reset lifecycle")
+	sessions.before_permit = Callable()
+	_check(not authority.pin(context).is_success and inventory.capture_snapshot().value == current, "callback reset leaves no token or epoch increment")
+	var reassigned: Dictionary = current.duplicate(true)
+	for body in reassigned["bodies"]:
+		if body["body_id"] == String(body_id):
+			body["principal_id"] = "restored-actor"
+	sessions.allowed["restored-actor/one"] = true
+	_check(inventory.restore_snapshot_record(reassigned, 0).is_success and authority.reconcile_after_restore().is_success, "reset adopts validated restored principal")
+	_check(not authority.bind(body_id, principal, &"one", 2).is_success and not authority.pin(context).is_success, "retired principal cannot regain restored body")
+	_check(authority.bind(body_id, &"restored-actor", &"one", 2).is_success, "restored principal needs fresh explicit bind")
+	_check(inventory.restore_snapshot_record(current, 0).is_success and authority.reconcile_after_restore().is_success, "return to fixture via explicit reset")
+	# Test-only private-field injection reaches the exact bound without a huge loop.
+	inventory._controller_restore_generation = InventoryControllerAuthority.MAX_EXACT_INTEGER - 1
+	_check(inventory.restore_snapshot_record(current, 0).is_success, "last exact restore generation")
+	_check(authority.reconcile_after_restore().is_success and authority.bind(body_id, principal, &"one", 2).is_success, "exhausted generation still permits fresh explicit binding")
+	fresh_token = authority.pin(context).value
+	current = inventory.capture_snapshot().value
+	_check(inventory.restore_snapshot_record(current, 0).error_code == &"restore_generation_exhausted", "restore generation cannot wrap")
+	_check(not runner.restore_snapshot(0, {"inventory": current}).is_success, "runner prevalidation rejects exhausted restore")
+	_check(inventory.capture_snapshot().value == current and inventory.controller_restore_generation() == InventoryControllerAuthority.MAX_EXACT_INTEGER and authority.pin(context).value == fresh_token, "exhausted restore preserves all canonical and token state")
+	runner.free()
+	inventory.free()
 
 func _body(id: String, principal: String, epoch: Variant) -> Dictionary:
 	return {"body_id": id, "principal_id": principal, "body_container_id": id + ".root", "control_epoch": epoch}

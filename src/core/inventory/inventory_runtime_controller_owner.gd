@@ -15,3 +15,9 @@ func controller_candidate() -> ServiceResult:
 
 func commit_control_epoch(expected: Dictionary, next_epoch: int) -> ServiceResult:
 	return _inventory.commit_control_epoch(expected, next_epoch) if is_instance_valid(_inventory) else super.commit_control_epoch(expected, next_epoch)
+
+
+func controller_restore_generation() -> ServiceResult:
+	if not is_instance_valid(_inventory):
+		return ServiceResult.failure(&"invalid_candidate", "Canonical runtime is unavailable.")
+	return ServiceResult.success(_inventory.controller_restore_generation())
