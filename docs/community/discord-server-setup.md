@@ -83,6 +83,33 @@ For future log changes use served `/config set` then `/config view` in this guil
 
 Local UI proof retained outside the public repository: discord-roles.jpg, discord-safety.jpg, discord-community.jpg and kofi-supporter.jpg in this task visualization directory. UI captures are not cleared creative assets or game images and are excluded from the PR.
 
+## Gameplay-interest onboarding (2026-10-10 America/New_York)
+
+Configured and saved one optional pre-join question: **What would you most like to do in Frontier Systems?** `Allow multiple answers` and `Required` are both off. It is also available after joining under **Channels & Roles → Customize**, where members can change their choice. No personal information is requested.
+
+| Answer | Self-assigned role | Existing public channels added to the channel list |
+| --- | --- | --- |
+| Building & engineering | Primary: Building & engineering | suggestions |
+| Mining, refining & logistics | Primary: Mining, refining & logistics | suggestions |
+| Cooperative repair & life support | Primary: Repair & life support | suggestions |
+| Exploration & science | Primary: Exploration & science | suggestions |
+| Future: colony progression | Primary: Future colonies | roadmap, suggestions |
+| Future: ships & spaceflight | Primary: Future ships & spaceflight | roadmap, suggestions |
+
+The two future descriptions explicitly state that these are longer-term goals, unavailable now, with no release or test access promised. The building description also states that an interest selection promises neither a release date nor test access. The other descriptions describe desired activities, not a release announcement.
+
+Created six dedicated roles below all existing roles and above everyone. Every role's saved Permissions panel was reopened: `Clear permissions` was disabled and no permission switch was checked, including Administrator. No channel overrides were added. They inherit ordinary member access and do not grant paid entitlements, staff access, test access or notification subscriptions. Default color, no separate member display and no anyone-mention flag were retained. No member was manually assigned a role.
+
+Left secondary-interest questions out of this first pass to keep the primary count unambiguous and avoid a duplicate role set. General discussion and suggestions can capture additional interests. A later multi-select question should use separate secondary roles so primary and secondary counts do not become indistinguishable.
+
+Verification: left and reopened onboarding settings; all six answer editors retained the exact role/channel mappings above. The live new-member preview's Channels & Roles page rendered all six choices. The existing welcome message, three custom tasks, rules task and `FAQ — Start here` resource remained visible in the preview. The FAQ resource and both existing messages were inspected before the change. Default Channels was reopened and still showed general, welcome-and-rules, announcements and playtest-info: 4 total, 1 chattable. STAFF channels remain locked and ineligible without unlocking; no unlock, safety, staff/supporter permission or integration changes were performed. Onboarding and Server Guide remain enabled. The UI reports 6 of 11 public channels covered; the remaining five were deliberately not mapped to unrelated gameplay interests.
+
+Staff can inspect current role member counts and members through Server Settings → Roles. These reveal the currently self-declared primary preference of participating members, not a representative player survey, historical answer log, feature demand forecast or verified play behavior. Skipped answers, later changes, departures and any future manual role edits affect counts. Discord's inspected UI did not expose a dedicated aggregate onboarding-answer export or historical report; do not claim one. No response data was exported. Preview verification used the signed-in owner, not a fresh ordinary-member account; real join-time assignment, changing/removing a live member's answer and event delivery were not exercised.
+
+A cropped local proof of the member-facing choices is retained outside Git at `discord-interest-preview.jpg` in this chat's visualization directory. It excludes the profile card and other-server sidebar and is operational UI evidence, not licensed game/gallery media. One save was initially rejected by automatic approval review because its evidence still showed `new role`; a fresh inspection confirmed the intended repair role name and zero permissions, and the verified save succeeded. No approval remains blocked.
+
+This record was made from an isolated managed worktree based on current `origin/dev-master`; it does not alter game runtime code. Validation is browser save/reopen and preview evidence plus `git diff --check`. PHP/Godot runtime tests are not relevant to these external settings and were not run locally.
+
 ## References and repository verification
 
 - [Discord Community Guidelines](https://support.discord.com/hc/en-us/articles/360035969312)
