@@ -847,7 +847,9 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	for wall in normalized["walls"].values():
 		wall["position"] = InventorySpatialMath.normalized(wall["position"])
 		wall["quarter_turn"] = int(wall["quarter_turn"])
-	normalized["machinery"] = record.get("machinery", MachineryWorkshop.initial()).duplicate(true)
+	var machinery: Variant = record.get("machinery", MachineryWorkshop.initial())
+	if typeof(machinery) != TYPE_DICTIONARY: return _failure("Machinery must be a record object.")
+	normalized["machinery"] = machinery.duplicate(true)
 	if not MachineryWorkshop.validate(normalized["machinery"]): return _failure("Malformed machinery record.")
 	normalized["machinery"]["catalog_fingerprint"] = MachineryWorkshop.initial()["catalog_fingerprint"]
 	for job in normalized["machinery"]["jobs"].values():

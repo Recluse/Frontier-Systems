@@ -69,3 +69,5 @@ Remaining broader gameplay includes carrier crafting and detailed equipment dama
 
 
 Command revisions advance on accepted commands and batch output commits. Countdown-only progress changes last_tick and remaining_ticks without changing state_revision, so a remote pause/cancel intent can use the latest published transaction revision. Completion still invalidates competing commands. Cancellation returns reserved input mass; spent energy is not refunded.
+
+Production snapshot validation rejects non-object machinery records with a structured failure before copying them. A rejected startup restore preserves all live system state. Checkpoint SHA256 validation remains a separate earlier guard; this domain validation also protects callers of the direct world restore API.
