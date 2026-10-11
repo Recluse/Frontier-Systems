@@ -21,6 +21,8 @@ var _pending: String = ""
 var _wall := OptionButton.new()
 var _wall_turn := OptionButton.new()
 var _pending_deploy: Dictionary = {}
+var _pending_wall: Dictionary = {}
+var _placement_kind := OptionButton.new()
 var _show_placement := CheckBox.new()
 var _placement_status := Label.new()
 var _action_buttons: Array[Button] = []
@@ -66,6 +68,13 @@ func configure(world: WorldRuntime) -> void:
 	add_child(_mode)
 	_mode.item_selected.connect(func(_index: int) -> void: _refresh_placement())
 	_machine.item_selected.connect(func(_index: int) -> void: _refresh_placement())
+	_placement_kind.add_item("Machine placement preview", 0)
+	_placement_kind.add_item("Physical wall placement preview", 1)
+	add_child(_placement_kind)
+	_placement_kind.item_selected.connect(func(_index: int) -> void: _refresh_placement())
+	_part.item_selected.connect(func(_index: int) -> void: _refresh_placement())
+	_wall.item_selected.connect(func(_index: int) -> void: _refresh_placement())
+	_wall_turn.item_selected.connect(func(_index: int) -> void: _refresh_placement())
 	_show_placement.text = "Show placement ghost / footprint"
 	_show_placement.toggled.connect(func(_shown: bool) -> void: _refresh_placement())
 	add_child(_show_placement)
@@ -116,15 +125,16 @@ func configure(world: WorldRuntime) -> void:
 		if String(command.command_id) == _pending:
 			_pending = ""
 			_feedback.text = "Completed" if result.is_success else result.message
-			if not _pending_deploy.is_empty() and result.is_success:
+			if (not _pending_deploy.is_empty() or not _pending_wall.is_empty()) and result.is_success:
 				_show_placement.set_pressed_no_signal(false)
 			_pending_deploy.clear()
+			_pending_wall.clear()
 			_refresh_placement()
 	)
 
 	if world is RemoteWorldRuntime:
 		(world as RemoteWorldRuntime).connection_closed.connect(func(message: String) -> void:
-			_record = {}
+			observe({})
 			_show_placement.set_pressed_no_signal(false)
 			_feedback.text = message
 			_status.text = "Machinery observation unavailable."
@@ -134,6 +144,11 @@ func configure(world: WorldRuntime) -> void:
 
 func observe(record: Dictionary) -> void:
 	_record = record
+	if record.is_empty():
+		_show_placement.set_pressed_no_signal(false)
+		for picker in [_machine, _part, _wall, _other, _socket]: picker.clear()
+		_refresh_placement()
+		return
 	_populate_designs(record["production"].get("blueprints", {}))
 	var machinery: Dictionary = record["production"]["machinery"]
 	var frames: Dictionary = {}
@@ -176,6 +191,7 @@ func _send(action: String) -> void:
 	if action == "position":
 		for index in range(3): _axes[index].value = 0 if index == 1 else float(_record["position"][index]) / 1000.0
 		return
+	if action in ["wall_build", "wall_remove"]: _placement_kind.select(1)
 	var operation: String = action
 	var payload: Dictionary = {"expected_revision": _record["production"]["state_revision"]}
 	if action not in ["machine_craft", "machine_recycle", "wall_build", "wall_remove"]: payload["machine_id"] = _selected(_machine)
@@ -207,6 +223,11 @@ func _send(action: String) -> void:
 	_feedback.text = "Queued " + action + "; waiting for host" if queued.is_success else queued.message
 	if action == "machine_deploy" and queued.is_success:
 		_pending_deploy = payload.duplicate(true)
+	if action in ["wall_build", "wall_remove"] and queued.is_success:
+		_pending_wall = payload.duplicate(true)
+		_pending_wall["operation"] = action
+		if action == "wall_remove":
+			_pending_wall.merge(_record["production"]["walls"].get(payload["wall_id"], {"position": [0, 0, 0], "quarter_turn": 0}))
 	_refresh_placement()
 
 
@@ -214,6 +235,7 @@ func select_machine(id: String) -> void:
 	for index in range(_machine.item_count):
 		if _machine.get_item_metadata(index) == id:
 			_machine.select(index)
+			if _pending.is_empty(): _placement_kind.select(0)
 			_refresh_placement()
 			return
 
@@ -222,6 +244,10 @@ func select_wall(id: String) -> void:
 	for index in range(_wall.item_count):
 		if _wall.get_item_metadata(index) == id:
 			_wall.select(index)
+			if _pending.is_empty():
+				_placement_kind.select(1)
+				_show_placement.set_pressed_no_signal(false)
+			_refresh_placement()
 			return
 
 
@@ -287,10 +313,11 @@ func _exit_tree() -> void:
 
 func _refresh_placement() -> void:
 	var waiting: bool = not _pending.is_empty()
-	for button in _action_buttons: button.disabled = waiting
+	for button in _action_buttons: button.disabled = waiting or _record.is_empty()
 	for field in _axes: field.editable = not waiting
 	_mode.disabled = waiting
 	_machine.disabled = waiting
+	for picker in [_part, _wall, _wall_turn, _placement_kind]: picker.disabled = waiting
 	if _axes.size() != 3: return
 	var coords: Array = [roundi(_axes[0].value * 1000), roundi(_axes[1].value * 1000), roundi(_axes[2].value * 1000)]
 	var machine_id: String = _selected(_machine)
@@ -300,6 +327,12 @@ func _refresh_placement() -> void:
 		machine_id = _pending_deploy["machine_id"]
 		mode = _pending_deploy["mode"]
 	var feedback: Dictionary = MachineryPlacementFeedback.describe(_record, machine_id, coords, mode, _show_placement.button_pressed, not _pending_deploy.is_empty())
+	if not _pending_wall.is_empty() or (_pending_deploy.is_empty() and _placement_kind.selected == 1):
+		var plate_id: String = _pending_wall.get("item_id", _selected(_part))
+		var wall_id: String = _pending_wall.get("wall_id", _selected(_wall))
+		var turn: int = int(_pending_wall.get("quarter_turn", _wall_turn.selected))
+		if not _pending_wall.is_empty(): coords = _pending_wall["position"].duplicate()
+		feedback = WallPlacementFeedback.describe(_record, plate_id, wall_id, coords, turn, _show_placement.button_pressed or _pending_wall.get("operation", "") == "wall_build", _pending_wall)
 	_placement_status.text = feedback["text"]
 	if not is_visible_in_tree(): feedback = {}
 	placement_feedback_changed.emit(feedback)

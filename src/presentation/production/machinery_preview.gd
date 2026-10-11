@@ -185,8 +185,9 @@ func present_feedback(feedback: Dictionary) -> void:
 	var size: Vector3 = feedback["size"]
 	var selected: Array = feedback["selected_position"]
 	if not selected.is_empty():
-		_footprint(_feedback_root, MachineryPlacementFeedback.display_position(selected), size, Color(1.0, 0.85, 0.2))
-		_feedback_label(_feedback_root, MachineryPlacementFeedback.display_position(selected) + Vector3(0, size.y + 0.75, 0), "SELECTED · " + String(feedback["selected_id"]).right(8), Color(1.0, 0.85, 0.2))
+		var selected_size: Vector3 = feedback.get("selected_size", size)
+		_footprint(_feedback_root, MachineryPlacementFeedback.display_position(selected), selected_size, Color(1.0, 0.85, 0.2))
+		_feedback_label(_feedback_root, MachineryPlacementFeedback.display_position(selected) + Vector3(0, selected_size.y + 0.75, 0), "SELECTED · " + String(feedback["selected_id"]).right(8), Color(1.0, 0.85, 0.2))
 	if not feedback["ghost_visible"]: return
 	var target: Vector3 = MachineryPlacementFeedback.display_position(feedback["position"])
 	var color := Color(0.2, 0.85, 0.95, 0.24) if feedback["advisory_ok"] else Color(1.0, 0.35, 0.2, 0.24)
