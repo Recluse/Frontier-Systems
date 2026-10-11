@@ -4,6 +4,8 @@ Frontier Systems is a cooperative, persistent engineering simulation set across 
 
 ## Current foundation
 
+Support initial development through the [Frontier Systems funding goal](https://ko-fi.com/valgorithms) or [monthly memberships](https://ko-fi.com/valgorithms/tiers). Support funds prototype work and verified progress reports; it is not a finished-game preorder or a promised release date. [Campaign scope and upkeep](docs/fundraising/README.md).
+
 **Cooperative first playable source prototype:** extraction into portable containers, transport, refining, physical plate crafting and recycling, with two authenticated clients and restart checkpoints. [Run it](docs/development/first-playable-running.md), review [acceptance evidence](docs/development/first-playable-acceptance.md), or use the [agent handoff](docs/development/FIRST_PLAYABLE_HANDOFF.md). This is a development build, not a packaged Steam release.
 
 - Optional OpenXR PC VR preview with a Quest 3 testing guide. Launch `tools/launch-client.ps1 -VR` for Mobile/Vulkan XR, or omit `-VR` for desktop. See [optional VR setup and current limitations](docs/development/quest-3-vr-testing.md).

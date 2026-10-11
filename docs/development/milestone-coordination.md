@@ -14,6 +14,8 @@ The owner now explicitly authorizes the coordinator to review completed mileston
 
 All milestone human approval requests must go through Coordinator. Implementation chats continue already-authorized work and report actual approval-review blockers here with the action, stated reason and relevant evidence. They must not ask the owner directly or duplicate approval questions. Coordinator asks only genuinely necessary questions and relays the human answer; this routing does not bypass tool approval review or expand credential authorization.
 
+The owner separately authorized creation and stage-based upkeep of fundraising campaigns on the existing Ko-fi Valgorithms account. The $5,000 initial goal and $5/$15/$30 Frontier membership tiers were created and publicly verified on 2026-10-10, with a factual launch announcement. Coordinator owns upkeep under `docs/fundraising/README.md` and the publication ledger; first monthly benefits are due by 2026-11-09. This exception permits campaign updates, not game deployment, unrelated outreach, payment/account changes, paid upgrades or unreviewed reward commitments.
+
 ## Completed first wave
 
 | Milestone | Reviewed head | PR | Required CI | Verified merge |
