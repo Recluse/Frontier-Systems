@@ -3,7 +3,11 @@ class_name ToolObservationValidation
 
 ## Bounded read-only network view, independent of authoritative world state.
 static func valid(value: Variant) -> bool:
-	if typeof(value) != TYPE_DICTIONARY or not ToolComponentCatalog.exact(value, ["schema_version", "state_revision", "assemblies", "loose_parts", "part_blueprints"]) or not ControlContractValidation.is_integer(value["schema_version"], 2, 2) or not ControlContractValidation.is_integer(value["state_revision"], 0, 9007199254740000) or typeof(value["assemblies"]) != TYPE_ARRAY or value["assemblies"].size() > 64 or typeof(value["loose_parts"]) != TYPE_ARRAY or value["loose_parts"].size() > 128 or typeof(value["part_blueprints"]) != TYPE_DICTIONARY or value["part_blueprints"].size() > 32: return false
+	if typeof(value) != TYPE_DICTIONARY: return false
+	var version: Variant = value.get("schema_version")
+	var fields: Array = ["schema_version", "state_revision", "assemblies", "loose_parts", "part_blueprints"]
+	if version == 3: fields.append("maintenance")
+	if not ToolComponentCatalog.exact(value, fields) or not ControlContractValidation.is_integer(value["schema_version"], 2, 3) or not ControlContractValidation.is_integer(value["state_revision"], 0, 9007199254740000) or typeof(value["assemblies"]) != TYPE_ARRAY or value["assemblies"].size() > 64 or typeof(value["loose_parts"]) != TYPE_ARRAY or value["loose_parts"].size() > 128 or typeof(value["part_blueprints"]) != TYPE_DICTIONARY or value["part_blueprints"].size() > 32: return false
 	var ids: Dictionary = {}
 	var parts: Dictionary = {}
 	for assembly in value["assemblies"]:
@@ -33,6 +37,13 @@ static func valid(value: Variant) -> bool:
 			if not RemoteProductionProjection.MATERIALS.has(material) or not ControlContractValidation.is_integer(blueprint["materials"][material], 1, 100000000): return false
 		for field in ["fabrication_energy_joules", "salvage_energy_joules"]:
 			if not ControlContractValidation.is_integer(blueprint[field], 1, 100000): return false
+	if version == 3:
+		if typeof(value["maintenance"]) != TYPE_DICTIONARY or value["maintenance"].size() != parts.size(): return false
+		for id in value["maintenance"]:
+			var quote: Variant = value["maintenance"][id]
+			if not parts.has(id) or typeof(quote) != TYPE_DICTIONARY or not ToolComponentCatalog.exact(quote, ["amount_ppm", "restored_ppm", "energy_joules", "materials"]): return false
+			if not ControlContractValidation.is_integer(quote["amount_ppm"], 1000000, 1000000) or not ControlContractValidation.is_integer(quote["restored_ppm"], 1000000 - int(parts[id]), 1000000 - int(parts[id])) or not ControlContractValidation.is_integer(quote["energy_joules"], 0, 100000000) or typeof(quote["materials"]) != TYPE_DICTIONARY or not quote["materials"].is_empty(): return false
+			if (quote["restored_ppm"] == 0) != (quote["energy_joules"] == 0): return false
 	return true
 
 
@@ -41,7 +52,7 @@ static func _part(part: Variant, seen: Dictionary) -> bool:
 	for key in ["part_id", "definition_id", "material_id"]:
 		if not ControlContractValidation.is_id(part[key]): return false
 	if seen.has(part["part_id"]) or seen.size() >= 512: return false
-	seen[part["part_id"]] = true
+	seen[part["part_id"]] = part["integrity_ppm"]
 	return ControlContractValidation.is_integer(part["schema_version"], 1, 1) and ControlContractValidation.is_integer(part["integrity_ppm"], 0, 1000000) and ControlContractValidation.is_integer(part["wear_remainder"], 0, 999) and _name(part["name"]) and _name(part["material_name"])
 
 

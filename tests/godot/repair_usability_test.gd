@@ -31,7 +31,7 @@ func _run() -> void:
 	_mount_panel()
 	_select_head()
 	_check(_panel._maintenance_details.text.contains("healthy") and _panel._maintenance_button.disabled, "healthy component blocks unnecessary repair")
-	_check(_panel._maintenance_details.text.contains("Energy quote unavailable"), "no fabricated energy quote")
+	_check(_panel._maintenance_details.text.contains("restore 0 ppm for 0 J"), "healthy owner quote requires no payment")
 	_check(ToolMaintenanceView.describe(_panel._tool_record, {}, _head).contains("Station reserve unavailable."), "absent workstation observation never invents a zero reserve")
 	await _capture_view("healthy")
 	_panel.free()

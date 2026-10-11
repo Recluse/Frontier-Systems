@@ -23,6 +23,9 @@ static func blocker(tools: Dictionary, production: Dictionary, selected_id: Stri
 		return "Construction workstation power is off."
 	if int(components(tools)[selected_id]["part"]["integrity_ppm"]) == 1000000:
 		return "Healthy component: no maintenance needed."
+	var quote: Dictionary = tools.get("maintenance", {}).get(selected_id, {})
+	if not quote.is_empty() and production.has("energy_joules") and int(production["energy_joules"]) < int(quote["energy_joules"]):
+		return "Insufficient station energy for this full-maintenance request."
 	return ""
 
 
@@ -42,11 +45,20 @@ static func describe(tools: Dictionary, production: Dictionary, selected_id: Str
 		lines.append("Loose component; no installed assembly capability observed.")
 	else:
 		lines.append("Tool: " + entry["assembly_id"])
-		for action in entry["actions"]:
+		var actions: Array = entry["actions"].keys()
+		actions.sort()
+		for action in actions:
 			var state: Dictionary = entry["actions"][action]
 			lines.append("%s: %s" % [action, "available" if state["available"] else "disabled; missing " + ", ".join(PackedStringArray(state["missing_functions"]))])
 	lines.append("Preview: maintain up to full integrity; host validates ownership, revisions, reach, voluntary action, power and energy.")
-	lines.append("Energy quote unavailable in current observation.")
+	var quote: Dictionary = tools.get("maintenance", {}).get(selected_id, {})
+	if quote.is_empty():
+		lines.append("Energy quote unavailable in current observation (legacy or missing).")
+	else:
+		lines.append("Observed quote: restore %d ppm for %d J; material stock required: none." % [quote["restored_ppm"], quote["energy_joules"]])
+	lines.append("Requires owned component, workstation reach, conscious voluntary action, unreserved hand and construction power.")
+	lines.append("Advisory observation: revisions, supply and capabilities may change before the tick; success is not guaranteed.")
+	lines.append("Damage cause and post-repair capabilities are not observed.")
 	if production.has("energy_joules"):
 		lines.append("Station reserve: %d J." % int(production["energy_joules"]))
 	else:

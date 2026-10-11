@@ -56,3 +56,7 @@ JSON schemas: tool-component-catalog-v1, tool-part-v1 and tool-assembly-ledger-v
 ## Verification scope
 
 Godot editor import, affected-script parsing, JSON syntax and diff whitespace checks were performed. The owner subsequently requested CI verification. tool_components_test.gd now passes locally and covers mounting, replacement without material loss, partial functionality, automation, space-tier and fractional wear, damage/maintenance, stale plans and JSON restore. Live component integration is now covered by tool_runtime_test.gd and the cooperative equipment route; see the maintenance milestone for exact evidence and limits. Before runtime integration, verify compatible/nonsensical mounts, duplicate ownership rejection, disabled capability loss, cycles, wear batching/remainders, repair energy settlement, replacement material conservation and restore. Existing equipment fabrication acceptance evidence does not verify this new domain model.
+
+## Scoped maintenance prerequisites
+
+Tool observation v3 adds detached owner-derived full-maintenance quotes while retaining readable v2 observations without costs. Commands, payment and tool-system v1 persistence are unchanged. See [maintenance prerequisites](../development/tool-maintenance-prerequisites-milestone.md) for bounds, authority, compatibility and uncertainty.

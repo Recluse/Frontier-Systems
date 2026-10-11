@@ -273,6 +273,12 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 			observed["slots"][slot] = assembly["slots"].get(slot, "")
 		for index in range(observed["parts"].size()): observed["parts"][index] = _part_view(observed["parts"][index])
 		assemblies.append(observed)
+	var maintenance: Dictionary = {}
+	for assembly in assemblies:
+		for part in assembly["parts"]:
+			maintenance[part["part_id"]] = _maintenance_quote(ledger_record["parts"][part["part_id"]])
+	for part in loose:
+		maintenance[part["part_id"]] = _maintenance_quote(ledger_record["parts"][part["part_id"]])
 	var blueprints: Dictionary = {}
 	for id in _part_blueprints:
 		var blueprint: Dictionary = _part_blueprints[id].duplicate(true)
@@ -280,7 +286,20 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 		blueprint["materials"] = part.material_stock()
 		blueprint["name"] = _catalog.definition("components", blueprint["definition_id"]).value["name"] + " · " + _catalog.definition("materials", blueprint["material_id"]).value["name"]
 		blueprints[id] = blueprint
-	return ServiceResult.success({"schema_version": 2, "state_revision": _ledger.revision(), "assemblies": assemblies, "loose_parts": loose, "part_blueprints": blueprints})
+	return ServiceResult.success({"schema_version": 3, "state_revision": _ledger.revision(), "assemblies": assemblies, "loose_parts": loose, "part_blueprints": blueprints, "maintenance": maintenance})
+
+
+## Detached quote from the same bounded part planner used by paid repair.
+## No adoption, payment, capability prediction or persistent-state mutation.
+func _maintenance_quote(record: Dictionary) -> Dictionary:
+	var part: ToolPartState = ToolPartState.from_record(record, _catalog).value
+	var plan: ServiceResult = part.plan_repair(1000000)
+	return {
+		"amount_ppm": 1000000,
+		"restored_ppm": 1000000 - int(record["integrity_ppm"]),
+		"energy_joules": int(plan.value["energy_joules"]) if plan.is_success else 0,
+		"materials": {}
+	}
 
 
 func _part_view(part: Dictionary) -> Dictionary:
