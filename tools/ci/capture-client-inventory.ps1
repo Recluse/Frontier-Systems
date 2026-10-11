@@ -1,6 +1,6 @@
 param(
     [string]$Godot = 'godot',
-    [ValidateSet('client_inventory_shell_test.gd', 'player_inventory_transfer_layout_test.gd')][string]$Fixture = 'client_inventory_shell_test.gd',
+    [ValidateSet('client_inventory_shell_test.gd', 'player_inventory_transfer_layout_test.gd', 'active_hand_tool_feedback_test.gd')][string]$Fixture = 'client_inventory_shell_test.gd',
     [ValidateSet('gl_compatibility', 'forward_plus')][string]$RenderingMethod = 'gl_compatibility',
     [ValidateRange(1, 120)][int]$TimeoutSeconds = 60
 )
@@ -8,7 +8,11 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $executable = (Get-Command $Godot -CommandType Application | Select-Object -First 1).Source
-$outputName = if ($Fixture -eq 'player_inventory_transfer_layout_test.gd') { 'inventory-transfer-layout-render' } else { 'client-inventory-render' }
+$outputName = switch ($Fixture) {
+    'player_inventory_transfer_layout_test.gd' { 'inventory-transfer-layout-render' }
+    'active_hand_tool_feedback_test.gd' { 'active-hand-tool-render' }
+    default { 'client-inventory-render' }
+}
 $output = Join-Path $projectRoot ("var/ci/" + $outputName)
 $overridePath = Join-Path $projectRoot 'override.cfg'
 if (Test-Path -LiteralPath $overridePath) { throw 'Preserve existing override.cfg; use a clean isolated worktree.' }

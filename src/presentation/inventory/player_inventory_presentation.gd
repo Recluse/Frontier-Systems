@@ -2,6 +2,29 @@ extends RefCounted
 class_name PlayerInventoryPresentation
 
 ## Disposable hints from scoped host observations; never an authorization owner.
+static func active_equipment(record: Dictionary, selected_item: String, selected_slot: String) -> String:
+	var lines := PackedStringArray(["Host-observed active equipment"])
+	var hand: String = str(record.get("active_hand_slot_id", ""))
+	if hand.is_empty() or not record.get("hand_slot_ids", []).has(hand) or not record.has("equipped"):
+		lines.append("Active hand/item: unavailable; wait for a fresh host observation.")
+	else:
+		lines.append("Active hand: " + hand)
+		var held: String = ""
+		for binding in record.get("equipped", []):
+			if binding["slot_id"] == hand: held = binding["item_id"]
+		var entry: Dictionary = item(record, held)
+		if held.is_empty():
+			lines.append("Active hand item: empty in this observation.")
+		elif entry.is_empty():
+			lines.append("Active hand item: unavailable in this observation.")
+		else:
+			lines.append("Active hand item: %s · %s" % [PlayerInventoryPanel.NAMES.get(entry["definition_id"], "Equipment"), held])
+	lines.append("Selected inventory item: " + (selected_item if not item(record, selected_item).is_empty() else "unavailable"))
+	lines.append("Selected equipment slot: " + (selected_slot if record.get("slot_ids", []).has(selected_slot) else "unavailable"))
+	lines.append("Selections do not change active equipment. Engineering actions use the active hand; the host rechecks tool requirements and reach.")
+	return "\n".join(lines)
+
+
 static func item(record: Dictionary, item_id: String) -> Dictionary:
 	for entry in record.get("items", []):
 		if entry["item_id"] == item_id:

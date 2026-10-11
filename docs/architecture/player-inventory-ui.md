@@ -32,6 +32,14 @@ Component presentation now wraps full selected IDs outside clipped pickers, flow
 
 ## Cursor and controls
 
+Equipment controls and hand-tool extraction show the host-observed active hand
+and equipped item separately from selected inventory item and equipment slot.
+Missing, older, disconnected or five-second non-advancing observations remove
+these active-equipment claims. Pending commands require their matching receipt;
+equipment display follows fresh observations and predicts no engineering readiness.
+See [active hand/tool feedback](../development/active-hand-tool-feedback-milestone.md)
+for the presentation-only freshness boundary and actual-shell verification.
+
 Hold Left Alt (default) to access panels during navigation. The Settings tab provides rebinding and sensitivity; see [player controls](player-controls.md). Inventory, hand and tool shortcuts use the same configured action registry.
 
 Transfer selections now show exact observed source, owned destination and equipment

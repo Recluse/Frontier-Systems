@@ -27,6 +27,11 @@ var _carrier := OptionButton.new()
 var _summary := Label.new()
 var _details := Label.new()
 var _equipment := Label.new()
+var _active_tool := Label.new()
+var _equipment_record: Dictionary = {}
+var _equipment_observed_at: int = -1
+var _equipment_tick: int = -1
+var _equipment_revision: int = -1
 var _result := Label.new()
 var _buttons: Array[Button] = []
 var _pending: String = ""
@@ -44,6 +49,7 @@ var _pending_component: Dictionary = {}
 var _inspected_tool: String = ""
 var _work_cycles := SpinBox.new()
 var _work_status := Label.new()
+const EQUIPMENT_OBSERVATION_TIMEOUT_MSEC: int = 5000
 
 
 func configure(remote: RemoteWorldRuntime) -> void:
@@ -71,7 +77,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_items.item_activated.connect(_open_storage)
 	add_child(_items)
 	add_child(_details)
-	_label("Equipment slot")
+	_label("Selected equipment slot · selection alone does not make a hand active")
 	add_child(_slot)
 	var equipment_actions := HFlowContainer.new()
 	add_child(equipment_actions)
@@ -106,7 +112,9 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_button(world_actions, "Drop selected", _world_action.bind("drop"), "drop")
 	_world_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_world_status)
-	_label("Active tool · resource extractor")
+	_label("Hand-tool extraction · uses host-observed active equipment")
+	_active_tool.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_active_tool)
 	for id in ["deposit.iron", "deposit.ice", "deposit.regolith"]:
 		_deposit.add_item({"deposit.iron": "Iron ore", "deposit.ice": "Ice", "deposit.regolith": "Regolith"}[id])
 		_deposit.set_item_metadata(_deposit.item_count - 1, id)
@@ -141,7 +149,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	for picker in [_part_blueprints, _loose_parts, _tool_mounts, _tool_parts]:
 		picker.item_selected.connect(func(_index: int) -> void: _update_buttons())
 	_label("Equip the extractor in a hand, make that hand active, carry a canister and approach the source. Mounted extraction remains available through Workstation. Crowbar world interactions are a later integration.")
-	for guidance: Label in [_storage_status, _transfer_preview, _world_transfer_preview, _world_status, _result]:
+	for guidance: Label in [_equipment, _active_tool, _storage_status, _transfer_preview, _world_transfer_preview, _world_status, _result]:
 		guidance.focus_mode = Control.FOCUS_ALL
 		guidance.gui_input.connect(_guidance_input.bind(guidance))
 		guidance.tooltip_text = "Tab to review; Up/Down or Page Up/Page Down scroll the Inventory pane."
@@ -153,7 +161,12 @@ func configure(remote: RemoteWorldRuntime) -> void:
 
 
 func observe(frame: Dictionary) -> void:
-	_record = frame["inventory"]
+	_record = frame.get("inventory", {})
+	_observe_equipment(frame)
+	if _record.is_empty():
+		_summary.text = "Inventory observation unavailable."
+		_update_buttons()
+		return
 	_production = frame["production"]
 	_nearby = frame["world_items"]
 	_tools = frame.get("tools", {})
@@ -176,10 +189,6 @@ func observe(frame: Dictionary) -> void:
 		return
 	_view_key = view_key
 	_summary.text = "Owned including nested storage: %.2f kg · %d items" % [float(_record["mass_milligrams"]) / 1000000.0, _record["items"].size()]
-	var equipped: PackedStringArray = []
-	for binding in _record["equipped"]:
-		equipped.append("%s: %s" % [_slot_name(binding["slot_id"]), _item_name(binding["item_id"])])
-	_equipment.text = "Active: %s\n%s" % [_slot_name(_record["active_hand_slot_id"]), ", ".join(equipped)]
 	var containers: Array = _record.get("container_ids", [])
 	_fill_picker(_source, containers, true)
 	_fill_picker(_destination, containers)
@@ -197,6 +206,39 @@ func observe(frame: Dictionary) -> void:
 	_inspect()
 	_inspect_world()
 	_update_buttons()
+
+
+## Freshness only fences presentation claims; it neither authorizes nor retries commands.
+func _observe_equipment(frame: Dictionary) -> void:
+	var revision: int = int(_record.get("inventory_revision", -1))
+	var tick: int = int(frame.get("tick_number", -1))
+	if _record.is_empty() or revision < _equipment_revision or (tick >= 0 and tick < _equipment_tick):
+		_equipment_record = {}
+		_update_active_equipment()
+		return
+	if tick < 0 or tick > _equipment_tick or _equipment_observed_at < 0:
+		_equipment_observed_at = Time.get_ticks_msec()
+	_equipment_tick = maxi(tick, _equipment_tick)
+	_equipment_revision = revision
+	_equipment_record = _record.duplicate(true) if Time.get_ticks_msec() - _equipment_observed_at <= EQUIPMENT_OBSERVATION_TIMEOUT_MSEC else {}
+	_update_active_equipment()
+
+
+func _process(_delta: float) -> void:
+	if not _equipment_record.is_empty() and _equipment_observed_at >= 0 and Time.get_ticks_msec() - _equipment_observed_at > EQUIPMENT_OBSERVATION_TIMEOUT_MSEC:
+		_equipment_record = {}
+		_update_active_equipment()
+
+
+func _update_active_equipment() -> void:
+	var text: String = PlayerInventoryPresentation.active_equipment(_equipment_record, _selected_id(_items), _picker_id(_slot))
+	if not _pending_inventory.is_empty() and _pending_inventory.get("operation") in ["equip", "unequip", "select_hand", "switch_hand"]:
+		text += "\nEquipment command pending; outcome unconfirmed until its matching host receipt. Display follows fresh observations."
+	_active_tool.text = text
+	var equipped := PackedStringArray()
+	for binding in _equipment_record.get("equipped", []):
+		equipped.append("%s: %s" % [binding["slot_id"], binding["item_id"]])
+	_equipment.text = text + ("\nObserved equipment bindings: " + ", ".join(equipped) if not equipped.is_empty() else "")
 
 
 func _fill_world_items() -> void:
@@ -338,6 +380,7 @@ func _self_action(operation: String) -> void:
 	if not _pending.is_empty():
 		_pending_inventory = payload.duplicate(true)
 		_result.text = PlayerInventoryPresentation.pending_text(_pending_inventory)
+		_update_active_equipment()
 
 func _world_action(operation: String) -> void:
 	if _record.is_empty() or not _pending.is_empty():
@@ -372,6 +415,10 @@ func _inspect_world() -> void:
 
 
 func _disconnected(message: String) -> void:
+	_equipment_record = {}
+	_equipment_observed_at = -1
+	_equipment_tick = -1
+	_equipment_revision = -1
 	_record = {}
 	_production = {}
 	_nearby = {}
@@ -525,6 +572,7 @@ func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 
 
 func _update_buttons() -> void:
+	_update_active_equipment()
 	_transfer_preview.text = PlayerInventoryPresentation.transfer_preview(_record, _selected_id(_items), _picker_id(_destination), _picker_id(_slot)) if not _record.is_empty() else ""
 	_world_transfer_preview.text = ""
 	if not _record.is_empty():
