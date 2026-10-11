@@ -1,5 +1,7 @@
 # Physical-wall placement feedback milestone
 
+Current draft semantics are refined by [the unsubmitted physical wall draft milestone](physical-wall-draft-preview-milestone.md): neutral geometry-only presentation, millimetre pose, cancel/reset, and stale-plate cleanup. The advice/color and missing-observation behavior below describe the original milestone.
+
 ## Scope and ownership
 
 MachineryPanel owns volatile selected plate, target coordinates, orientation and pending wall intent. WallPlacementFeedback derives display-only advice from private inventory and production v7 observations. The existing MachineryPreview decoration renderer shows both machine and wall previews; its selected footprint uses the observed wall orientation independently from a new build target. FirstPlayableBootstrap owns scene binding and disconnect cleanup.

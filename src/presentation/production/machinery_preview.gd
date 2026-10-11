@@ -205,6 +205,7 @@ func present_feedback(feedback: Dictionary) -> void:
 	if not feedback["ghost_visible"]: return
 	var target: Vector3 = MachineryPlacementFeedback.display_position(feedback["position"])
 	var color := Color(0.2, 0.85, 0.95, 0.24) if feedback["advisory_ok"] else Color(1.0, 0.35, 0.2, 0.24)
+	if feedback.get("wall_draft", false): color = Color(0.6, 0.7, 0.95, 0.24)
 	if feedback["pending"]: color = Color(1.0, 0.8, 0.2, 0.24)
 	_feedback_box(_feedback_root, size, color, target + Vector3(0, size.y / 2.0, 0))
 	var ghost: MeshInstance3D = _feedback_root.get_child(_feedback_root.get_child_count() - 1)
@@ -218,7 +219,7 @@ func present_feedback(feedback: Dictionary) -> void:
 		var extent: Vector3 = Vector3(0.018, 0.018, 0.018) + axes[index] * 0.9
 		_feedback_box(_feedback_root, extent, colors[index], target + Vector3(0, 0.04, 0) + axes[index] * 0.45)
 		_feedback_label(_feedback_root, target + Vector3(0, 0.1, 0) + axes[index], ["+X", "+Y", "+Z"][index], colors[index])
-	_feedback_label(_feedback_root, target + Vector3(0, size.y + 0.35, 0), "PENDING HOST" if feedback["pending"] else ("ADVISORY ENVELOPE" if feedback.get("machine_envelope", false) else "PLACEMENT PREVIEW"), Color(color, 1.0))
+	_feedback_label(_feedback_root, target + Vector3(0, size.y + 0.35, 0), "PENDING HOST" if feedback["pending"] else ("ADVISORY ENVELOPE" if feedback.get("machine_envelope", false) else ("UNSUBMITTED WALL PREVIEW" if feedback.get("wall_draft", false) else "PLACEMENT PREVIEW")), Color(color, 1.0))
 
 
 static func _footprint(parent: Node3D, base: Vector3, size: Vector3, color: Color) -> void:

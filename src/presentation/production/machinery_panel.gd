@@ -21,6 +21,8 @@ var _coordinate_title := Label.new()
 var _coordinate_labels: Array[Label] = []
 var _wall_input_hint := Label.new()
 var _new_wall := Button.new()
+var _cancel_wall := Button.new()
+var _reset_wall := Button.new()
 var _wall_build_button: Button
 var _wall_remove_button: Button
 var _status := Label.new()
@@ -126,9 +128,19 @@ func configure(world: WorldRuntime) -> void:
 	_new_wall.text = "Place a new wall\n(keep draft coordinates)"
 	_new_wall.pressed.connect(_begin_wall_placement)
 	add_child(_new_wall)
+	_cancel_wall.text = "Cancel wall preview (keep draft)"
+	_cancel_wall.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_cancel_wall.pressed.connect(_cancel_wall_placement)
+	add_child(_cancel_wall)
+	_reset_wall.text = "Reset wall draft to origin / along X"
+	_reset_wall.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_reset_wall.pressed.connect(_reset_wall_placement)
+	add_child(_reset_wall)
 	_wall_input_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_wall_input_hint)
 	move_child(_new_wall, _coordinate_title.get_index())
+	move_child(_cancel_wall, _coordinate_title.get_index())
+	move_child(_reset_wall, _coordinate_title.get_index())
 	move_child(_wall_input_hint, _coordinate_grid.get_index())
 	_wall_turn.add_item("Wall along X — width follows X", 0)
 	_wall_turn.add_item("Wall along Z — width follows Z", 1)
@@ -198,6 +210,10 @@ func configure(world: WorldRuntime) -> void:
 
 
 func observe(record: Dictionary) -> void:
+	var previous_owned_plate: String = ""
+	for item in _record.get("inventory", {}).get("items", []):
+		if item["item_id"] == _selected(_part) and item["definition_id"] == "item.plate.prototype":
+			previous_owned_plate = item["item_id"]
 	if not _operation_feedback.observe(record.get("production", {})): record = {}
 	_record = record
 	if record.is_empty():
@@ -222,7 +238,14 @@ func observe(record: Dictionary) -> void:
 			parts[physical["item_id"]] = "%s · %s" % [PlayerInventoryPanel.NAMES.get(physical["definition_id"], physical["definition_id"]), physical["item_id"]]
 	_fill(_machine, frames)
 	_fill(_other, frames)
+	var previous_part: String = _selected(_part)
 	_fill(_part, parts)
+	var still_owned: bool = false
+	for item in record["inventory"]["items"]:
+		if item["item_id"] == previous_owned_plate and item["definition_id"] == "item.plate.prototype": still_owned = true
+	if _placement_kind.selected == 1 and not previous_part.is_empty() and (not parts.has(previous_part) or (not previous_owned_plate.is_empty() and not still_owned)):
+		_part.select(-1)
+		_show_placement.set_pressed_no_signal(false)
 	_fill(_socket, sockets)
 	var walls: Dictionary = {}
 	for id in record["production"]["walls"]: walls[id] = "Wall %s · %s" % [id, str(record["production"]["walls"][id]["position"])]
@@ -308,6 +331,24 @@ func _begin_wall_placement(focus_coordinate: bool = true) -> void:
 	_show_placement.set_pressed_no_signal(true)
 	_refresh_placement()
 	if focus_coordinate: _axes[0].get_line_edit().grab_focus()
+
+
+## Cancel only the volatile preview; retain coordinates, orientation and plate.
+func _cancel_wall_placement() -> void:
+	if not _pending.is_empty() or _record.is_empty(): return
+	_show_placement.set_pressed_no_signal(false)
+	_refresh_placement()
+
+
+## Reset a new draft explicitly, without submitting or changing observed walls.
+func _reset_wall_placement() -> void:
+	if not _pending.is_empty() or _record.is_empty(): return
+	for index in range(_axes.size()):
+		_coordinate_text_edits[index] = false
+		_axes[index].value = 0
+		_axes[index].get_line_edit().text = "0"
+	_wall_turn.select(0)
+	_begin_wall_placement()
 
 
 ## Keep keyboard-focused wall controls in view without changing other tabs.
@@ -416,6 +457,8 @@ func _refresh_placement() -> void:
 	_coordinate_title.visible = not inspecting
 	_coordinate_title.text = "New wall target, metres relative to workbench" if wall_mode else "Placement coordinates, metres relative to workbench"
 	_new_wall.visible = wall_mode
+	_cancel_wall.visible = wall_mode
+	_reset_wall.visible = wall_mode
 	for index in range(_coordinate_labels.size()):
 		_coordinate_labels[index].text = ["X", "Y", "Z"][index] + (" (m)" if wall_mode else "")
 		_axes[index].custom_minimum_size.x = 140 if wall_mode else 0
@@ -433,7 +476,9 @@ func _refresh_placement() -> void:
 	_mode.visible = not wall_mode
 	_wall_turn.visible = not inspecting
 	_new_wall.disabled = waiting or unavailable
-	_wall_input_hint.text = "Inspecting an observed wall. Its pose below is read-only. Choose Place a new wall to edit your saved draft." if inspecting else "New wall draft: X / Z are floor coordinates; Y must be 0. Enter metres, press Enter to apply, or Tab / Shift+Tab between coordinates and orientation. Preview and reach hints are advisory; the host decides placement."
+	_cancel_wall.disabled = waiting or unavailable or inspecting or not _show_placement.button_pressed
+	_reset_wall.disabled = waiting or unavailable
+	_wall_input_hint.text = "Inspecting an observed wall. Its pose below is read-only. Choose Place a new wall to edit your saved draft." if inspecting else "New wall draft: X / Z are floor coordinates; Y must be 0. Enter metres, press Enter to apply, or Tab / Shift+Tab between coordinates and orientation. The preview is unsubmitted geometry only; the host decides placement."
 	if waiting and wall_mode: _wall_input_hint.text = "Waiting for host; the submitted wall target is frozen. Draft controls cannot retarget this request."
 	_wall_input_hint.visible = wall_mode
 	_show_placement.text = "Preview new wall at draft coordinates" if wall_mode else "Show placement ghost / footprint"

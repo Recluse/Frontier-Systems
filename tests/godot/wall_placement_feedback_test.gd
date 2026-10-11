@@ -36,13 +36,20 @@ func finish() -> void:
 	check(ghost.position.is_equal_approx(ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(0, 1, -1)), "wall ghost uses workbench origin and floor-anchor height")
 	check(preview._feedback_root.find_children("*", "CollisionObject3D", true, false).is_empty(), "wall ghost has no collision or pick objects")
 	check(ghost.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "ghost never casts a physical-looking shadow")
+	check((preview._feedback_root.get_child(preview._feedback_root.get_child_count() - 1) as Label3D).text == "UNSUBMITTED WALL PREVIEW", "world label distinguishes draft from pending and settled walls")
+	check(panel._placement_status.text.contains("[0, 0, -1000] mm") and not panel._placement_status.text.contains("estimated") and not panel._placement_status.text.contains("distance"), "draft reports millimetre pose without predicting reach")
+	var draft_color: Color = (ghost.material_override as StandardMaterial3D).albedo_color
+	panel._axes[0].value = 42
+	ghost = preview._feedback_root.get_child(0)
+	check((ghost.material_override as StandardMaterial3D).albedo_color == draft_color, "out of reach draft keeps neutral geometry color")
+	panel._axes[0].value = 0
 	var footprint: MeshInstance3D = preview._feedback_root.get_child(1)
 	check((footprint.mesh as BoxMesh).size.x == 1, "X footprint follows panel width")
 	panel._wall_turn.select(1)
 	panel._refresh_placement()
 	ghost = preview._feedback_root.get_child(0)
 	check((ghost.mesh as BoxMesh).size == Vector3(0.1, 2, 1), "Z orientation rotates footprint and mesh")
-	check(panel._placement_status.text.contains("Wall along Z"), "orientation advice names Z")
+	check(panel._placement_status.text.contains("along Z"), "orientation advice names Z")
 	panel._axes[1].value = 0.1
 	check(panel._placement_status.text.contains("Floor placement requires Y=0"), "walls explain floor restriction")
 	panel._mode.select(1)
@@ -143,7 +150,7 @@ func finish() -> void:
 	var missing: Dictionary = view_record()
 	missing["inventory"]["items"] = []
 	panel.observe(missing)
-	check(preview._feedback_root.get_child_count() == 0, "lost owned plate retires stale ghost")
+	check(preview._feedback_root.get_child_count() == 0 and panel._selected(panel._part).is_empty() and not panel._show_placement.button_pressed, "lost owned plate retires stale ghost without silently retargeting selector")
 	panel.observe(view_record())
 	panel.observe({})
 	check(preview._feedback_root.get_child_count() == 0 and panel._action_buttons[0].disabled and panel._wall.item_count == 0, "unavailable observations clear selection and block actions")
@@ -158,11 +165,12 @@ func finish() -> void:
 	var selected_sample: Dictionary = sample.duplicate(true)
 	selected_sample["production"]["walls"]["wall.advice"] = {"position": [0, 0, -2000], "quarter_turn": 1}
 	var selection_advice: Dictionary = WallPlacementFeedback.describe(selected_sample, "", "wall.advice", [0, 0, 0], 0, false, {})
-	check(selection_advice["text"].contains("Wall along Z") and selection_advice["text"].contains("Outside estimated") and selection_advice["text"].contains("Selected X 0.00 / Y 0.00 / Z -2.00"), "clicked wall reach and orientation use its observed pose instead of unrelated target controls")
-	check(not WallPlacementFeedback.describe(sample, plate, "", [2000, 0, 0], 0, true, {})["advisory_ok"], "out of reach is advisory")
-	check(WallPlacementFeedback.describe(sample, plate, "", [1, 0, -1000], 0, true, {})["text"].contains("0.1 m grid"), "off grid input has explicit advice")
+	check(selection_advice["text"].contains("along Z") and selection_advice["text"].contains("Outside estimated") and selection_advice["text"].contains("Selected X 0.00 / Y 0.00 / Z -2.00"), "clicked wall reach and orientation use its observed pose instead of unrelated target controls")
+	check(not WallPlacementFeedback.describe(sample, plate, "", [2000, 0, 0], 0, true, {})["advisory_ok"], "draft never claims placement readiness")
+	check(WallPlacementFeedback.describe(sample, plate, "", [1, 0, -1000], 0, true, {})["text"].contains("100 mm grid"), "off grid input has explicit advice")
 	check(WallPlacementFeedback.describe(sample, "resource-canister-1", "", [0, 0, -1000], 0, true, {})["text"].contains("owned physical plate"), "nonplate selection has useful advice")
 	var unavailable: Dictionary = WallPlacementFeedback.describe({}, "", "", [], 0, false, held)
+	check(unavailable["selected_position"].is_empty() and not unavailable["ghost_visible"], "missing observation clears world decoration while retaining submitted metadata")
 	check(unavailable["selected_id"] == wall and unavailable["text"].contains("Current reach unavailable") and unavailable["text"].contains("Waiting for host"), "missing scoped observation keeps submitted target but does not invent zero-distance reach")
 	var stale: Dictionary = WallPlacementFeedback.describe(sample, "", "removed-wall", [0, 0, 0], 0, false, {})
 	check(stale["selected_id"].is_empty() and stale["text"].contains("no longer observed"), "stale settled target clears footprint and advises reselection")

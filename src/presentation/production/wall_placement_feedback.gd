@@ -46,16 +46,22 @@ static func describe(record: Dictionary, plate_id: String, wall_id: String, coor
 		text += "\nWall %s is no longer observed; select a current wall." % wall_id
 	else:
 		text += "\nHost checks plate, hands, revision and overlap."
+	if not selecting and (wall_id.is_empty() or shown or building):
+		text = ("Pending wall placement" if building else "Unsubmitted wall preview") + " · along " + ("X" if turn == 0 else "Z") + " · 1 × 2 × 0.1 m"
+		if valid_position: text += "\nDraft pose [X, Y, Z] %s mm · quarter-turn %d." % [str(displayed), displayed_turn]
+		if not owned and not building: text += "\nSelect an owned physical plate in the module / canister selector."
+		text += "\nGeometry only; reach, collision, capacity and acceptance are determined by the host."
+		text += "\nFloor placement requires Y=0 on the 100 mm grid; walls have no Freeform mode."
 	if waiting:
 		text += "\nWaiting for host command result; submitted identity and pose held. No plate return confirmed."
 	if record.is_empty() and not waiting: text = "Wall observation unavailable."
 	return {
 		"selected_id": selected_id if not selected.is_empty() else "",
-		"selected_position": selected.get("position", []).duplicate(),
+		"selected_position": selected.get("position", []).duplicate() if not record.is_empty() else [],
 		"selected_size": envelope(int(selected.get("quarter_turn", 0))),
 		"ghost_visible": not record.is_empty() and shown and (owned or building) and valid_position and not removing,
-		"position": coords.duplicate(), "size": envelope(turn),
-		"pending": waiting, "advisory_ok": (owned or selecting) and reachable and floor_ok and grid_ok,
+		"position": coords.duplicate(), "size": envelope(turn), "wall_draft": true,
+		"pending": waiting, "advisory_ok": selecting and reachable and floor_ok and grid_ok,
 		"text": text
 	}
 
