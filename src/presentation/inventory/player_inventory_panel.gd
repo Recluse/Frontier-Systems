@@ -291,10 +291,12 @@ func _world_action(operation: String) -> void:
 	var selected: PackedInt32Array = list.get_selected_items()
 	if selected.is_empty() or _nearby.get("containers", []).is_empty():
 		_result.text = "Select an item and approach accessible world storage."
+		_world_status.text = _result.text
 		return
 	var item: Dictionary = list.get_item_metadata(selected[0])
 	if operation == "pickup" and _destination.selected < 0:
 		_result.text = "Choose owned destination storage."
+		_world_status.text = _result.text
 		return
 	if _world_root.selected < 0: return
 	var payload: Dictionary = {"operation": operation, "item_id": item["item_id"], "world_container_id": item["container_id"] if operation == "pickup" else _world_root.get_item_metadata(_world_root.selected), "destination_container_id": _destination.get_item_metadata(_destination.selected) if operation == "pickup" else "", "slot_id": "", "expected_revision": _record["inventory_revision"]}
@@ -320,10 +322,10 @@ func _inspect_world() -> void:
 
 
 func _disconnected(message: String) -> void:
-	_record.clear()
-	_production.clear()
-	_nearby.clear()
-	_tools.clear()
+	_record = {}
+	_production = {}
+	_nearby = {}
+	_tools = {}
 	_pending = ""
 	_pending_world.clear()
 	_view_key = ""
@@ -409,7 +411,7 @@ func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 		var was_world: bool = not _pending_world.is_empty()
 		_pending = ""
 		_pending_world.clear()
-		_result.text = "Host accepted action; waiting for current inventory observation." if result.is_success else "Host rejected action: " + result.message
+		_result.text = "Host accepted action. Inventory follows the latest host view." if result.is_success else "Host rejected action: " + result.message
 		if was_world: _world_status.text = _result.text
 		_update_buttons()
 
