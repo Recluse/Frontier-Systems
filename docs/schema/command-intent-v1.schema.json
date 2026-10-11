@@ -15,7 +15,7 @@
       "type": "string",
       "pattern": "^[a-z][a-z0-9_.-]{0,63}$"
     },
-    "expected_tick_number": { "type": "integer", "minimum": 0 },
+    "expected_tick_number": { "type": "integer", "minimum": 0, "maximum": 9007199254740990 },
     "payload": {
       "type": "object",
       "description": "Command-specific data validated by the registered server command handler.",

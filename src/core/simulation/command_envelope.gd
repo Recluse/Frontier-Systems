@@ -6,6 +6,7 @@ class_name CommandEnvelope
 const PROTOCOL_VERSION: int = 1
 const MAX_ENCODED_BYTES: int = 65536
 const MAX_NESTING_DEPTH: int = 16
+const MAX_EXPECTED_TICK: int = 9007199254740990
 
 var request_id: StringName
 var world_id: StringName
@@ -29,7 +30,7 @@ static func from_dictionary(record: Dictionary) -> ServiceResult:
 		if typeof(key) != TYPE_STRING or not allowed_keys.has(key):
 			return ServiceResult.failure(&"unsupported_command_property", "Command intent contains an unsupported property.")
 
-	if typeof(record.get("protocol_version")) != TYPE_INT or record["protocol_version"] != PROTOCOL_VERSION:
+	if not ControlContractValidation.is_integer(record.get("protocol_version"), PROTOCOL_VERSION, PROTOCOL_VERSION):
 		return ServiceResult.failure(&"unsupported_command_protocol", "Command protocol version is not supported.")
 	for key in ["request_id", "world_id", "region_id", "command_type"]:
 		if typeof(record.get(key)) != TYPE_STRING or String(record[key]).strip_edges().is_empty():
@@ -46,8 +47,8 @@ static func from_dictionary(record: Dictionary) -> ServiceResult:
 
 	var expected_tick: int = -1
 	if record.has("expected_tick_number"):
-		if typeof(record["expected_tick_number"]) != TYPE_INT or int(record["expected_tick_number"]) < 0:
-			return ServiceResult.failure(&"invalid_expected_tick", "Expected tick number must be a non-negative integer.")
+		if not ControlContractValidation.is_integer(record["expected_tick_number"], 0, MAX_EXPECTED_TICK):
+			return ServiceResult.failure(&"invalid_expected_tick", "Expected tick number must be a non-negative exact JSON integer within the world tick range.")
 		expected_tick = int(record["expected_tick_number"])
 
 	var payload_value: Variant = record.get("payload")

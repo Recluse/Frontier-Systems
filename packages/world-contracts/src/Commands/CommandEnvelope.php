@@ -19,6 +19,7 @@ final readonly class CommandEnvelope
 {
     public const PROTOCOL_VERSION = 1;
     public const MAX_ENCODED_BYTES = 65_536;
+    public const MAX_EXPECTED_TICK = 9_007_199_254_740_990;
 
     /** @param array<string, mixed> $payload */
     private function __construct(
@@ -36,7 +37,7 @@ final readonly class CommandEnvelope
     {
         self::assertAllowedKeys($record);
 
-        if (($record['protocol_version'] ?? null) !== self::PROTOCOL_VERSION) {
+        if (!self::isIntegerWithin($record['protocol_version'] ?? null, self::PROTOCOL_VERSION, self::PROTOCOL_VERSION)) {
             throw new InvalidArgumentException('Unsupported command protocol version.');
         }
 
@@ -49,8 +50,11 @@ final readonly class CommandEnvelope
         }
 
         $expectedTick = $record['expected_tick_number'] ?? null;
-        if (array_key_exists('expected_tick_number', $record) && (!is_int($expectedTick) || $expectedTick < 0)) {
-            throw new InvalidArgumentException('Expected tick number must be a non-negative integer when provided.');
+        if (array_key_exists('expected_tick_number', $record)) {
+            if (!self::isIntegerWithin($expectedTick, 0, self::MAX_EXPECTED_TICK)) {
+                throw new InvalidArgumentException('Expected tick number must be a non-negative exact JSON integer within the world tick range.');
+            }
+            $expectedTick = (int) $expectedTick;
         }
 
         $payload = $record['payload'] ?? null;
@@ -68,6 +72,16 @@ final readonly class CommandEnvelope
         }
 
         return $envelope;
+    }
+
+    private static function isIntegerWithin(mixed $value, int $minimum, int $maximum): bool
+    {
+        if (!is_int($value) && !is_float($value)) {
+            return false;
+        }
+
+        return is_finite((float) $value) && floor((float) $value) === (float) $value
+            && $value >= $minimum && $value <= $maximum;
     }
 
     public static function fromJson(string $json): self
