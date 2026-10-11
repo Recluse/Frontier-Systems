@@ -1,11 +1,14 @@
 param(
     [string]$Godot = 'godot',
-    [Parameter(Mandatory)][switch]$PortsReserved,
+    [switch]$PortsReserved,
+    [switch]$InputOnly,
+    [switch]$ClientOnly,
     [ValidateRange(1, 300)][int]$TimeoutSeconds = 120
 )
 # Local verification only. PortsReserved asserts the Coordinator lease; it does not acquire one.
 $ErrorActionPreference = 'Stop'
-if (-not $PortsReserved) { throw 'Reserve loopback ports 27849 and 27850 through Coordinator first.' }
+if ($InputOnly -and $ClientOnly) { throw 'Choose InputOnly or ClientOnly, not both.' }
+if (-not $InputOnly -and -not $PortsReserved) { throw 'Reserve loopback ports 27849 and 27850 through Coordinator first.' }
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $overridePath = Join-Path $projectRoot 'override.cfg'
 if (Test-Path -LiteralPath $overridePath) { throw 'Existing override.cfg must be preserved; use a clean isolated worktree.' }
@@ -18,15 +21,19 @@ $profileName = "FrontierSystems-tutorial-$runId"
 $previousCapture = [Environment]::GetEnvironmentVariable('FRONTIER_VERIFICATION_CAPTURE_DIRECTORY', 'Process')
 $manifest = [ordered]@{
     revision = $revision
+    working_tree = @(& git -C $projectRoot status --short --untracked-files=all)
+    scope = $(if ($InputOnly) { 'input' } elseif ($ClientOnly) { 'client' } else { 'all' })
     started_utc = [DateTime]::UtcNow.ToString('o')
     profile_name = $profileName
-    ports = @(27849, 27850)
+    ports = @()
     engine = (Get-Command $Godot -CommandType Application | Select-Object -First 1).Source
     runtime = 'not run'
     graphical = 'not run'
-    human_acceptance = 'not performed; scripted motion and guide calls'
+    input = 'not run'
+    human_acceptance = 'not performed; injected Godot input and fixture-selected UI; no physical input'
     media = 'internal ordinary Godot capture only; no publication clearance'
 }
+if ($ClientOnly) { $manifest.ports = @(27850) } elseif (-not $InputOnly) { $manifest.ports = @(27849, 27850) }
 function Assert-PortAvailable([int]$Port) {
     # Bind a short-lived probe without replacing or stopping an existing listener.
     $probe = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $Port)
@@ -39,17 +46,26 @@ try {
     $configuration = "[application]`nconfig/use_custom_user_dir=true`nconfig/custom_user_dir_name=`"$profileName`"`n"
     [IO.File]::WriteAllText($overridePath, $configuration)
     $env:FRONTIER_VERIFICATION_CAPTURE_DIRECTORY = (Join-Path $output 'capture').Replace('\', '/')
-    Assert-PortAvailable 27849
-    & (Join-Path $PSScriptRoot 'run-godot-checks.ps1') -Godot $Godot -TestNames @(
-        'local_character_navigation_test.gd', 'desktop_controls_help_test.gd',
-        'first_playable_task_guide_test.gd', 'first_playable_acceptance.gd'
-    ) -TestTimeoutSeconds $TimeoutSeconds -OutputDirectory "var/ci/tutorial-readiness/$runId/runtime"
-    $manifest.runtime = 'passed: existing bounded headless runner'
+    if (-not $ClientOnly) {
+        & (Join-Path $PSScriptRoot 'run-first-playable-render-check.ps1') -Godot $Godot -Route input-acceptance -TimeoutSeconds $TimeoutSeconds
+        Copy-Item -LiteralPath (Join-Path $projectRoot 'var/ci/render-input-acceptance/stdout.log') -Destination (Join-Path $output 'input-stdout.log')
+        Copy-Item -LiteralPath (Join-Path $projectRoot 'var/ci/render-input-acceptance/stderr.log') -Destination (Join-Path $output 'input-stderr.log')
+        $manifest.input = 'passed: native cursor capture, actual keyboard sampling and input handlers; injected events'
+    }
+    if ($InputOnly) { return }
+    if (-not $ClientOnly) {
+        Assert-PortAvailable 27849
+        & (Join-Path $PSScriptRoot 'run-godot-checks.ps1') -Godot $Godot -TestNames @(
+            'local_character_navigation_test.gd', 'desktop_controls_help_test.gd',
+            'first_playable_task_guide_test.gd', 'first_playable_acceptance.gd'
+        ) -TestTimeoutSeconds $TimeoutSeconds -OutputDirectory "var/ci/tutorial-readiness/$runId/runtime"
+        $manifest.runtime = 'passed: existing bounded headless runner'
+    }
     Assert-PortAvailable 27850
-    & (Join-Path $PSScriptRoot 'run-first-playable-render-check.ps1') -Godot $Godot -Route basic -TimeoutSeconds $TimeoutSeconds
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'var/ci/render-basic/stdout.log') -Destination (Join-Path $output 'graphical-stdout.log')
-    Copy-Item -LiteralPath (Join-Path $projectRoot 'var/ci/render-basic/stderr.log') -Destination (Join-Path $output 'graphical-stderr.log')
-    $manifest.graphical = 'passed: native renderer, real client, scripted character motion and guide calls'
+    & (Join-Path $PSScriptRoot 'run-first-playable-render-check.ps1') -Godot $Godot -Route client-acceptance -PortsReserved -TimeoutSeconds $TimeoutSeconds
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'var/ci/render-client-acceptance/stdout.log') -Destination (Join-Path $output 'graphical-stdout.log')
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'var/ci/render-client-acceptance/stderr.log') -Destination (Join-Path $output 'graphical-stderr.log')
+    $manifest.graphical = 'passed: native renderer, real client, injected keyboard/GUI buttons, finite equipment/wall, disk acknowledgement and startup reconnect'
 } catch {
     $manifest.failure = $_.Exception.Message
     throw

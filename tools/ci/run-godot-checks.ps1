@@ -10,6 +10,8 @@ $executable = (Get-Command $Godot -CommandType Application | Select-Object -Firs
 $output = [IO.Path]::GetFullPath((Join-Path $projectRoot $OutputDirectory))
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 $excluded = @{
+    'client_ui_acceptance_render_check.gd' = 'Requires the graphical client-acceptance runner and Coordinator port reservation.'
+    'client_input_render_check.gd' = 'Requires native cursor capture; use the graphical input-acceptance runner.'
     'event_logging_integration_test.gd' = 'Requires tools/test-event-logging.ps1 local receiver.'
     'local_profiling_upload_test.gd' = 'Requires tools/test-local-profiling.ps1 local receiver.'
     'first_playable_client_render_check.gd' = 'Requires a graphical runner; never silently substitute headless rendering.'
