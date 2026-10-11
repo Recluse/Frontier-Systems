@@ -155,6 +155,7 @@ func _start_client() -> void:
 	viewport.add_child(_habitat)
 	_machinery_preview = MachineryPreview.new()
 	_habitat.add_child(_machinery_preview)
+	_machinery_panel.bind_preview(_machinery_preview)
 	_machinery_preview.machine_selected.connect(func(id: String) -> void:
 		_machinery_panel.select_machine(id)
 		_tabs.current_tab = 3

@@ -5,6 +5,8 @@ signal machine_selected(machine_id: String)
 ## Settled machinery uses one static compound body per physical frame. Its modules
 ## and canisters are child visuals, not independently simulated rigid bodies.
 var _signature: String = ""
+var _feedback_root: Node3D
+var _feedback_signature: String = ""
 var _labels: Dictionary = {}
 var _socket_labels: Dictionary = {}
 const ROLES: Dictionary = {"autolathe": "AUTOLATHE","solar": "SOLAR GENERATOR", "printhead": "3D PRINTER", "refinery": "REFINERY", "extractor": "RESOURCE EXTRACTOR", "router": "POWER ROUTER"}
@@ -22,6 +24,7 @@ func observe(record: Dictionary) -> void:
 	_labels.clear()
 	_socket_labels.clear()
 	for child in get_children():
+		if child == _feedback_root: continue
 		remove_child(child)
 		child.queue_free()
 	for id in poses:
@@ -151,7 +154,7 @@ static func _cylinder(parent: Node3D, offset: Vector3, color: Color, radius: flo
 
 
 static func _position(coords: Array) -> Vector3:
-	return ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(float(coords[0]), float(coords[1]), float(coords[2])) / 1000.0
+	return MachineryPlacementFeedback.display_position(coords)
 
 
 static func _box(parent: Node3D, size: Vector3, color: Color, offset: Vector3) -> void:
@@ -164,3 +167,57 @@ static func _box(parent: Node3D, size: Vector3, color: Color, offset: Vector3) -
 	visual.material_override = material
 	visual.position = offset
 	parent.add_child(visual)
+
+
+
+## Decorative geometry never has collision, input picking, inventory or save data.
+func present_feedback(feedback: Dictionary) -> void:
+	var signature: String = var_to_str(feedback)
+	if signature == _feedback_signature: return
+	_feedback_signature = signature
+	if is_instance_valid(_feedback_root):
+		remove_child(_feedback_root)
+		_feedback_root.queue_free()
+	_feedback_root = Node3D.new()
+	_feedback_root.name = "ClientPlacementFeedback"
+	add_child(_feedback_root)
+	if feedback.is_empty(): return
+	var size: Vector3 = feedback["size"]
+	var selected: Array = feedback["selected_position"]
+	if not selected.is_empty():
+		_footprint(_feedback_root, MachineryPlacementFeedback.display_position(selected), size, Color(1.0, 0.85, 0.2))
+		_feedback_label(_feedback_root, MachineryPlacementFeedback.display_position(selected) + Vector3(0, size.y + 0.5, 0), "SELECTED " + String(feedback["selected_id"]), Color(1.0, 0.85, 0.2))
+	if not feedback["ghost_visible"]: return
+	var target: Vector3 = MachineryPlacementFeedback.display_position(feedback["position"])
+	var color := Color(0.2, 0.85, 0.95, 0.24) if feedback["advisory_ok"] else Color(1.0, 0.35, 0.2, 0.24)
+	if feedback["pending"]: color = Color(1.0, 0.8, 0.2, 0.24)
+	_box(_feedback_root, size, color, target + Vector3(0, size.y / 2.0, 0))
+	var ghost: MeshInstance3D = _feedback_root.get_child(_feedback_root.get_child_count() - 1)
+	ghost.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var material: StandardMaterial3D = ghost.material_override
+	material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_footprint(_feedback_root, target, size, Color(color, 1.0))
+	var axes: Array[Vector3] = [Vector3.RIGHT, Vector3.UP, Vector3.BACK]
+	var colors: Array[Color] = [Color(1, 0.2, 0.2), Color(0.2, 1, 0.2), Color(0.2, 0.45, 1)]
+	for index in range(3):
+		var extent: Vector3 = Vector3(0.018, 0.018, 0.018) + axes[index] * 0.9
+		_box(_feedback_root, extent, colors[index], target + Vector3(0, 0.04, 0) + axes[index] * 0.45)
+		_feedback_label(_feedback_root, target + Vector3(0, 0.1, 0) + axes[index], ["+X", "+Y", "+Z"][index], colors[index])
+	_feedback_label(_feedback_root, target + Vector3(0, size.y + 0.35, 0), "PENDING HOST" if feedback["pending"] else "PLACEMENT PREVIEW", Color(color, 1.0))
+
+
+static func _footprint(parent: Node3D, base: Vector3, size: Vector3, color: Color) -> void:
+	for side in [-1.0, 1.0]:
+		_box(parent, Vector3(size.x, 0.025, 0.025), color, base + Vector3(0, 0.02, side * size.z / 2.0))
+		_box(parent, Vector3(0.025, 0.025, size.z), color, base + Vector3(side * size.x / 2.0, 0.02, 0))
+
+
+static func _feedback_label(parent: Node3D, at: Vector3, text: String, color: Color) -> void:
+	var label := Label3D.new()
+	label.position = at
+	label.text = text
+	label.modulate = color
+	label.font_size = 28
+	label.pixel_size = 0.003
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	parent.add_child(label)
