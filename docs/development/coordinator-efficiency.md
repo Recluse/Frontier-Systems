@@ -31,7 +31,7 @@ The v1 record has these fields:
 | --- | --- |
 | `schema_version`, `repository` | `1`, `Valgorithms/Frontier-Systems` |
 | `active_tasks[]` | `thread_id`, nullable `pr_number`, nullable `head_sha`, `scope`, `status`; a PR requires its immutable 40-character head SHA |
-| `website` | `status`, `checked_at`, `next_check_at`; record the actual next authorized follow-up |
+| `website` | `status`: `new`, `pending`, `blocked`, `complete` or `refresh_required`; verified `checked_at`; actual authorized `next_check_at`, or null when complete |
 | `fundraising` | `last_confirmed_public_post_at`, `next_monthly_due_at`, Boolean `unreported_progress`; About/profile changes do not reset public-post timing |
 | `pending_approvals[]` | Concise unresolved approval summaries for Coordinator routing |
 | `tutorial_gate` | `open`, `awaiting_human` or `accepted`; preserve the actual human acceptance boundary |
@@ -41,6 +41,12 @@ Read the latest ledger before reconciling changed evidence. Update this small
 record only after reconciliation; if the ledger changes concurrently, the next
 snapshot reports the mismatch. The helper never edits or archives the ledger,
 updates state, makes network requests, or writes the previous snapshot.
+
+Mark the one-off website follow-up `complete` only after its required outcome is
+verified, retain that observation's `checked_at`, and set `next_check_at` to null.
+Completed follow-ups emit no website deadline. Unsupported status values or an
+unverified completion request refresh. Daily and monthly fundraising deadlines
+remain independent and continue after website completion.
 
 ## Snapshot invocation
 

@@ -74,23 +74,33 @@ if ($taskState.active_tasks -isnot [array] -or $taskState.pending_approvals -isn
 }
 $taskWebsite = if ($taskState.website -is [Collections.IDictionary]) { $taskState.website } else { @{} }
 $taskFundraising = if ($taskState.fundraising -is [Collections.IDictionary]) { $taskState.fundraising } else { @{} }
-if ([string]::IsNullOrWhiteSpace($taskWebsite.status) -or $taskFundraising.unreported_progress -isnot [bool]) {
-    $taskRefresh.Add('active state: missing website status or explicit unreported_progress; refresh required')
+if ($taskWebsite.status -cnotin @('new', 'pending', 'blocked', 'complete', 'refresh_required') -or
+    -not $taskWebsite.Contains('next_check_at') -or $taskFundraising.unreported_progress -isnot [bool]) {
+    $taskRefresh.Add('active state: unsupported website status, missing next_check_at or explicit unreported_progress; refresh required')
 }
 $taskWebsiteChecked = Read-SnapshotTime $taskWebsite.checked_at 'website.checked_at' -Past
-$taskWebsiteNext = Read-SnapshotTime $taskWebsite.next_check_at 'website.next_check_at'
+$taskWebsiteComplete = $taskWebsite.status -ceq 'complete'
+$taskWebsiteNext = $null
+if ($taskWebsiteComplete) {
+    if ($null -ne $taskWebsite.next_check_at) { $taskRefresh.Add('completed website follow-up must have null next_check_at; refresh required') }
+} else {
+    $taskWebsiteNext = Read-SnapshotTime $taskWebsite.next_check_at 'website.next_check_at'
+    if ($taskWebsite.status -ceq 'refresh_required') { $taskRefresh.Add('website status requires a fresh observation') }
+}
 if ($null -ne $taskWebsiteChecked -and $null -ne $taskWebsiteNext -and $taskWebsiteNext -lt $taskWebsiteChecked) {
     $taskRefresh.Add('website: next check precedes observation; refresh required')
 }
 $taskLastPost = Read-SnapshotTime $taskFundraising.last_confirmed_public_post_at 'fundraising.last_confirmed_public_post_at' -Past
 $taskMonthly = Read-SnapshotTime $taskFundraising.next_monthly_due_at 'fundraising.next_monthly_due_at'
 $taskDeadlines = @()
-foreach ($taskDeadline in @(
-    @{ Name = 'website_check'; At = $taskWebsiteNext },
+$taskDeadlineCandidates = @()
+if (-not $taskWebsiteComplete) { $taskDeadlineCandidates += @{ Name = 'website_check'; At = $taskWebsiteNext } }
+$taskDeadlineCandidates += @(
     @{ Name = 'public_post_prepare'; At = $(if ($null -ne $taskLastPost) { $taskLastPost.AddHours(23) } else { $null }) },
     @{ Name = 'public_post_deadline'; At = $(if ($null -ne $taskLastPost) { $taskLastPost.AddHours(24) } else { $null }) },
     @{ Name = 'monthly_benefits'; At = $taskMonthly }
-)) {
+)
+foreach ($taskDeadline in $taskDeadlineCandidates) {
     $taskDeadlines += [ordered]@{
         name = $taskDeadline.Name
         at = $(if ($null -ne $taskDeadline.At) { $taskDeadline.At.ToString('o') } else { $null })

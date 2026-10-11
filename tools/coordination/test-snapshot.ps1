@@ -33,6 +33,24 @@ try {
     if ($taskDaily.due -notcontains 'public_post_deadline') { throw '24h daily deadline missing.' }
     $taskMonthly = Get-TestSnapshot '2026-11-09T00:00:00Z' $taskPreviousFile ''
     if ($taskMonthly.due -notcontains 'monthly_benefits' -or $taskMonthly.due -notcontains 'website_check') { throw 'Monthly/website obligation was hidden.' }
+    $taskState.website.status = 'complete'
+    $taskState.website.next_check_at = $null
+    Save-TestState
+    $taskCompletedSite = Get-TestSnapshot '2026-11-09T00:00:00Z' '' ''
+    if ($taskCompletedSite.status -ne 'current' -or $taskCompletedSite.due -contains 'website_check' -or
+        @($taskCompletedSite.deadlines | Where-Object { $_.name -eq 'website_check' }).Count -ne 0 -or
+        $taskCompletedSite.due -notcontains 'monthly_benefits' -or $taskCompletedSite.due -notcontains 'public_post_deadline') {
+        throw 'Completed website follow-up must retire only its own deadline.'
+    }
+    $taskState.website.checked_at = $null
+    Save-TestState
+    if ((Get-TestSnapshot '2026-11-09T00:00:00Z' '' '').status -ne 'refresh_required') { throw 'Completed website still needs a verified observation timestamp.' }
+    $taskState.website.checked_at = '2026-10-10T22:00:00Z'
+    $taskState.website.status = 'unknown-status'
+    Save-TestState
+    if ((Get-TestSnapshot '2026-11-09T00:00:00Z' '' '').status -ne 'refresh_required') { throw 'Unsupported website status silently passed.' }
+    $taskState.website.status = 'new'
+    $taskState.website.next_check_at = '2026-10-12T00:00:00Z'
     $taskState.fundraising.last_confirmed_public_post_at = $null
     Save-TestState
     if ((Get-TestSnapshot '2026-10-10T23:00:00Z' '' '').status -ne 'refresh_required') { throw 'Unknown publication time silently passed.' }
