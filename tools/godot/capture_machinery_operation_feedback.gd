@@ -35,7 +35,7 @@ func finish() -> void:
 	client._habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW)
 	client._habitat.camera.position = Vector3(-14.0, 4.0, 4.0)
 	client._habitat.camera.look_at(Vector3(-11.2, 0.7, 0.0))
-	DirAccess.make_dir_recursive_absolute("res://reports/machinery-operation-feedback")
+	DirAccess.make_dir_recursive_absolute("res://var/ci/machinery-operation-feedback")
 	step(8)
 	await create_timer(0.3).timeout
 	check(client._machinery_panel._status.text.contains("Running · observed progress"), "real advancing batch earns running label")
@@ -63,4 +63,4 @@ func finish() -> void:
 func capture(label: String) -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
-	check(root.get_texture().get_image().save_png("res://reports/machinery-operation-feedback/%s.png" % label) == OK, "unedited viewport saved: " + label)
+	check(root.get_texture().get_image().save_png("res://var/ci/machinery-operation-feedback/%s.png" % label) == OK, "unedited viewport saved: " + label)
