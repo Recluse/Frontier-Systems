@@ -15,7 +15,8 @@ var _inventory_label: Label
 var _body_initialized: bool = false
 var _elapsed: float = 0.0
 var _movement_pending: bool = false
-var _movement_id: String = ""
+var _movement_request: InventoryDevelopmentCommand
+var _movement_status: Label
 var _last_position: Array = []
 var _latest: Dictionary = {}
 var _avatars: Dictionary = {}
@@ -164,6 +165,10 @@ func _start_client() -> void:
 	_connection_status = Label.new()
 	_connection_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	views.add_child(_connection_status)
+	_movement_status = Label.new()
+	_movement_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_movement_status.text = "Movement unavailable until a fresh host observation."
+	views.add_child(_movement_status)
 	_reconnect = Button.new()
 	_reconnect.text = "Reconnect to shared host"
 	_reconnect.pressed.connect(_connect_client)
@@ -299,7 +304,9 @@ func _on_connection_closed(message: String) -> void:
 	_task_guide.observe({})
 	_body_initialized = false
 	_movement_pending = false
-	_movement_id = ""
+	_movement_request = null
+	_elapsed = 0.0
+	_movement_status.text = "Movement session ended; local view is not host acceptance. Reconnect for fresh state."
 	_last_position = []
 	_hands_hud.text = "Hands unavailable until a fresh host observation."
 	_inventory_label.text = "Inventory unavailable until a fresh host observation."
@@ -363,6 +370,7 @@ func _on_observation(record: Dictionary) -> void:
 		_habitat.activate_character(LocalHabitatCharacter.CameraMode.FIRST_PERSON)
 		_last_position = position.duplicate()
 		_body_initialized = true
+		_movement_status.text = "Host position observed. Walking updates the local view; submitted movement waits for host acceptance."
 		print("Shared host authenticated this client as crew %d." % (_remote.server_slot + 1))
 	_habitat.production.observe(record["production"])
 	if not record["world_items"].is_empty():
@@ -409,17 +417,27 @@ func _process(delta: float) -> void:
 	command.payload = {"position_millimetres": position}
 	var sent: ServiceResult = _remote.enqueue_command(command)
 	if sent.is_success:
-		_movement_id = String(command.command_id)
+		_movement_request = command
+		_movement_status.text = "Movement submitted; waiting for host acceptance. Local view may differ from host position."
 		_movement_pending = true
 		_last_position = position
+	else:
+		_movement_status.text = "Movement not submitted: " + sent.message.left(512) + " Local view is not host acceptance."
 
 
 func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
-	if String(command.command_id) == _movement_id:
+	if command == _movement_request and _movement_request != null:
 		_movement_pending = false
-		if not result.is_success and not _latest.is_empty():
+		_movement_request = null
+		if result.error_code == &"remote_disconnected":
+			_movement_status.text = "Movement outcome unknown after disconnect; local view is not host acceptance."
+		elif result.is_success:
+			_movement_status.text = "Host accepted the submitted movement. Further local motion needs its own acceptance."
+		elif not _latest.is_empty():
 			var position: Array = _latest["position"]
 			_habitat.character.position = ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(float(position[0]), float(position[1]), float(position[2])) / 1000.0
+			_last_position = position.duplicate()
+			_movement_status.text = "Host rejected movement: " + result.message.left(512) + " Local view returned to the latest observed host position."
 	_status.text = result.message if not result.is_success else _status.text
 	if command is CheckpointRequest and command == _checkpoint_request:
 		_checkpoint_request = null
