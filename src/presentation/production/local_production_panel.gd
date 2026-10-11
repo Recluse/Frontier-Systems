@@ -54,6 +54,9 @@ var _section_scroll: ScrollContainer
 var _sections: Array[VBoxContainer] = []
 var _activity: Label
 var _gather_details: Label
+var _unload_details: Label
+var _unload_button: Button
+var _cargo_pending: Dictionary = {}
 
 
 func configure(world: WorldRuntime) -> ServiceResult:
@@ -129,7 +132,13 @@ func configure(world: WorldRuntime) -> ServiceResult:
 		for id in observed.value["store"]:
 			_cargo_material.add_item(id)
 	_button("Load selected mass into carried canister", _cargo_action.bind("load_cargo"))
-	var unload_button := _button("Unload selected mass to workstation", _cargo_action.bind("unload_cargo"))
+	_unload_details = _label()
+	_unload_details.focus_mode = Control.FOCUS_ALL
+	_unload_details.gui_input.connect(_unload_guidance_input)
+	_carrier.item_selected.connect(func(_index: int) -> void: refresh())
+	_cargo_material.item_selected.connect(func(_index: int) -> void: refresh())
+	_amount.value_changed.connect(func(_value: float) -> void: refresh())
+	_unload_button = _button("Unload selected mass to workstation", _cargo_action.bind("unload_cargo"))
 	var collect_button := _button("Collect printed plate into inventory", _send.bind("materialize_plate", {}))
 	_components = _picker()
 	var recycle_button := _button("Recycle selected carried plate", _selected_action.bind("recycle_component", "item_id", _components))
@@ -168,7 +177,7 @@ func configure(world: WorldRuntime) -> ServiceResult:
 	var section_root := VBoxContainer.new()
 	section_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_section_scroll.add_child(section_root)
-	_add_section("Gather / carry", [[_gather_details, _extract_button], [cargo_title, unload_button]], original, section_root)
+	_add_section("Gather / carry", [[_gather_details, _extract_button], [cargo_title, _unload_button]], original, section_root)
 	_add_section("Refine / collect / recycle", [[_recipe, cancel_button], [collect_button, recycle_button]], original, section_root)
 	_add_section("Equipment fabrication / salvage", [[fabrication_title, _salvage_button]], original, section_root)
 	_add_section("Tool maintenance", [[maintenance_title, _maintenance_feedback]], original, section_root)
@@ -202,6 +211,7 @@ func refresh() -> void:
 		_tool_record = tool_view.value if tool_view.is_success else {}
 	observation_changed.emit(_record.duplicate(true))
 	_fill_carriers(_record.get("cargo", {}).keys())
+	_fill_cargo_picker(_cargo_material, _record.get("store", {}).keys())
 	_fill_components(_record.get("components", []))
 	for button in _buttons:
 		button.disabled = not _pending.is_empty() or _record.is_empty() or not _record.get("can_operate", false)
@@ -212,6 +222,7 @@ func refresh() -> void:
 	_guide_button.text = suggested["label"]
 	_guide_button.disabled = not _pending.is_empty() or suggested["operation"] == "" or _record.is_empty() or (not _record.get("can_operate", false) if suggested["operation"] != "extract" else not _record.get("extractable_sources", []).has("deposit.iron"))
 	_refresh_maintenance()
+	_refresh_unload()
 	var recipe_id: String = str(_recipe.get_item_metadata(_recipe.selected)) if _recipe.selected >= 0 else ""
 	_status.text = _resource_view.describe(_record, recipe_id, not _pending.is_empty(), false)
 	_recipe_details.text = WorkstationResourceView.recipe_text(_record, recipe_id) if valid_observation else "Recipe prerequisites unavailable: wait for a valid current observation."
@@ -240,6 +251,9 @@ func _send(operation: String, payload: Dictionary) -> void:
 	if operation == "extract" and not _record["extractable_sources"].has(payload.get("deposit_id")):
 		_feedback.text = "Move within reach of the selected resource source."
 		return
+	if operation in ["load_cargo", "unload_cargo"] and (not _record.get("cargo", {}).has(payload.get("carrier_id")) or not _record.get("store", {}).has(payload.get("material"))):
+		_feedback.text = "Unavailable selected canister or material; choose an observed ID explicitly."
+		return
 	var command := ProductionDevelopmentCommand.new()
 	command.command_id = StringName("production-%s-%s" % [_nonce, _world.next_local_request_id()])
 	command.authenticated_context = _context()
@@ -248,6 +262,8 @@ func _send(operation: String, payload: Dictionary) -> void:
 	command.payload["expected_revision"] = _record["state_revision"]
 	var queued: ServiceResult = _world.enqueue_command(command)
 	_pending = String(command.command_id) if queued.is_success else ""
+	if queued.is_success and operation == "unload_cargo":
+		_cargo_pending = {"operation": operation, "payload": command.payload.duplicate(true), "store": _receiving_store()}
 	_feedback.text = "Queued " + operation if queued.is_success else EngineeringFailureGuidance.describe(queued, queued.message)
 	_reveal_receipt.call_deferred()
 	refresh()
@@ -374,21 +390,58 @@ func _salvage_equipment() -> void:
 
 
 func _fill_carriers(ids: Array) -> void:
-	if _carrier == null:
-		return
-	var previous: String = _carrier.get_item_text(_carrier.selected) if _carrier.selected >= 0 else ""
-	var unchanged: bool = _carrier.item_count == ids.size()
-	for index in range(ids.size()):
-		if not unchanged or _carrier.get_item_text(index) != ids[index]:
-			unchanged = false
-			break
-	if unchanged:
-		return
-	_carrier.clear()
-	for id in ids:
-		_carrier.add_item(id)
-		if id == previous:
-			_carrier.select(_carrier.item_count - 1)
+	_fill_cargo_picker(_carrier, ids)
+
+
+## Preserve the exact selected ID even when its observation disappears.
+func _fill_cargo_picker(picker: OptionButton, ids: Array) -> void:
+	var previous: String = picker.get_item_text(picker.selected) if picker.selected >= 0 else ""
+	var choices: Array = ids.duplicate()
+	if not previous.is_empty() and not choices.has(previous): choices.append(previous)
+	var unchanged: bool = picker.item_count == choices.size()
+	for index in range(choices.size()):
+		if not unchanged: break
+		unchanged = picker.get_item_text(index) == choices[index] and picker.is_item_disabled(index) == (not ids.has(choices[index]))
+	if unchanged: return
+	picker.clear()
+	for id in choices:
+		picker.add_item(id)
+		picker.set_item_disabled(picker.item_count - 1, not ids.has(id))
+		if id == previous: picker.select(picker.item_count - 1)
+
+
+func _receiving_store() -> String:
+	return "%s / %s / production.store (shared workstation stock)" % [_world.world_id, _world.region_id]
+
+
+static func _cargo_intent(payload: Dictionary) -> String:
+	return "canister %s; material %s; %d mg" % [payload.get("carrier_id", ""), payload.get("material", ""), int(payload.get("amount_milligrams", 0))]
+
+
+func _refresh_unload() -> void:
+	var carrier: String = _carrier.get_item_text(_carrier.selected) if _carrier.selected >= 0 else ""
+	var material: String = _cargo_material.get_item_text(_cargo_material.selected) if _cargo_material.selected >= 0 else ""
+	var intent := {"carrier_id": carrier, "material": material, "amount_milligrams": int(round(_amount.value * 1000.0))}
+	var lines := PackedStringArray(["Intended unload: " + _cargo_intent(intent)])
+	if _record.is_empty():
+		lines.append("Receiving store, station identity, stock and canister contents unavailable; wait for a fresh observation.")
+	else:
+		lines.append("Observed receiving store: " + _receiving_store())
+		lines.append("Receiving station identity unavailable in this observation. The station power picker does not select the unload destination.")
+		lines.append("Observed selected canister contents: " + (WorkstationResourceView.stock_text(_record["cargo"][carrier]) if _record["cargo"].has(carrier) else "unavailable selected ID " + carrier))
+		lines.append("Observed selected canister %s: %s." % [material, ("%d mg" % int(_record["cargo"][carrier][material])) if _record["cargo"].has(carrier) and _record["cargo"][carrier].has(material) else "unavailable"])
+		lines.append("Observed receiving %s stock: %s." % [material, ("%d mg" % int(_record["store"][material])) if _record["store"].has(material) else "unavailable selected ID"])
+	lines.append("Capacity and fit quote unavailable. Host validates ownership, reach, revision and amount at the tick; this intent confirms no transfer.")
+	if not _cargo_pending.is_empty():
+		lines.append("Pinned pending %s: %s; receiving store: %s; expected revision %d. Await host receipt; no transfer confirmed." % [_cargo_pending["operation"], _cargo_intent(_cargo_pending["payload"]), _cargo_pending["store"], _cargo_pending["payload"]["expected_revision"]])
+	_unload_details.text = "\n".join(lines)
+	_unload_button.disabled = not _pending.is_empty() or not _record.get("can_operate", false) or not _record.get("cargo", {}).has(carrier) or not _record.get("store", {}).has(material)
+
+
+func _unload_guidance_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_page_down") or event.is_action_pressed("ui_page_up"):
+		_section_scroll.scroll_vertical += 180 if event.is_action_pressed("ui_page_down") else -180
+		_unload_details.accept_event()
 
 
 func _fill_components(ids: Array) -> void:
@@ -422,6 +475,9 @@ func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
 	if result.is_success:
 		_guide.note_command(command.operation, command.payload)
 	_feedback.text = "Applied " + command.operation if result.is_success else EngineeringFailureGuidance.describe(result, "Rejected: " + result.message)
+	if not _cargo_pending.is_empty():
+		_feedback.text += "\nHost receipt %s: %s; %s; receiving store: %s." % [String(command.command_id), _cargo_pending["operation"], _cargo_intent(_cargo_pending["payload"]), _cargo_pending["store"]]
+		_cargo_pending.clear()
 	_reveal_receipt.call_deferred()
 	refresh()
 
@@ -458,6 +514,10 @@ func _on_closed() -> void:
 	_fill_recipes([])
 	_resource_view.describe({}, "")
 	_feedback.text = ""
+	if not _cargo_pending.is_empty():
+		_feedback.text = "Disconnected: outcome is unknown for %s; %s; receiving store: %s. A fresh observation is required; no retry submitted." % [_cargo_pending["operation"], _cargo_intent(_cargo_pending["payload"]), _cargo_pending["store"]]
+	_cargo_pending.clear()
+	_unload_details.text = "Unavailable: receiving store and canister contents require a fresh observation."
 	_activity.text = "Unavailable: world closed; command outcome requires a fresh observation."
 	_gather_details.text = "Unavailable: source and payload require a fresh observation."
 	_refresh_maintenance()
