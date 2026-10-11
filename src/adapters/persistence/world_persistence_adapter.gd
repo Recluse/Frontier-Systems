@@ -70,8 +70,22 @@ func configure_from_backup(world: WorldRuntime, source: String, selection: Dicti
 		return ServiceResult.failure(&"backup_recovery", "Recovery requires a fresh adapter/world and explicit source, selection and destination.")
 	if _world != null or _closed or (history != null and not history.validate().is_success):
 		return ServiceResult.failure(&"backup_recovery", "Recovery requires an unconfigured adapter and a valid policy.")
+	# Operational preflight avoids storage calls from active tick callbacks. The owner
+	# still makes the authoritative has-started/domain checks during restore below.
+	var runtime_status: Dictionary = world.profiling_snapshot()
+	if runtime_status.is_empty():
+		return ServiceResult.failure(&"runtime_not_ready", "Initialize the startup world before selecting recovery.")
+	if runtime_status["simulation_running"] or runtime_status["tick_number"] != 0 or runtime_status["queued_external_commands"] != 0:
+		return ServiceResult.failure(&"simulation_already_started", "Recovery requires a fresh stopped startup world without commands.")
 	var files: CheckpointFileIO = io if io != null else CheckpointFileIO.new()
 	var absolute: String = ProjectSettings.globalize_path(destination).simplify_path()
+	var source_absolute: String = ProjectSettings.globalize_path(source).simplify_path().replace("\\", "/").trim_suffix("/")
+	var destination_absolute: String = absolute.replace("\\", "/").trim_suffix("/")
+	if OS.get_name() == "Windows":
+		source_absolute = source_absolute.to_lower()
+		destination_absolute = destination_absolute.to_lower()
+	if not absolute.is_absolute_path() or destination_absolute == source_absolute or destination_absolute.begins_with(source_absolute + "/"):
+		return ServiceResult.failure(&"backup_destination", "Recovery destination must be absolute and outside the source directory.")
 	if files.exists(absolute):
 		return ServiceResult.failure(&"backup_destination", "Recovery destination must not exist; preserve the source and existing saves.")
 	var selected: ServiceResult = CheckpointBackupHistory.select_candidate(source, selection, files)

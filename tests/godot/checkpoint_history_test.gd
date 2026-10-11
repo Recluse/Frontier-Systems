@@ -37,6 +37,18 @@ class HistoryFaultFiles extends CheckpointFileIO:
 		return super.remove_file(path)
 
 
+class CountingFiles extends CheckpointFileIO:
+	var calls: int = 0
+
+	func exists(path: String) -> bool:
+		calls += 1
+		return super.exists(path)
+
+	func read_text(path: String, max_bytes: int) -> ServiceResult:
+		calls += 1
+		return super.read_text(path, max_bytes)
+
+
 class SeedFaultFiles extends CheckpointFileIO:
 	func write_text(path: String, text: String) -> ServiceResult:
 		if path.ends_with("world-b.json.tmp"):
@@ -307,6 +319,7 @@ func _test_recovery() -> void:
 	root.add_child(adapter)
 	var destination: String = _base.path_join("explicit-recovery")
 	_directories.append(destination)
+	_check(adapter.configure_from_backup(world, source, selected, source.path_join("nested-recovery")).error_code == &"backup_destination" and not DirAccess.dir_exists_absolute(source.path_join("nested-recovery")), "recovery destination cannot modify the source directory tree")
 	var result: ServiceResult = adapter.configure_from_backup(world, source, selected, destination, null, CheckpointHistoryPolicy.new())
 	_check(result.is_success and result.value["source_sequence"] == 2 and adapter.status()["saved_tick"] == selected["tick_number"] and LocalWorldSaveStore.read_latest(destination).value["snapshot_json"] == snapshot, "explicit startup recovery seeds fresh directory and restores through domain validators")
 	_check(FileAccess.get_file_as_string(source.path_join("world-b.json")) == "corrupt active", "operator recovery preserves source active slots and history evidence")
@@ -321,7 +334,8 @@ func _test_recovery() -> void:
 	root.add_child(adapter)
 	_check(running.start_simulation().is_success, "start rollback rejection world")
 	var forbidden: String = _base.path_join("forbidden-running")
-	_check(adapter.configure_from_backup(running, source, selected, forbidden).error_code == &"simulation_already_started" and not DirAccess.dir_exists_absolute(forbidden), "running world rejects selection before destination writes")
+	var untouched := CountingFiles.new()
+	_check(adapter.configure_from_backup(running, source, selected, forbidden, untouched).error_code == &"simulation_already_started" and untouched.calls == 0 and not DirAccess.dir_exists_absolute(forbidden), "running world rejects selection before any storage access")
 	running.stop_simulation()
 	_check(adapter.configure_from_backup(running, source, selected, forbidden).error_code == &"simulation_already_started", "stopping an already-started world does not authorize rollback")
 	adapter.free()
