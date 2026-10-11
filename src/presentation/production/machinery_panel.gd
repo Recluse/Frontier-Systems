@@ -1,5 +1,6 @@
 extends VBoxContainer
 class_name MachineryPanel
+signal placement_feedback_changed(feedback: Dictionary)
 
 ## Read-only observation controls; every action is an authenticated queued intent.
 var _world: WorldRuntime
@@ -19,6 +20,11 @@ var _feedback := Label.new()
 var _pending: String = ""
 var _wall := OptionButton.new()
 var _wall_turn := OptionButton.new()
+var _pending_deploy: Dictionary = {}
+var _show_placement := CheckBox.new()
+var _placement_status := Label.new()
+var _action_buttons: Array[Button] = []
+var _preview: MachineryPreview
 
 
 func configure(world: WorldRuntime) -> void:
@@ -52,11 +58,20 @@ func configure(world: WorldRuntime) -> void:
 		field.min_value = -100
 		field.max_value = 100
 		field.step = 0.1
+		field.value_changed.connect(func(_value: float) -> void: _refresh_placement())
 		row.add_child(field)
 		_axes.append(field)
 	_mode.add_item("Floor surface", 0)
 	_mode.add_item("Freeform", 1)
 	add_child(_mode)
+	_mode.item_selected.connect(func(_index: int) -> void: _refresh_placement())
+	_machine.item_selected.connect(func(_index: int) -> void: _refresh_placement())
+	_show_placement.text = "Show placement ghost / footprint"
+	_show_placement.toggled.connect(func(_shown: bool) -> void: _refresh_placement())
+	add_child(_show_placement)
+	_placement_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_placement_status)
+	visibility_changed.connect(_refresh_placement)
 	_button("Use current player position (floor)", "position")
 	_button("Deploy assembled frame", "machine_deploy")
 	_label("Walls: select an owned physical plate above. Floor panels are 1 × 2 × 0.1 m and snap to the 0.1 m coordinate grid.")
@@ -101,7 +116,20 @@ func configure(world: WorldRuntime) -> void:
 		if String(command.command_id) == _pending:
 			_pending = ""
 			_feedback.text = "Completed" if result.is_success else result.message
+			if not _pending_deploy.is_empty() and result.is_success:
+				_show_placement.set_pressed_no_signal(false)
+			_pending_deploy.clear()
+			_refresh_placement()
 	)
+
+	if world is RemoteWorldRuntime:
+		(world as RemoteWorldRuntime).connection_closed.connect(func(message: String) -> void:
+			_record = {}
+			_show_placement.set_pressed_no_signal(false)
+			_feedback.text = message
+			_status.text = "Machinery observation unavailable."
+			_refresh_placement()
+		)
 
 
 func observe(record: Dictionary) -> void:
@@ -140,6 +168,7 @@ func observe(record: Dictionary) -> void:
 			if int(machinery["cargo"][id][material]) > 0: content.append("%s %.3f kg" % [material, float(machinery["cargo"][id][material]) / 1000000.0])
 		lines.append("%s: %s" % [id, ", ".join(content)])
 	_status.text = "\n".join(lines)
+	_refresh_placement()
 
 
 func _send(action: String) -> void:
@@ -175,13 +204,17 @@ func _send(action: String) -> void:
 	command.payload = payload
 	var queued: ServiceResult = _world.enqueue_command(command)
 	_pending = String(command.command_id) if queued.is_success else ""
-	_feedback.text = "Queued " + action if queued.is_success else queued.message
+	_feedback.text = "Queued " + action + "; waiting for host" if queued.is_success else queued.message
+	if action == "machine_deploy" and queued.is_success:
+		_pending_deploy = payload.duplicate(true)
+	_refresh_placement()
 
 
 func select_machine(id: String) -> void:
 	for index in range(_machine.item_count):
 		if _machine.get_item_metadata(index) == id:
 			_machine.select(index)
+			_refresh_placement()
 			return
 
 
@@ -196,6 +229,7 @@ func _button(title: String, action: String) -> void:
 	var button := Button.new()
 	button.text = title
 	button.pressed.connect(_send.bind(action))
+	_action_buttons.append(button)
 	add_child(button)
 
 
@@ -236,3 +270,36 @@ func _populate_designs(blueprints: Dictionary) -> void:
 		_kind.set_item_metadata(_kind.item_count - 1, id)
 	for index in range(_kind.item_count):
 		if _kind.get_item_metadata(index) == selected: _kind.select(index)
+
+
+
+## Explicit scene-owned binding; no global intent bus or canonical state mutation.
+func bind_preview(preview: MachineryPreview) -> void:
+	_preview = preview
+	placement_feedback_changed.connect(preview.present_feedback)
+	_refresh_placement()
+
+
+func _exit_tree() -> void:
+	if is_instance_valid(_preview):
+		_preview.present_feedback({})
+
+
+func _refresh_placement() -> void:
+	var waiting: bool = not _pending.is_empty()
+	for button in _action_buttons: button.disabled = waiting
+	for field in _axes: field.editable = not waiting
+	_mode.disabled = waiting
+	_machine.disabled = waiting
+	if _axes.size() != 3: return
+	var coords: Array = [roundi(_axes[0].value * 1000), roundi(_axes[1].value * 1000), roundi(_axes[2].value * 1000)]
+	var machine_id: String = _selected(_machine)
+	var mode: String = "surface" if _mode.selected == 0 else "freeform"
+	if not _pending_deploy.is_empty():
+		coords = _pending_deploy["position"].duplicate()
+		machine_id = _pending_deploy["machine_id"]
+		mode = _pending_deploy["mode"]
+	var feedback: Dictionary = MachineryPlacementFeedback.describe(_record, machine_id, coords, mode, _show_placement.button_pressed, not _pending_deploy.is_empty())
+	_placement_status.text = feedback["text"]
+	if not is_visible_in_tree(): feedback = {}
+	placement_feedback_changed.emit(feedback)
