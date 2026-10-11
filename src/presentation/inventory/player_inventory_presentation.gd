@@ -69,9 +69,56 @@ static func world_item(nearby: Dictionary, item_id: String, container_id: String
 	return {}
 
 
-static func prerequisite(operation: String, record: Dictionary, nearby: Dictionary, item_id: String, destination: String, slot: String, world_root: String) -> String:
+## Quotes a bounded owned observation path; never calls canonical access checks.
+## Unknown fields never inherit the legacy runtime's default-open semantics.
+static func observed_access(record: Dictionary, container_id: String) -> Dictionary:
+	if not ControlContractValidation.is_integer(record.get("schema_version"), 4, 4) or not ControlContractValidation.is_integer(record.get("inventory_revision"), 0, 9007199254740990):
+		return {"state": "unknown"}
+	var cursor: String = container_id
+	var seen: Array[String] = []
+	for _depth in range(InventoryLedger.MAX_DEPTH):
+		if seen.has(cursor): return {"state": "unknown"}
+		seen.append(cursor)
+		var container: Dictionary = owned_container(record, cursor)
+		if container.is_empty() or typeof(container.get("is_open")) != TYPE_BOOL:
+			return {"state": "unknown"}
+		if not container["is_open"]: return {"state": "closed", "container_id": cursor}
+		if typeof(container.get("owner_item_id")) != TYPE_STRING: return {"state": "unknown"}
+		var owner: String = container["owner_item_id"]
+		if owner.is_empty():
+			return {"state": "open"} if cursor == record.get("body_container_id") else {"state": "unknown"}
+		var shell: Dictionary = item(record, owner)
+		if shell.is_empty(): return {"state": "unknown"}
+		cursor = str(shell.get("container_id", ""))
+	return {"state": "unknown"}
+
+
+static func access_hint(record: Dictionary, container_id: String, role: String) -> String:
+	var access: Dictionary = observed_access(record, container_id)
+	if access["state"] == "closed":
+		return "%s physical access: observed closed container %s blocks this path. Known contents remain browsable; explicitly open it and refresh before transferring." % [role, access["container_id"]]
+	if access["state"] == "open":
+		return "%s closure path: observed open; physical access and transfer acceptance remain host decisions." % role
+	return "%s physical access: unknown; wait for a fresh complete v4 owned closure observation. Known contents do not establish access." % role
+
+
+static func transfer_blocker(operation: String, record: Dictionary, access_record: Dictionary, item_id: String, destination: String, slot: String) -> String:
+	var source: String = ""
+	if operation in ["move", "equip", "drop"]: source = str(item(record, item_id).get("container_id", ""))
+	if operation == "unequip":
+		for binding in record.get("equipped", []):
+			if binding["slot_id"] == slot: source = str(item(record, binding["item_id"]).get("container_id", ""))
+	for path in [{"id": source, "role": "Source"}, {"id": destination if operation in ["move", "pickup", "unequip"] else "", "role": "Destination"}]:
+		if not path["id"].is_empty() and observed_access(access_record, path["id"])["state"] == "closed":
+			return access_hint(access_record, path["id"], path["role"])
+	return ""
+
+
+static func prerequisite(operation: String, record: Dictionary, nearby: Dictionary, item_id: String, destination: String, slot: String, world_root: String, access_record: Variant = null) -> String:
 	if record.is_empty():
 		return "Wait for a fresh owned inventory observation."
+	var blocker: String = transfer_blocker(operation, record, record if access_record == null else access_record, item_id, destination, slot)
+	if not blocker.is_empty(): return blocker
 	if operation == "select_hand":
 		return "" if record.get("hand_slot_ids", []).has(slot) else "Choose a configured hand slot."
 	if operation == "switch_hand":
@@ -125,7 +172,7 @@ static func pending_text(payload: Dictionary) -> String:
 
 
 ## Exact observed targets only; no projected after-load or fit decision.
-static func transfer_preview(record: Dictionary, item_id: String, destination: String, slot: String, nearby: Dictionary = {}, world_root: String = "") -> String:
+static func transfer_preview(record: Dictionary, item_id: String, destination: String, slot: String, nearby: Dictionary = {}, world_root: String = "", access_record: Variant = null) -> String:
 	var selected: Dictionary = item(record, item_id) if world_root.is_empty() else world_item(nearby, item_id, world_root)
 	var lines := PackedStringArray(["Observed owned move/equipment selections" if world_root.is_empty() else "Observed tray collection selections"])
 	if selected.is_empty():
@@ -144,14 +191,17 @@ static func transfer_preview(record: Dictionary, item_id: String, destination: S
 		if binding["slot_id"] == slot:
 			lines.append("Observed slot item: %s" % binding["item_id"])
 	lines.append(storage_hint(record, destination) if record.get("container_ids", []).has(destination) else "Destination capacity: unavailable.")
+	var closure_record: Dictionary = record if access_record == null else access_record
+	if world_root.is_empty(): lines.append(access_hint(closure_record, str(selected.get("container_id", "")), "Source"))
+	lines.append(access_hint(closure_record, destination, "Destination"))
 	lines.append("Host decides acceptance, ownership and current reach; no outcome is predicted.")
 	return "\n".join(lines)
 
 
-static func drop_preview(record: Dictionary, item_id: String, nearby: Dictionary, world_root: String) -> String:
+static func drop_preview(record: Dictionary, item_id: String, nearby: Dictionary, world_root: String, access_record: Variant = null) -> String:
 	var selected: Dictionary = item(record, item_id)
 	var destination: String = "unavailable"
 	for container in nearby.get("containers", []):
 		if container["container_id"] == world_root: destination = world_root
 	var source: String = str(selected["container_id"]) if not selected.is_empty() else "unavailable"
-	return "Observed tray drop selections\nItem: %s · source: %s · tray destination: %s\nTray capacity: unavailable in this observation. Host rechecks acceptance, ownership and reach." % [item_id if not selected.is_empty() else "unavailable", source, destination]
+	return "Observed tray drop selections\nItem: %s · source: %s · tray destination: %s\nTray capacity: unavailable in this observation. Host rechecks acceptance, ownership and reach." % [item_id if not selected.is_empty() else "unavailable", source, destination] + "\n" + access_hint(record if access_record == null else access_record, source, "Source")

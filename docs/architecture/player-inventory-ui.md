@@ -66,3 +66,14 @@ its completed counts. Missing inventory frames and disconnect remove these scope
 claims; no after-state, compatibility or reach is inferred. See
 [maintenance target feedback](../development/tool-maintenance-target-feedback-milestone.md)
 for actual-panel authority, keyboard review and verification limits.
+
+Owned transfer hints quote the exact v4 boolean closure path from the same scoped
+observation and existing five-second/revision/tick freshness fence used by closure
+and active-equipment guidance. A closed source or destination ancestor is named
+by stable ID in the preview and existing action prerequisite. Browsing known
+descendants stays available. Unknown, incomplete or legacy closure does not mean
+open and does not replace host validation. An observed open path is only closure
+evidence, never a promise of hands, reach, capacity or transfer success. Moving a
+closed shell checks its containing path, not the shell's contents. No hint opens,
+retries or changes a target or pending request. See
+[owned nested access guidance](../development/owned-nested-transfer-access-guidance-milestone.md).

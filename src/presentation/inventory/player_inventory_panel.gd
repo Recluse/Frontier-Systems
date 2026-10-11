@@ -219,7 +219,7 @@ func observe(frame: Dictionary) -> void:
 		world_containers.append(container["container_id"])
 	var view_key: String = JSON.stringify([_record, _production, _tools, _nearby])
 	if view_key == _view_key:
-		_update_closure()
+		_update_buttons()
 		return
 	_view_key = view_key
 	_summary.text = "Owned including nested storage: %.2f kg · %d items" % [float(_record["mass_milligrams"]) / 1000000.0, _record["items"].size()]
@@ -258,7 +258,7 @@ func _process(_delta: float) -> void:
 	if not _equipment_record.is_empty() and _equipment_observed_at >= 0 and Time.get_ticks_msec() - _equipment_observed_at > EQUIPMENT_OBSERVATION_TIMEOUT_MSEC:
 		_equipment_record = {}
 		_update_active_equipment()
-		_update_closure()
+		_update_buttons()
 
 
 func _update_active_equipment() -> void:
@@ -389,7 +389,7 @@ func _open_storage(index: int) -> void:
 func _inventory_prerequisite(operation: String) -> String:
 	var list: ItemList = _world_items if operation == "pickup" else _items
 	var root_id: String = _picker_id(_world_root)
-	return PlayerInventoryPresentation.prerequisite(operation, _record, _nearby, _selected_id(list), _picker_id(_destination), _picker_id(_slot), root_id)
+	return PlayerInventoryPresentation.prerequisite(operation, _record, _nearby, _selected_id(list), _picker_id(_destination), _picker_id(_slot), root_id, _equipment_record)
 
 
 func _fill_closure_target() -> void:
@@ -672,12 +672,12 @@ func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 func _update_buttons() -> void:
 	_update_active_equipment()
 	_work_targets.text = _work_target_text()
-	_transfer_preview.text = PlayerInventoryPresentation.transfer_preview(_record, _selected_id(_items), _picker_id(_destination), _picker_id(_slot)) if not _record.is_empty() else ""
+	_transfer_preview.text = PlayerInventoryPresentation.transfer_preview(_record, _selected_id(_items), _picker_id(_destination), _picker_id(_slot), {}, "", _equipment_record) if not _record.is_empty() else ""
 	_world_transfer_preview.text = ""
 	if not _record.is_empty():
-		_world_transfer_preview.text = PlayerInventoryPresentation.drop_preview(_record, _selected_id(_items), _nearby, _picker_id(_world_root))
+		_world_transfer_preview.text = PlayerInventoryPresentation.drop_preview(_record, _selected_id(_items), _nearby, _picker_id(_world_root), _equipment_record)
 		if not _picker_id(_world_root).is_empty():
-			_world_transfer_preview.text += "\n" + PlayerInventoryPresentation.transfer_preview(_record, _selected_id(_world_items), _picker_id(_destination), "", _nearby, _picker_id(_world_root))
+			_world_transfer_preview.text += "\n" + PlayerInventoryPresentation.transfer_preview(_record, _selected_id(_world_items), _picker_id(_destination), "", _nearby, _picker_id(_world_root), _equipment_record)
 	if _shown_pending != _pending:
 		_shown_pending = _pending
 		if not _pending.is_empty() and get_parent() is ScrollContainer:
