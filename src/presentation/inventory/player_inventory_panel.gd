@@ -78,7 +78,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	for label in [_summary, _equipment, _details, _result]:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_summary)
-	_label("Browse owned knowledge (double-click a backpack or pouch to browse)")
+	_label("Browse owned contents · viewing does not open or move items (double-click a backpack or pouch)")
 	add_child(_source)
 	_source.item_selected.connect(func(_index: int) -> void: _fill_items(); _inspect(); _update_buttons())
 	_items.custom_minimum_size.y = 180
@@ -108,7 +108,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_button(equipment_actions, "Unequip", _self_action.bind("unequip"), "unequip")
 	_button(equipment_actions, "Switch hand", _self_action.bind("switch_hand"), "switch_hand")
 	_button(self, "Make selected hand active", _self_action.bind("select_hand"), "select_hand")
-	_label("Destination storage")
+	_label("Physical transfer destination · owned storage")
 	add_child(_destination)
 	_storage_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_storage_status)

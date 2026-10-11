@@ -112,7 +112,7 @@ func run() -> void:
 		print("Layout viewport %s; actual sidebar %.0f; inventory pane %.0f x %.0f" % [viewport_size, client._tabs.size.x, scroll.size.x, scroll.size.y])
 		check(client._tabs.get_global_rect().end.x <= root.size.x, "shell fits supported viewport")
 		bounded(panel, scroll.size.x)
-		check(panel._transfer_preview.text.contains(ids["crowbar-1"]) and panel._transfer_preview.text.contains(ids["storage.pouch-1"]) and panel._transfer_preview.text.contains(ids["body.human-1"]) and panel._transfer_preview.text.contains(ids["hand.right"]), "complete selected transfer IDs")
+		check(panel._transfer_preview.text.contains(ids["crowbar-1"]) and panel._transfer_preview.text.contains(ids["storage.pouch-1"]) and panel._transfer_preview.text.contains(ids["body.human-1"]) and not panel._transfer_preview.text.contains(ids["hand.right"]), "complete move IDs exclude the unused equipment slot")
 		check(panel._storage_status.text.contains(ids["body.human-1"]) and panel._storage_status.text.contains("Host rechecks"), "capacity guidance retains destination and host decision")
 		await readable(panel._transfer_preview)
 		await readable(panel._storage_status)

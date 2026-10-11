@@ -208,9 +208,9 @@ static func pending_text(payload: Dictionary) -> String:
 
 
 ## Exact observed targets only; no projected after-load or fit decision.
-static func transfer_preview(record: Dictionary, item_id: String, destination: String, slot: String, nearby: Dictionary = {}, world_root: String = "", access_record: Variant = null) -> String:
+static func transfer_preview(record: Dictionary, item_id: String, destination: String, _slot: String, nearby: Dictionary = {}, world_root: String = "", access_record: Variant = null) -> String:
 	var selected: Dictionary = item(record, item_id) if world_root.is_empty() else world_item(nearby, item_id, world_root)
-	var lines := PackedStringArray(["Observed owned move/equipment selections" if world_root.is_empty() else "Observed tray collection selections"])
+	var lines := PackedStringArray(["Move selected item · observed targets" if world_root.is_empty() else "Observed tray collection selections"])
 	if selected.is_empty():
 		lines.append("Item/source: unavailable; select a currently observed item.")
 	else:
@@ -222,11 +222,7 @@ static func transfer_preview(record: Dictionary, item_id: String, destination: S
 					mass_text = "Observed loaded mass: %.2f kg (nested contents and payload included)." % [float(detail["mass_milligrams"]) / 1000000.0]
 		lines.append(mass_text)
 	lines.append("Destination: %s" % [destination if record.get("container_ids", []).has(destination) else "unavailable"])
-	lines.append("Slot: %s" % [slot if record.get("slot_ids", []).has(slot) else "unavailable"])
-	for binding in record.get("equipped", []):
-		if binding["slot_id"] == slot:
-			lines.append("Observed slot item: %s" % binding["item_id"])
-	lines.append(storage_hint(record, destination) if record.get("container_ids", []).has(destination) else "Destination capacity: unavailable.")
+	if not world_root.is_empty(): lines.append(storage_hint(record, destination) if record.get("container_ids", []).has(destination) else "Destination capacity: unavailable.")
 	var closure_record: Dictionary = record if access_record == null else access_record
 	if world_root.is_empty(): lines.append(access_hint(closure_record, str(selected.get("container_id", "")), "Source"))
 	lines.append(access_hint(closure_record, destination, "Destination"))
