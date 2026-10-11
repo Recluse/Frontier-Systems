@@ -50,6 +50,16 @@ Each successor starts from current origin/dev-master in its own managed worktree
 
 ## Ongoing coordination
 
+## Third-wave integration progress
+
+Checkpoint operator PR [#8](https://github.com/Valgorithms/Frontier-Systems/pull/8) was reviewed at `c118ced527b1358e46606896f184ae07f3e78840` and merged normally as `9b301fcb8173b11ea37f2b0e5c03f8c235539933`. Exact-head [PR CI](https://github.com/Valgorithms/Frontier-Systems/actions/runs/38099816480) and [push CI](https://github.com/Valgorithms/Frontier-Systems/actions/runs/38099812844) passed, including Windows/Linux operator CLI checks. Review confirmed strict opt-in limits, metadata-only diagnostics, exact descriptor revalidation, fresh stopped recovery and source preservation. Worker Windows evidence includes seven Godot checks, launcher/CLI exit checks and final-head two-client acceptance in 36.21 seconds. No new graphical images were provided for this milestone's gallery.
+
+Successor **Add checkpoint recovery preflight**, chat `01a1287a-0770-7503-973f-d8ef8cd7a524`, uses explicit Sol/medium and starts from current origin/dev-master in a managed worktree. It owns bounded read-only descriptor/domain preflight in persistence/operator helpers, focused tests and its own milestone doc; bootstrap, terrain, machinery and shared network/schema boundaries remain outside its scope. The other two third-wave implementation chats remain active, preserving the three-chat limit.
+
+Machinery PR #7's earlier head failed an inherited scratch fixture that used newly forbidden overlapping placements. Reviewed corrections at `73282df98da56d7eeb61e17ef13d099020f12f86` only move test/capture targets to clear reachable positions and update evidence. Runtime authority remains unchanged from reviewed `c99907f`; exact-head CI remains pending, so no merge is authorized yet.
+
+Future milestone completion reviews select suitable verification captures for `docs/gallery/`, using Git LFS and the gallery's provenance/acceptance metadata rules. Repository storage does not authorize external public publishing.
+
 The user explicitly approved recurring coordination on 2026-10-10. Active heartbeat `coordinate-frontier-milestone-prs` runs in this chat every ten minutes until the owner changes or stops it. It reviews completed PRs, requires exact-head CI, merges with a matching-head guard, queues one successor per merge and updates this ledger. It stays quiet while state is unchanged or non-actionable and reports meaningful completion, merge, failure or required user action. It does not authorize releases/deployment or waive separate cross-chat write authorization.
 
 Live fixed-port reservations are recorded in ignored `var/ci/milestone-coordination/port-reservations.json` in the primary checkout and confirmed through chat messages/snapshots. Consult that record before granting 27849; if missing, inspect the latest reservation messages rather than assuming it is free. The wall graphical capture uses separate port 27852. Never terminate another chat's listener to obtain a test port. Reservation handoffs alone do not require a fresh versioned milestone commit or another full CI run.
