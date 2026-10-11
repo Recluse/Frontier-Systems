@@ -12,7 +12,7 @@ All five delegates fail without a projection while uninitialized, freed or busy,
 
 A restore generation change detected before or during a read clears pending volatile commands, resynchronizes the queue tick and returns `queue_restored` without a projection. Reconciliation and fresh bind/pin are still required through the exact same authority. Replacement, revocation and actor/target invalidation fence both queued applications and observations. Snapshot v4, restore generation, scoped schemas and persistent records are unchanged. Queue profiling retains bounded pending/peak/attempt/rejection/discard/sequence counters; gate read profiling remains internal.
 
-The existing command drain checks tick ownership before dispatch and restore generation after each application; its post-provider handling of external advancement or runtime freeing is not hardened by this observation change. Providers must not advance/free canonical runtime during command dispatch. That broader preexisting drain boundary remains separate follow-up work.
+The successor [command-drain provider boundary milestone](inventory-command-drain-boundaries-milestone.md) now fences freeing, direct advancement and restore during command admission before canonical dispatch, interrupts the drain, releases busy state and accounts for discarded pending intent.
 
 ## Verification
 

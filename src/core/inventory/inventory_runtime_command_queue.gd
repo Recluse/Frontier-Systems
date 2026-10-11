@@ -154,9 +154,15 @@ func advance_tick(tick: int, fixed_delta: float) -> ServiceResult:
 		var result: ServiceResult = _gate.apply(entry["token"], entry["context"], entry["request_id"], entry["operation"], entry["payload"], tick)
 		_attempts = mini(_attempts + 1, InventoryControllerAuthority.MAX_EXACT_INTEGER)
 		outcomes.append({"sequence": entry["sequence"], "request_id": entry["request_id"], "result": result})
+		# Recheck after admission even when the gate denied the command. Never
+		# touch a freed runtime or drain another intent after losing tick ownership.
+		if not is_instance_valid(_inventory):
+			return _interrupt_drain(&"queue_unavailable")
 		if _sync_restore():
-			_busy = false
-			return ServiceResult.failure(&"queue_restored", "Restore interrupted the boundary; remaining volatile commands discarded.")
+			return _interrupt_drain(&"queue_restored")
+		snapshot = _inventory.capture_snapshot()
+		if not snapshot.is_success or int(snapshot.value["last_tick"]) != _last_tick:
+			return _interrupt_drain(&"queue_tick_mismatch")
 	_inventory.simulate_tick(tick, fixed_delta)
 	_last_tick = tick
 	_busy = false
@@ -182,12 +188,24 @@ func profiling_counters() -> Dictionary:
 	return {"pending": _pending.size(), "peak": _peak, "attempts": _attempts, "rejections": _rejections, "discarded": _discarded, "sequence": _sequence}
 
 
+## Attempted entries stay consumed; unattempted intent is never replayed after
+## an interrupted boundary. Earlier successful commands are not rolled back.
+func _interrupt_drain(code: StringName) -> ServiceResult:
+	_discard_pending()
+	_busy = false
+	return _reject(code)
+
+
+func _discard_pending() -> void:
+	_discarded = mini(_discarded + _pending.size(), InventoryControllerAuthority.MAX_EXACT_INTEGER)
+	_pending.clear()
+
+
 func _sync_restore() -> bool:
 	var generation: int = _inventory.controller_restore_generation()
 	if generation == _generation:
 		return false
-	_discarded = mini(_discarded + _pending.size(), InventoryControllerAuthority.MAX_EXACT_INTEGER)
-	_pending.clear()
+	_discard_pending()
 	_generation = generation
 	_last_tick = int(_inventory.capture_snapshot().value["last_tick"])
 	return true

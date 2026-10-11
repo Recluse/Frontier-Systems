@@ -35,7 +35,19 @@ func apply(token: InventoryControllerToken, context: AuthenticatedCommandContext
 	var actor: ServiceResult = _inventory.authorize(context, true)
 	if not actor.is_success:
 		return _reject(actor.error_code)
+	# Pin canonical ownership across synchronous session-provider callbacks.
+	var snapshot: ServiceResult = _inventory.capture_snapshot()
+	if not snapshot.is_success:
+		return _reject(&"invalid_candidate")
+	var generation: int = _inventory.controller_restore_generation()
 	var admitted: ServiceResult = _authority.validate(token, context, StringName(actor.value))
+	if not is_instance_valid(_inventory):
+		return _reject(&"invalid_candidate")
+	if _inventory.controller_restore_generation() != generation:
+		return _reject(&"invalid_candidate")
+	var rechecked: ServiceResult = _inventory.capture_snapshot()
+	if not rechecked.is_success or int(rechecked.value["last_tick"]) != int(snapshot.value["last_tick"]):
+		return _reject(&"invalid_candidate")
 	if not admitted.is_success:
 		return _reject(admitted.error_code)
 	if operation not in ["self", "world", "start", "cancel", "resume", "resist", "close_search", "grip_join", "grip_release", "grip_resume"]:
