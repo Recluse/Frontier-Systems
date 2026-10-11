@@ -107,7 +107,7 @@ func run() -> void:
 	var frame: String = craft("frame")
 	command("machine_deploy", {"machine_id": frame, "position": [1000, 0, -1000], "mode": "surface"}, false)
 	check(not production.capture_snapshot().value["machinery"]["placements"].has(frame), "machine cannot deploy through existing wall")
-	command("machine_deploy", {"machine_id": frame, "position": [2000, 0, 0], "mode": "surface"})
+	command("machine_deploy", {"machine_id": frame, "position": [2000, 0, -200], "mode": "surface"})
 	context = own_context
 	var second_wall: String = production.capture_snapshot().value["walls"].keys()[0]
 	command("wall_remove", {"wall_id": second_wall})

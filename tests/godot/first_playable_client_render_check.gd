@@ -296,6 +296,7 @@ func _machinery_route(client: FirstPlayableBootstrap) -> bool:
 			panel._send("machine_fit")
 			await create_timer(0.5).timeout
 			if panel._feedback.text != "Completed": return false
+	panel._axes[2].value = -1.3
 	panel._send("machine_deploy")
 	await create_timer(1.0).timeout
 	if panel._feedback.text != "Completed" or client._machinery_preview.get_child_count() == 0:

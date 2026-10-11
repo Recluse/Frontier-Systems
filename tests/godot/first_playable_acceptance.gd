@@ -145,7 +145,7 @@ func _run() -> void:
 	await _reject(clients[1 - winner], 1 - winner, "production", "machine_recycle", {"item_id": shared_machine})
 	for part in machine_parts.slice(1):
 		await _production(clients[winner], winner, "machine_fit", {"machine_id": shared_machine, "item_id": part, "socket_id": ""})
-	await _production(clients[winner], winner, "machine_deploy", {"machine_id": shared_machine, "position": [0, 0, 0], "mode": "surface"})
+	await _production(clients[winner], winner, "machine_deploy", {"machine_id": shared_machine, "position": [0, 0, -1300], "mode": "surface"})
 	await create_timer(0.25).timeout
 	_check(_observations[1 - winner]["production"]["machinery"]["placements"].has(shared_machine), "deployed generator replicates to both crew")
 	await _walk_to(clients[1 - winner], 1 - winner, [0, 0, 0])

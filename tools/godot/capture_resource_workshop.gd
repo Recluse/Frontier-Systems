@@ -26,10 +26,11 @@ func finish() -> void:
 	var printer_cable: String = craft("cable")
 	command("load_cargo", {"carrier_id": "resource-canister-2", "material": "iron", "amount_milligrams": 400000})
 	command("machine_insert", {"machine_id": printer, "item_id": "resource-canister-2", "socket_id": socket})
+	move([-300, 0, -1100])
 	command("machine_unfit", {"machine_id": refinery_frame, "item_id": refinery_head, "socket_id": ""})
 	command("machine_pack", {"machine_id": printer})
-	move([-2000, 0, 0])
-	command("machine_deploy", {"machine_id": printer, "position": [-2000, 0, 0], "mode": "surface"})
+	move([-3000, 0, -1000])
+	command("machine_deploy", {"machine_id": printer, "position": [-3000, 0, 0], "mode": "surface"})
 	var generator: String = ""
 	for id in workshop["mounts"]:
 		if workshop["parts"][id]["kind"] == "solar": generator = workshop["mounts"][id]
@@ -41,7 +42,7 @@ func finish() -> void:
 	check(production.capture_snapshot().value["cargo"]["resource-canister-1"]["water"] == 1000000, "powered extracted ice becomes water in the attached canister")
 	# Wait for the actual generator to charge the redeployed printer's local buffer.
 	step(1800)
-	move([-2000, 0, 0])
+	move([-3000, 0, -1000])
 	var host := FirstPlayableHost.new()
 	root.add_child(host)
 	var key: String = "workshop-capture-player-one-0000000000"
