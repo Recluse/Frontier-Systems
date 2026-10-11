@@ -53,4 +53,3 @@ func remove_file(path: String) -> ServiceResult:
 
 func promote(source: String, destination: String) -> ServiceResult:
 	return ServiceResult.success() if DirAccess.rename_absolute(source, destination) == OK else ServiceResult.failure(&"save_promote", "Cannot promote the verified checkpoint staging file.")
-

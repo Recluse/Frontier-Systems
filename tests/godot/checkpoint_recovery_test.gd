@@ -59,6 +59,8 @@ func _run() -> void:
 	_test_store()
 	await _test_adapter()
 	await _test_stale_acknowledgements()
+	await _test_reentrant_completion()
+	_test_restore_rejection()
 	await _test_shutdown()
 	for directory in _directories:
 		_cleanup(directory)
@@ -132,6 +134,7 @@ func _test_store() -> void:
 	_check(LocalWorldSaveStore.write_checkpoint(directory, 1, _snapshot()).error_code == &"save_sequence", "stale write cannot overwrite a newer checkpoint")
 	_check(LocalWorldSaveStore.write_checkpoint(directory, 4, _snapshot()).error_code == &"save_sequence", "skipped parity cannot replace the latest valid slot")
 	_check(LocalWorldSaveStore.write_checkpoint(directory, 2, _snapshot(2)).is_success, "identical lost acknowledgement can be retried")
+	_check(LocalWorldSaveStore.write_checkpoint(directory, 2, _snapshot(3)).error_code == &"save_sequence", "changed snapshot cannot reuse an uncertain committed sequence")
 	_check(LocalWorldSaveStore.write_checkpoint(directory, 3, "{}").error_code == &"save_snapshot", "writer rejects invalid snapshot without touching disk")
 	_check(LocalWorldSaveStore.write_checkpoint(directory, 3, "x".repeat(LocalWorldSaveStore.MAX_BYTES / 2 + 1)).error_code == &"save_bounds", "snapshot byte bound fails before parse/write")
 	var empty: String = WorldSnapshot.new(&"w", &"r", 0, {"f": {"s": ""}}).to_json()
@@ -259,6 +262,47 @@ func _test_stale_acknowledgements() -> void:
 		world.free()
 
 
+func _test_reentrant_completion() -> void:
+	var directory: String = _fixture("reentrant")
+	var world := WorldRuntime.new()
+	root.add_child(world)
+	var store := WorldPersistenceAdapter.new()
+	root.add_child(store)
+	_check(store.configure(world, directory).is_success, "reentrant store configures")
+	var callbacks: Dictionary = {"count": 0, "queued": false}
+	store.checkpoint_completed.connect(func(_tick: int, result: ServiceResult) -> void:
+		callbacks["count"] += 1
+		_check(result.is_success, "reentrant completion succeeds")
+		if callbacks["count"] == 1:
+			callbacks["queued"] = store.request_checkpoint().is_success
+	)
+	_check(store.request_checkpoint().is_success, "first reentrant checkpoint queues")
+	await _wait(func() -> bool: return callbacks["count"] == 2 and not store.status()["busy"])
+	_check(callbacks["queued"], "completion callback can queue a new worker without losing its result")
+	_latest_is(directory, 2, "reentrant callback commits two ordered checkpoints")
+	store.free()
+	world.free()
+
+
+func _test_restore_rejection() -> void:
+	var directory: String = _fixture("restore-rejection")
+	var world := WorldRuntime.new()
+	root.add_child(world)
+	var captured: ServiceResult = world.capture_world_snapshot_json()
+	_check(captured.is_success and LocalWorldSaveStore.write_checkpoint(directory, 1, captured.value).is_success, "seed compatible recovery snapshot")
+	var incompatible: Dictionary = JSON.parse_string(captured.value)
+	incompatible["world_id"] = "world.someone-else"
+	_check(LocalWorldSaveStore.write_checkpoint(directory, 2, JSON.stringify(incompatible)).is_success, "store handles only envelope validation, never canonical domain state")
+	var original: String = FileAccess.get_file_as_string(directory.path_join("world-a.json"))
+	var store := WorldPersistenceAdapter.new()
+	root.add_child(store)
+	var configured: ServiceResult = store.configure(world, directory)
+	_check(configured.error_code == &"world_snapshot_identity_mismatch" and store.status()["saved_tick"] == -1 and not store.status()["last_error"].is_empty(), "domain restore rejection is visible and never claims a recovered tick")
+	_check(FileAccess.get_file_as_string(directory.path_join("world-a.json")) == original and world.current_tick_number() == 0, "incompatible recovery preserves files and rejects before world mutation")
+	store.free()
+	world.free()
+
+
 func _test_shutdown() -> void:
 	var directory: String = _fixture("shutdown")
 	var world := WorldRuntime.new()
@@ -301,5 +345,3 @@ func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures += 1
 		push_error(message)
-
-
