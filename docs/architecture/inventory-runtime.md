@@ -6,7 +6,9 @@ Current payload extension: [portable terrain material](../development/terrain-po
 
 ## Canonical controller owner boundary
 
-The [canonical controller epoch increment](../development/canonical-controller-epoch-milestone.md) adds trusted controller_candidate and commit_control_epoch methods plus an explicit InventoryRuntimeControllerOwner interface adapter. It derives principal/body/root agreement from validated canonical inventory candidates and commits lifecycle increments to the existing v4 body metadata. InventoryControllerAuthority uses that sole epoch; session tokens pin it for freshness. The component remains unintegrated with production admission, commands, receipts, jobs/views/grips invalidation and startup fencing. Existing development authorization and command behavior are unchanged.
+The [canonical controller epoch increment](../development/canonical-controller-epoch-milestone.md) adds trusted controller_candidate and commit_control_epoch methods plus an explicit InventoryRuntimeControllerOwner interface adapter. It derives principal/body/root agreement from validated canonical inventory candidates and commits lifecycle increments to the existing v4 body metadata. InventoryControllerAuthority uses that sole epoch; session tokens pin it for freshness. Restore generation fences stale identities, and successful lifecycle transitions invalidate participating jobs/views/grips.
+
+The explicitly composed [runtime controller command gate](../development/inventory-controller-command-gating-milestone.md) constructs an authority over the same inventory runtime and validates a trusted token/context at command application before existing canonical inventory operations. It derives actor identity from canonical ownership and scope from trusted composition, rejects development fallback and excludes fixture movement. This component is not installed into WorldRuntime or production admission; existing development commands and internal apply_local remain separate. Network/session rollout, startup rotation and receipt high-water policy remain deferred.
 
 ## Runnable development slice
 
@@ -14,7 +16,7 @@ The [canonical controller epoch increment](../development/canonical-controller-e
 
 New prototype worlds initialize that fixture. `body.human-2` belongs to local principal `local-inventory-actor` at `[0,0,0]` mm; `body.human-1` belongs to `local-inventory-target` at `[1000,0,0]` mm. These are logical test bodies, independent of the local preview capsule unless the opt-in development pose bridge is enabled. This slice uses 3D distance and checks grip reservations on profile hands, while assuming open accessible paths. It has no authoritative collision, occlusion, closures, restraints, anatomy or network-session provider.
 
-All fixture command authorization requires a debug build, `AuthenticatedCommandContext.Origin.DEVELOPMENT_LOCAL`, the `inventory.development` grant and a matching registered principal/body binding. Real authenticated-session origin is rejected even with that grant. This deliberately runnable local surface does not enable production player inventory access.
+Fixture command authorization accepts either a debug-build `DEVELOPMENT_LOCAL` context with `inventory.development`, or a server-created `AUTHENTICATED_SESSION` context with `inventory.operate`, and a matching registered principal/body binding. This internal fixture surface does not itself validate controller tokens or session scope. It must not be exposed as production player inventory admission; composed controller-gated calls use the separate runtime gate.
 
 ## Commands and ordering
 
@@ -36,7 +38,7 @@ The owner permits at most 32 unfinished jobs, and at most one per actor. Retaine
 
 Resistance/movement updates action epochs, so a brief action invalidates existing attempts even after its flag clears. Same-completion-tick resistance cancels before ownership changes. Completed transfers and receipts commit through the shared owner; completed searches create scoped views. Finished jobs are removed, so the next world checkpoint contains either unfinished work or completed ownership/receipts, never a second completion candidate. No tick waits for storage or external services.
 
-The default simulation produces actual target action epochs, but its control epochs are static fixture values. Session/body control changes, item/tool activation and movement through real authoritative physics remain separate integrations.
+The default simulation produces actual target action epochs. Control epochs now advance through trusted canonical controller lifecycle operations when explicitly composed; the default fixture does not install that authority or the command gate. Production session/body admission and movement through real authoritative physics remain separate integrations.
 
 ## Observations and privacy
 
