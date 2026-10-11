@@ -27,6 +27,7 @@ var _show_placement := CheckBox.new()
 var _placement_status := Label.new()
 var _action_buttons: Array[Button] = []
 var _preview: MachineryPreview
+var _operation_feedback := MachineryOperationFeedback.new()
 
 
 func configure(world: WorldRuntime) -> void:
@@ -143,8 +144,10 @@ func configure(world: WorldRuntime) -> void:
 
 
 func observe(record: Dictionary) -> void:
+	if not _operation_feedback.observe(record.get("production", {})): record = {}
 	_record = record
 	if record.is_empty():
+		_status.text = _operation_feedback.grid_text
 		_show_placement.set_pressed_no_signal(false)
 		for picker in [_machine, _part, _wall, _other, _socket]: picker.clear()
 		_refresh_placement()
@@ -169,20 +172,6 @@ func observe(record: Dictionary) -> void:
 	var walls: Dictionary = {}
 	for id in record["production"]["walls"]: walls[id] = "Wall %s · %s" % [id.right(8), str(record["production"]["walls"][id]["position"])]
 	_fill(_wall, walls)
-	var lines: PackedStringArray = []
-	for id in machinery["placements"]:
-		var placement: Dictionary = machinery["placements"][id]
-		var fitted: PackedStringArray = []
-		for module in machinery["mounts"]:
-			if machinery["mounts"][module] == id: fitted.append(machinery["parts"][module]["kind"])
-		lines.append("%s: %s · %d J · %s" % [id.right(8), "enabled" if placement["enabled"] else "isolated", placement["energy"], ", ".join(fitted)])
-		if machinery["jobs"].has(id): lines.append("  %s · %d ticks · %s" % [machinery["jobs"][id]["recipe"], machinery["jobs"][id]["progress"], "paused" if machinery["jobs"][id]["paused"] else "running or awaiting parts/power/capacity"])
-	for id in machinery["cargo"]:
-		var content: PackedStringArray = []
-		for material in machinery["cargo"][id]:
-			if int(machinery["cargo"][id][material]) > 0: content.append("%s %.3f kg" % [material, float(machinery["cargo"][id][material]) / 1000000.0])
-		lines.append("%s: %s" % [id, ", ".join(content)])
-	_status.text = "\n".join(lines)
 	_refresh_placement()
 
 
@@ -313,6 +302,17 @@ func _exit_tree() -> void:
 
 
 func _refresh_placement() -> void:
+	_status.text = _operation_feedback.grid_text
+	var selected_operation: String = _selected(_machine)
+	if _operation_feedback.machines.has(selected_operation):
+		_status.text += "\nSelected %s: %s" % [selected_operation.right(8), _operation_feedback.machines[selected_operation]["text"]]
+	if not _record.is_empty():
+		for id in _record["production"]["machinery"]["cargo"]:
+			var content: PackedStringArray = []
+			for material in _record["production"]["machinery"]["cargo"][id]:
+				var amount: int = int(_record["production"]["machinery"]["cargo"][id][material])
+				if amount > 0: content.append("%s %.3f kg" % [material, float(amount) / 1000000.0])
+			if not content.is_empty(): _status.text += "\n%s: %s" % [id.right(8), ", ".join(content)]
 	var waiting: bool = not _pending.is_empty()
 	for button in _action_buttons: button.disabled = waiting or _record.is_empty()
 	for field in _axes: field.editable = not waiting
