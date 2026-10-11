@@ -121,6 +121,7 @@ func finish() -> void:
 	var cancelled: Dictionary = production.capture_snapshot().value
 	check(not cancelled["machinery"]["jobs"].has(machine) and int(cancelled["state_revision"]) == revision + 1, "accepted Cancel removes only existing job and advances command revision once")
 	check(cancelled["machinery"]["placements"] == expected_energy, "Cancel refunds no spent energy and charges exactly like genuine paused baseline")
+	check(cancelled["receipts"].size() == before["receipts"].size() + 1 and cancelled["receipts"][-1]["request_id"] == "net-1-" + cancel_id and int(cancelled["receipts"][-1]["revision"]) == revision + 1, "one host-slot-bound production receipt records accepted Cancel")
 	conserved(before, cancelled, "accepted Cancel")
 	var own_before: Dictionary = inventory.capture_snapshot().value["owner"].duplicate(true)
 	check(JSON.parse_string(JSON.stringify(own_before)) == saved["systems"]["inventory"]["owner"], "Cancel preserves complete physical provenance and inventory revisions")
@@ -131,8 +132,19 @@ func finish() -> void:
 	check(await wait_for(func() -> bool: return not host._pending.is_empty()), "host queues deliberate exact-request repeat")
 	check(host.received.size() == 2 and host.received[1] == host.received[0], "repeated request preserves exact original wire intent")
 	step()
-	check(await wait_for(func() -> bool: return acks.has(cancel_id)) and not acks[cancel_id].is_success and acks[cancel_id].message.contains("revision"), "settled exact-request repeat rejects stale revision rather than cached success")
+	check(await wait_for(func() -> bool: return acks.has(cancel_id)) and acks[cancel_id].is_success, "settled identical request returns retained success without reapplying Cancel")
 	check(production.capture_snapshot().value["state_revision"] == revision + 1, "repeated request cannot advance cancellation revision twice")
+	check(production.capture_snapshot().value["receipts"] == cancelled["receipts"], "retained success creates no duplicate production receipt")
+	acks.erase(cancel_id)
+	var changed := ProductionDevelopmentCommand.new()
+	changed.command_id = exact.command_id
+	changed.operation = "machine_resume"
+	changed.payload = exact.payload.duplicate(true)
+	check(client._remote.enqueue_command(changed).is_success, "send deliberately changed intent under settled request ID")
+	check(await wait_for(func() -> bool: return not host._pending.is_empty()), "host queues retained-ID conflict")
+	step()
+	check(await wait_for(func() -> bool: return acks.has(cancel_id)) and not acks[cancel_id].is_success and acks[cancel_id].message.contains("different intent"), "same retained ID with changed intent rejects")
+	check(production.capture_snapshot().value["receipts"] == cancelled["receipts"] and production.capture_snapshot().value["state_revision"] == revision + 1, "conflicting retained ID leaves receipt and command revision unchanged")
 	step(180)
 	conserved(cancelled, production.capture_snapshot().value, "later ticks cannot replay cancelled output")
 	check(not production.capture_snapshot().value["machinery"]["jobs"].has(machine) and inventory.capture_snapshot().value["owner"] == own_before, "later ticks preserve no-job state and exact inventory")
