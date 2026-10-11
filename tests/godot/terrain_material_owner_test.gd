@@ -42,6 +42,7 @@ func _test_transfers_and_recovery() -> void:
 	var fill: Dictionary = _request(2, "cell.b", 0, "fill", 30, "terrain-transfer-1")
 	_check(owner.commit(fill).is_success, "partial transfer fills another homogeneous cell")
 	var saved: Dictionary = _json(owner.to_record())
+	_write_schema_fixtures(saved, [dig, fill])
 	var restored_result: ServiceResult = TerrainMaterialOwner.from_record(saved, _catalog)
 	_check(restored_result.is_success, "partial transfer checkpoint restores: " + restored_result.message)
 	if not restored_result.is_success:
@@ -86,6 +87,26 @@ func _test_retry_tail() -> void:
 	var recycled: Dictionary = _request(71, "cell.tail", 70, "excavate", 1)
 	recycled["request_id"] = first["request_id"]
 	_reject_unchanged(owner, recycled, "expired request ID cannot be reused as a fresh sequence")
+	var exhausted: Dictionary = record.duplicate(true)
+	var offset: int = TerrainMaterialOwner.MAX_INTEGER - 70
+	exhausted["last_sequence"] += offset
+	exhausted["cells"]["cell.tail"]["state"]["state_revision"] += offset
+	for receipt in exhausted["receipts"]:
+		var command: Dictionary = receipt["command"]
+		command["sequence"] += offset
+		command["expected_cell_revision"] += offset
+		command["request_id"] = "terrain-request-%d" % command["sequence"]
+		var transfer_sequence: int = command["sequence"] if command["operation"] == "excavate" else command["sequence"] - 1
+		receipt["transfer_id"] = "terrain-transfer-%d" % transfer_sequence
+		if command["operation"] == "fill":
+			command["transfer_id"] = receipt["transfer_id"]
+		receipt["terrain_plan"]["expected_cell_revision"] += offset
+		receipt["terrain_plan"]["before"]["state_revision"] += offset
+		receipt["terrain_plan"]["after"]["state_revision"] += offset
+	var maxed: ServiceResult = TerrainMaterialOwner.from_record(_json(exhausted), _catalog)
+	_check(maxed.is_success, "maximum exact revision checkpoint restores")
+	if maxed.is_success:
+		_reject_unchanged(maxed.value, _request(TerrainMaterialOwner.MAX_INTEGER + 1, "cell.tail", TerrainMaterialOwner.MAX_INTEGER, "excavate", 1), "revision exhaustion")
 	var bad: Dictionary = record.duplicate(true)
 	bad["receipts"].pop_front()
 	_check(not TerrainMaterialOwner.from_record(bad, _catalog).is_success, "missing retained receipt rejects")
@@ -161,6 +182,17 @@ func _test_provenance_limit() -> void:
 	_check(TerrainMaterialOwner.from_record(_json(owner.to_record()), _catalog).is_success, "maximum provenance checkpoint recovers")
 
 
+## Reproducible schema checks consume real owner output, not a second owner model.
+func _write_schema_fixtures(owner: Dictionary, intents: Array) -> void:
+	DirAccess.make_dir_recursive_absolute("res://var/ci/godot")
+	var file: FileAccess = FileAccess.open("res://var/ci/godot/terrain-schema-fixtures.json", FileAccess.WRITE)
+	_check(file != null, "schema checkpoint fixture is writable")
+	if file != null:
+		file.store_string(JSON.stringify({"owner": owner, "intents": intents, "seeds": [
+			_seed("cell.a", "origin.a", 100, 120), _seed("cell.b", "origin.b", 20, 100),
+			_seed("cell.moon", "origin.moon", 10, 100, "material.regolith.moon")]}))
+
+
 func _seed(cell_id: String, origin_id: String, mass: int, capacity: int, material: String = "material.dirt") -> Dictionary:
 	return {"state": {"schema_version": 1, "cell_id": cell_id, "state_revision": 0, "material_id": material, "material_revision": 1, "mass_milligrams": mass},
 		"capacity_milligrams": capacity, "origin_id": origin_id, "generation_revision": 1}
@@ -184,4 +216,3 @@ func _check(condition: bool, message: String) -> void:
 	if not condition:
 		_failures += 1
 		push_error(message)
-
