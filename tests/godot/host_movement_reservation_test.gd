@@ -29,7 +29,7 @@ func run() -> void:
 	check(host._pending.size() == 1 and host._peers[1]["pending_move"], "fresh movement is admitted after duplicate rejection")
 	# An unrelated queue rejection must not release the real pending movement.
 	var queue_limit: int = runner.max_queued_external_commands
-	runner.max_queued_external_commands = 0
+	runner.max_queued_external_commands = 1
 	host._receive(1, {"type": "command", "request_id": "unrelated", "system": "inventory", "operation": "self", "payload": {}})
 	runner.max_queued_external_commands = queue_limit
 	check(host.frames[-1]["frame"]["code"] == "command_queue_full" and host._peers[1]["pending_move"], "unrelated queue failure preserves movement reservation")
