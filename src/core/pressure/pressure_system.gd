@@ -22,8 +22,9 @@ func _init() -> void:
 
 
 func simulate_tick(_tick_number: int, fixed_delta: float) -> void:
-	for airlock_value in airlocks.values():
-		var airlock := airlock_value as AirlockState
+	# Shared volumes make sequential transfers order-sensitive across restore.
+	for airlock_id in _sorted_ids(airlocks):
+		var airlock := airlocks[airlock_id] as AirlockState
 		if airlock.equalization_valve_open:
 			_step_transfer(
 				airlock.habitat_volume_id,
