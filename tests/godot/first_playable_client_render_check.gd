@@ -177,7 +177,7 @@ func _wall_route(client: FirstPlayableBootstrap) -> bool:
 	panel.select_wall(id)
 	panel._send("wall_remove")
 	await create_timer(0.6).timeout
-	if panel._feedback.text != "Completed" or not client._latest["production"]["walls"].is_empty() or preview._spatial_walls.has(id): return false
+	if not panel._feedback.text.contains("Host accepted removal of wall " + id) or not client._latest["production"]["walls"].is_empty() or preview._spatial_walls.has(id): return false
 	plates = client._latest["production"]["components"]
 	if plates.size() != 1: return false
 	_select_wall_plate(panel, plates[0])

@@ -109,7 +109,7 @@ func finish() -> void:
 	await capture_view(client, "selected.png")
 	panel._send("wall_remove")
 	await create_timer(0.6).timeout
-	check(panel._feedback.text == "Completed" and client._latest["production"]["walls"].is_empty() and physical._spatial_walls.is_empty(), "authenticated remove clears collider")
+	check(panel._feedback.text.contains("Host accepted removal of wall " + id) and client._latest["production"]["walls"].is_empty() and physical._spatial_walls.is_empty(), "authenticated remove clears collider")
 	check(client._latest["production"]["components"].size() == 1, "authenticated removal recovers exactly one owned plate")
 	select_plate(panel, client._latest["production"]["components"][0])
 	panel._show_placement.button_pressed = true

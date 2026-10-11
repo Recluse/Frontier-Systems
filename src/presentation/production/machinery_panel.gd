@@ -22,6 +22,8 @@ var _wall := OptionButton.new()
 var _wall_turn := OptionButton.new()
 var _pending_deploy: Dictionary = {}
 var _pending_wall: Dictionary = {}
+var _wall_result: String = ""
+var _wall_selection_lost: bool = false
 var _placement_kind := OptionButton.new()
 var _show_placement := CheckBox.new()
 var _placement_status := Label.new()
@@ -125,7 +127,9 @@ func configure(world: WorldRuntime) -> void:
 	_world.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void:
 		if String(command.command_id) == _pending:
 			_pending = ""
-			_feedback.text = "Completed" if result.is_success else result.message
+			_feedback.text = WallPlacementFeedback.removal_result(String(_pending_wall["wall_id"]), result) if _pending_wall.get("operation", "") == "wall_remove" else ("Completed" if result.is_success else result.message)
+			_wall_result = _feedback.text if _pending_wall.get("operation", "") == "wall_remove" else ""
+			if _pending_wall.get("operation", "") == "wall_build" and result.is_success: _wall_selection_lost = false
 			if (not _pending_deploy.is_empty() or not _pending_wall.is_empty()) and result.is_success:
 				_show_placement.set_pressed_no_signal(false)
 			_pending_deploy.clear()
@@ -137,7 +141,7 @@ func configure(world: WorldRuntime) -> void:
 		(world as RemoteWorldRuntime).connection_closed.connect(func(message: String) -> void:
 			observe({})
 			_show_placement.set_pressed_no_signal(false)
-			_feedback.text = message
+			_feedback.text = message + ("\n" + _wall_result if not _wall_result.is_empty() else "")
 			_status.text = "Machinery observation unavailable."
 			_refresh_placement()
 		)
@@ -170,13 +174,20 @@ func observe(record: Dictionary) -> void:
 	_fill(_part, parts)
 	_fill(_socket, sockets)
 	var walls: Dictionary = {}
-	for id in record["production"]["walls"]: walls[id] = "Wall %s · %s" % [id.right(8), str(record["production"]["walls"][id]["position"])]
+	for id in record["production"]["walls"]: walls[id] = "Wall %s · %s" % [id, str(record["production"]["walls"][id]["position"])]
+	var previous_wall: String = _selected(_wall)
 	_fill(_wall, walls)
+	if not previous_wall.is_empty() and not walls.has(previous_wall): _wall_selection_lost = true
+	if _wall_selection_lost: _wall.select(-1)
 	_refresh_placement()
 
 
 func _send(action: String) -> void:
 	if _record.is_empty() or not _pending.is_empty(): return
+	_wall_result = ""
+	if action == "wall_remove" and not _record["production"]["walls"].has(_selected(_wall)):
+		_feedback.text = "Selected wall is no longer observed; select a current wall. No removal submitted."
+		return
 	if action == "position":
 		for index in range(3): _axes[index].value = 0 if index == 1 else float(_record["position"][index]) / 1000.0
 		return
@@ -217,7 +228,7 @@ func _send(action: String) -> void:
 		_pending_wall = payload.duplicate(true)
 		_pending_wall["operation"] = action
 		if action == "wall_remove":
-			_pending_wall.merge(_record["production"]["walls"].get(payload["wall_id"], {"position": [0, 0, 0], "quarter_turn": 0}))
+			_pending_wall.merge(_record["production"]["walls"].get(payload["wall_id"], {}).duplicate(true))
 	_refresh_placement()
 
 
@@ -233,6 +244,7 @@ func select_machine(id: String) -> void:
 func select_wall(id: String) -> void:
 	for index in range(_wall.item_count):
 		if _wall.get_item_metadata(index) == id:
+			_wall_selection_lost = false
 			_wall.select(index)
 			if _pending.is_empty():
 				_placement_kind.select(1)
@@ -334,6 +346,6 @@ func _refresh_placement() -> void:
 		var turn: int = int(_pending_wall.get("quarter_turn", _wall_turn.selected))
 		if not _pending_wall.is_empty(): coords = _pending_wall["position"].duplicate()
 		feedback = WallPlacementFeedback.describe(_record, plate_id, wall_id, coords, turn, _show_placement.button_pressed or _pending_wall.get("operation", "") == "wall_build", _pending_wall)
-	_placement_status.text = feedback["text"]
+	_placement_status.text = feedback["text"] + ("\n" + _wall_result if not _wall_result.is_empty() else "")
 	if not is_visible_in_tree(): feedback = {}
 	placement_feedback_changed.emit(feedback)
