@@ -1,5 +1,9 @@
 # Coordinated milestone work
 
+## Planned rail logistics sequence
+
+The owner requested Astroneer's train mechanics as milestone inspiration. [Rail logistics milestones](rail-logistics-milestones.md) queues rail-01 through rail-05: finite track construction, manual powered cart, coupled cargo/stations, junctions/automated dispatch, then sensors/repair/optional utility links. Select these successors after foundational finite construction, vehicle motion, inventory recovery and relevant network contracts are ready. Active gameplay chats retain their current scope; this sequence is planned, not implemented or promised for a release.
+
 ## Guide and maintenance integration (2026-10-11 03:39 UTC)
 
 Reviewed and merged PR #21 at `36c280718228ffaa1f93d7d30531652134937627` as `c93dbdc96e4dee404294c63ff93ef15c3f1ef29f`; exact-head PR/push CI `38108397803` / `38108395825` and all 20 check runs passed. Reviewed guide projection validation, pinned recipe hints, current/reversible counts, invalid/disconnected clearing, read-only snapshots and appended tab wiring. No graphical acceptance or media exists for this milestone.
