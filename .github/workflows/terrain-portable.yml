@@ -45,7 +45,7 @@ jobs:
           include-templates: false
       - name: Run bounded owner, inventory, factory and checkpoint regressions
         shell: pwsh
-        run: ./tools/ci/run-godot-checks.ps1 -TestNames 'construction_catalog_test.gd','terrain_portable_test.gd','terrain_runtime_test.gd','terrain_material_owner_test.gd','inventory_runtime_test.gd','world_inventory_runtime_test.gd','equipment_fabrication_test.gd','machinery_runtime_test.gd','checkpoint_recovery_test.gd'
+        run: ./tools/ci/run-godot-checks.ps1 -TestNames 'construction_catalog_test.gd','terrain_portable_test.gd','terrain_return_test.gd','terrain_runtime_test.gd','terrain_material_owner_test.gd','inventory_runtime_test.gd','world_inventory_runtime_test.gd','equipment_fabrication_test.gd','machinery_runtime_test.gd','checkpoint_recovery_test.gd'
       - name: Validate real emitted JSON against local versioned schemas
         shell: pwsh
         run: |

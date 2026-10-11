@@ -14,7 +14,7 @@ registry = Registry().with_resources(
     + [(path.name, Resource.from_contents(schema)) for path, schema in zip(paths, schemas)]
 )
 selected = [
-    "terrain-system:v2", "terrain-materialize-command:v1",
+    "terrain-system:v3", "terrain-materialize-command:v1",
     "terrain-portable-receipt:v1", "world-snapshot:v1", "construction-coverage:v2",
 ]
 validators = {}
@@ -27,7 +27,7 @@ validators["construction-coverage:v2"].validate(json.loads((ROOT / "data/product
 fixture = json.loads((ROOT / "var/terrain-portable-fixture.json").read_text())
 validators["world-snapshot:v1"].validate(fixture)
 terrain = fixture["systems"]["terrain"]
-validators["terrain-system:v2"].validate(terrain)
+validators["terrain-system:v3"].validate(terrain)
 for transfer_id, association in terrain["portable"].items():
     command = {
         "schema_version": 1, "request_number": association["request_number"],
@@ -64,10 +64,10 @@ rejects("terrain-materialize-command:v1", invalid)
 invalid = deepcopy(terrain)
 invalid["portable"].pop(next(iter(invalid["portable"])))
 invalid["schema_version"] = 1
-rejects("terrain-system:v2", invalid)
+rejects("terrain-system:v3", invalid)
 invalid = deepcopy(terrain)
 invalid["portable"] = {f"terrain-transfer-{index}": deepcopy(association) for index in range(1, 130)}
-rejects("terrain-system:v2", invalid)
+rejects("terrain-system:v3", invalid)
 invalid = deepcopy(receipt)
 invalid["parcels"]["terrain.dirt.source.generation"] = 0
 rejects("terrain-portable-receipt:v1", invalid)

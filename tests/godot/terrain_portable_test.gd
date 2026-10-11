@@ -29,7 +29,7 @@ func _run() -> void:
 	legacy["systems"]["terrain"]["schema_version"] = 1
 	legacy["systems"]["terrain"].erase("portable")
 	var migrated := _clone(legacy)
-	_check(migrated.get_simulation_system(&"terrain").capture_snapshot().value["schema_version"] == 2, "v1 terrain migrates without portable matter")
+	_check(migrated.get_simulation_system(&"terrain").capture_snapshot().value["schema_version"] == 3, "v1 terrain migrates without portable matter")
 	migrated.free()
 	# Fabricate an actual shovel through the existing finite production owner.
 	for batch in range(3):
@@ -218,6 +218,14 @@ func _run() -> void:
 	_send("excavate", _payload("terrain.dirt.source", 1), _next())
 	_claim_deny(_claim_payload("terrain-transfer-129"), 129, "lifetime collection limit rejects without mutation")
 	_check(_mass() == 2000000, "bounded saturation conserves all matter")
+	var return_command: SimulationCommand = TerrainTransportCodec.command(1, "return", {"item_id": "terrain-item-1", "expected_inventory_revision": _inventory.own_inventory_observation(_context, true).value["inventory_revision"]})
+	return_command.authenticated_context = _context
+	_check(_world.enqueue_command(return_command).is_success, "saturated lifetime parcel can queue return")
+	_step()
+	_check(_last.is_success and _state()["portable"].size() == 128 and _terrain.portable_payload_masses().size() == 127 and _mass() == 2000000, "return preserves full lifetime slots, escrow and exact mass")
+	var retired: Dictionary = _world.capture_world_snapshot().value.to_dictionary()
+	_restart(retired)
+	_claim_deny(_claim_payload("terrain-transfer-129"), 129, "return never recycles a lifetime claim slot")
 	_world.free()
 	if _failures == 0: print("Terrain portable: finite source, claimant/capacity gates, competing/repeated intents, conserved origin parcels, physical transfers, exact atomic JSON recovery and lifetime limits passed.")
 	quit(0 if _failures == 0 else 1)

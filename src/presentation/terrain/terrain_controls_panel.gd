@@ -12,6 +12,8 @@ var _feedback := Label.new()
 var _dig := Button.new()
 var _fill := Button.new()
 var _claim := Button.new()
+var _parcels := OptionButton.new()
+var _return := Button.new()
 var _retry := Button.new()
 var _waiting: bool = false
 var _request_id: String = ""
@@ -21,7 +23,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_remote = remote
 	add_theme_constant_override("separation", 10)
 	var guide := Label.new()
-	guide.text = "Finite terrain · fabricate a shovel from refined iron at the workstation, equip it in your active hand, and leave the other hand free. Stand within 1.5 m of a marker. Digging holds dirt in your own terrain escrow; filling returns it to a cell. Claim a whole escrow transfer as a portable parcel with a free hand. Production consumption is deferred."
+	guide.text = "Finite terrain · fabricate a shovel from refined iron at the workstation, equip it in your active hand, and leave the other hand free. Stand within 1.5 m of a marker. Digging holds dirt in your own terrain escrow; filling returns it to a cell. Claim a whole escrow transfer as a portable parcel with a free hand. Return a held whole parcel to your escrow before filling. Returned transfers are fill-only and cannot be claimed again. Production consumption is deferred."
 	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(guide)
 	for label in [_status, _feedback]: label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -57,6 +59,12 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_claim.text = "Claim whole escrow as portable parcel"
 	_claim.pressed.connect(_claim_selected)
 	add_child(_claim)
+	_parcels.fit_to_longest_item = false
+	_parcels.item_selected.connect(func(_index: int) -> void: _refresh())
+	add_child(_parcels)
+	_return.text = "Return whole carried parcel to own escrow"
+	_return.pressed.connect(_return_selected)
+	add_child(_return)
 	_retry.text = "Retry original unresolved intent"
 	_retry.pressed.connect(_retry_original)
 	add_child(_retry)
@@ -84,6 +92,17 @@ func observe(record: Dictionary) -> void:
 		_escrow.add_item("No own escrow")
 		_escrow.set_item_metadata(0, "")
 		_escrow.set_item_disabled(0, true)
+	var selected_parcel: String = _parcels.get_item_metadata(_parcels.selected) if _parcels.selected >= 0 else ""
+	_parcels.clear()
+	for id in record["terrain"].get("returnable_parcels", {}):
+		_parcels.add_item("%s · %.3f kg" % [id, float(record["terrain"]["returnable_parcels"][id]["mass_milligrams"]) / 1000000.0])
+		_parcels.set_item_metadata(_parcels.item_count - 1, id)
+		if id == selected_parcel: _parcels.select(_parcels.item_count - 1)
+	if selected_parcel != "" and not record["terrain"].get("returnable_parcels", {}).has(selected_parcel): _parcels.select(-1)
+	if _parcels.item_count == 0:
+		_parcels.add_item("No carried returnable parcel")
+		_parcels.set_item_metadata(0, "")
+		_parcels.set_item_disabled(0, true)
 	_refresh()
 
 
@@ -91,6 +110,7 @@ func _refresh() -> void:
 	_dig.disabled = true
 	_fill.disabled = true
 	_claim.disabled = true
+	_return.disabled = true
 	_retry.disabled = true
 	if _record.is_empty() or not _remote.terrain_observation(null).is_success:
 		_status.text = "Waiting for authenticated terrain observation."
@@ -110,9 +130,11 @@ func _refresh() -> void:
 	_status.text = "%s · position %s mm\nRemaining %.3f kg / capacity %.3f kg · cell revision %d\nOwn escrow %.3f kg · active tool %s\nInventory revision %d · tool revision %d\nHost capability: %s" % [id, str(cell["position_millimetres"]), float(cell["state"]["mass_milligrams"]) / 1000000.0, float(cell["capacity_milligrams"]) / 1000000.0, cell["state"]["state_revision"], float(own_mass) / 1000000.0, held, inventory["inventory_revision"], _record["tools"]["state_revision"], "ready" if cell["work_ready"] else cell["work_message"]]
 	var unresolved: bool = not _remote.terrain_pending_intent().is_empty()
 	_retry.disabled = _waiting or not unresolved
-	if not unresolved and not _waiting and terrain.get("schema_version") == 2 and not terrain["materialize_sequence_exhausted"] and terrain["materialize_ready"] and _escrow.selected >= 0:
-		_claim.disabled = not terrain["transfers"].has(_escrow.get_item_metadata(_escrow.selected))
+	if not unresolved and not _waiting and terrain.get("schema_version") in [2, 3] and not terrain["materialize_sequence_exhausted"] and terrain["materialize_ready"] and _escrow.selected >= 0:
+		_claim.disabled = not terrain["transfers"].has(_escrow.get_item_metadata(_escrow.selected)) or terrain.get("fill_only_transfers", []).has(_escrow.get_item_metadata(_escrow.selected))
 	_status.text += "\nParcel claim: %s" % ("lifetime budget exhausted" if terrain.get("materialize_sequence_exhausted", true) else ("ready" if terrain.get("materialize_ready", false) else terrain.get("materialize_message", "unavailable")))
+	if not unresolved and not _waiting and terrain.get("schema_version") == 3 and terrain["return_ready"] and not terrain["return_sequence_exhausted"] and _parcels.selected >= 0:
+		_return.disabled = not terrain["returnable_parcels"].has(_parcels.get_item_metadata(_parcels.selected))
 	if unresolved or _waiting or terrain["request_sequence_exhausted"] or not cell["work_ready"]: return
 	var mass: int = roundi(_amount.value * 1000000.0)
 	_dig.disabled = cell["state"]["mass_milligrams"] < mass
@@ -137,6 +159,12 @@ func _claim_selected() -> void:
 	if _record.is_empty() or _waiting or not _remote.terrain_pending_intent().is_empty() or _escrow.selected < 0 or _claim.disabled: return
 	var terrain: Dictionary = _record["terrain"]
 	var command: SimulationCommand = TerrainTransportCodec.command(int(terrain["next_materialize_request_number"]), "materialize", {"transfer_id": _escrow.get_item_metadata(_escrow.selected), "expected_inventory_revision": _record["inventory"]["inventory_revision"]})
+	_queued(_remote.enqueue_command(command), String(command.command_id))
+
+
+func _return_selected() -> void:
+	if _record.is_empty() or _waiting or not _remote.terrain_pending_intent().is_empty() or _return.disabled or _parcels.selected < 0: return
+	var command: SimulationCommand = TerrainTransportCodec.command(int(_record["terrain"]["next_return_request_number"]), "return", {"item_id": _parcels.get_item_metadata(_parcels.selected), "expected_inventory_revision": _record["inventory"]["inventory_revision"]})
 	_queued(_remote.enqueue_command(command), String(command.command_id))
 
 

@@ -6,16 +6,44 @@ const MAX_INTEGER: int = TerrainMaterialOwner.MAX_INTEGER
 
 
 static func valid_intent(number: Variant, operation: Variant, payload: Variant) -> bool:
-	if operation == "materialize":
-		if not ControlContractValidation.is_integer(number, 1, TerrainSimulationSystem.MAX_PORTABLE) or typeof(payload) != TYPE_DICTIONARY or not ToolComponentCatalog.exact(payload, ["transfer_id", "expected_inventory_revision"]): return false
-		var id: Variant = payload["transfer_id"]
-		if typeof(id) != TYPE_STRING or id.length() > 128 or not id.begins_with("terrain-transfer-"): return false
-		var suffix: String = id.trim_prefix("terrain-transfer-")
+	if operation in ["materialize", "return"]:
+		if not ControlContractValidation.is_integer(number, 1, TerrainSimulationSystem.MAX_PORTABLE) or typeof(payload) != TYPE_DICTIONARY or not ToolComponentCatalog.exact(payload, ["item_id" if operation == "return" else "transfer_id", "expected_inventory_revision"]): return false
+		var prefix: String = "terrain-item-" if operation == "return" else "terrain-transfer-"
+		var id: Variant = payload["item_id" if operation == "return" else "transfer_id"]
+		if typeof(id) != TYPE_STRING or id.length() > 128 or not id.begins_with(prefix): return false
+		var suffix: String = id.trim_prefix(prefix)
 		return suffix.is_valid_int() and suffix == str(suffix.to_int()) and ControlContractValidation.is_integer(suffix.to_int(), 1, MAX_INTEGER) and ControlContractValidation.is_integer(payload["expected_inventory_revision"], 0, MAX_INTEGER - 1)
 	return ControlContractValidation.is_integer(number, 1, MAX_INTEGER) and typeof(payload) == TYPE_DICTIONARY and operation in ["excavate", "fill"] and ToolComponentCatalog.exact(payload, ["cell_id", "expected_cell_revision", "amount_milligrams", "transfer_id", "expected_inventory_revision", "expected_tool_revision"]) and typeof(payload["cell_id"]) == TYPE_STRING and TerrainSimulationSystem.CELLS.has(payload["cell_id"]) and ControlContractValidation.is_integer(payload["expected_cell_revision"], 0, MAX_INTEGER) and ControlContractValidation.is_integer(payload["expected_inventory_revision"], 0, MAX_INTEGER) and ControlContractValidation.is_integer(payload["expected_tool_revision"], 0, MAX_INTEGER) and ControlContractValidation.is_integer(payload["amount_milligrams"], 1, TerrainSimulationSystem.MAX_AMOUNT) and (payload["transfer_id"] == "" if operation == "excavate" else ControlContractValidation.is_id(payload["transfer_id"]))
 
 
 static func valid(value: Variant) -> bool:
+	if typeof(value) == TYPE_DICTIONARY and value.get("schema_version") == 3:
+		var fields: Array = ["returnable_parcels", "fill_only_transfers", "next_return_request_number", "return_sequence_exhausted", "return_ready", "return_message"]
+		for field in fields:
+			if not value.has(field): return false
+		if typeof(value["returnable_parcels"]) != TYPE_DICTIONARY or value["returnable_parcels"].size() > TerrainSimulationSystem.MAX_PORTABLE or typeof(value["fill_only_transfers"]) != TYPE_ARRAY or value["fill_only_transfers"].size() > TerrainSimulationSystem.MAX_PORTABLE or not ControlContractValidation.is_integer(value["next_return_request_number"], 1, TerrainSimulationSystem.MAX_PORTABLE) or typeof(value["return_sequence_exhausted"]) != TYPE_BOOL or (value["return_sequence_exhausted"] and value["next_return_request_number"] != TerrainSimulationSystem.MAX_PORTABLE) or typeof(value["return_ready"]) != TYPE_BOOL or typeof(value["return_message"]) != TYPE_STRING or value["return_message"].length() > 512 or (value["return_ready"] and not value["return_message"].is_empty()): return false
+		var legacy: Dictionary = value.duplicate(true)
+		for field in fields: legacy.erase(field)
+		legacy["schema_version"] = 2
+		if not valid(legacy): return false
+		var seen: Dictionary = {}
+		for id in value["fill_only_transfers"]:
+			if typeof(id) != TYPE_STRING or seen.has(id) or not value["transfers"].has(id): return false
+			seen[id] = true
+		var visible: int = 0
+		for cell in value["cells"].values(): visible += int(cell["state"]["mass_milligrams"])
+		for transfer in value["transfers"].values(): visible += int(transfer["mass_milligrams"])
+		for id in value["returnable_parcels"]:
+			var receipt: Variant = value["returnable_parcels"][id]
+			if typeof(id) != TYPE_STRING or typeof(receipt) != TYPE_DICTIONARY or not ToolComponentCatalog.exact(receipt, ["schema_version", "owner_id", "transfer_id", "item_id", "material_id", "material_revision", "mass_milligrams", "parcels"]) or receipt["item_id"] != id or not ControlContractValidation.is_integer(receipt["schema_version"], 1, 1) or receipt["owner_id"] != TerrainSimulationSystem.OWNER_ID or not valid_intent(1, "return", {"item_id": id, "expected_inventory_revision": 0}) or receipt["transfer_id"] != id.replace("terrain-item-", "terrain-transfer-") or value["transfers"].has(receipt["transfer_id"]): return false
+			var check: Dictionary = legacy.duplicate(true)
+			var transfer: Dictionary = receipt.duplicate(true)
+			for field in ["schema_version", "owner_id", "transfer_id", "item_id"]: transfer.erase(field)
+			check["transfers"] = {receipt["transfer_id"]: transfer}
+			if not valid(check): return false
+			visible += int(receipt["mass_milligrams"])
+		return visible <= TerrainSimulationSystem.FIXTURE_MASS
+
 	if typeof(value) == TYPE_DICTIONARY and value.get("schema_version") == 2:
 		if not ToolComponentCatalog.exact(value, ["schema_version", "owner_id", "cells", "transfers", "next_request_number", "request_sequence_exhausted", "next_materialize_request_number", "materialize_sequence_exhausted", "materialize_ready", "materialize_message"]) or not ControlContractValidation.is_integer(value["next_materialize_request_number"], 1, TerrainSimulationSystem.MAX_PORTABLE) or typeof(value["materialize_sequence_exhausted"]) != TYPE_BOOL or typeof(value["materialize_ready"]) != TYPE_BOOL or typeof(value["materialize_message"]) != TYPE_STRING or value["materialize_message"].length() > 512 or (value["materialize_ready"] and not value["materialize_message"].is_empty()): return false
 		var legacy: Dictionary = value.duplicate(true)
@@ -53,6 +81,11 @@ static func normalized(value: Dictionary) -> Dictionary:
 	var record: Dictionary = value.duplicate(true)
 	record["schema_version"] = int(record["schema_version"])
 	record["next_request_number"] = int(record["next_request_number"])
+	if record.has("next_return_request_number"):
+		record["next_return_request_number"] = int(record["next_return_request_number"])
+		for receipt in record["returnable_parcels"].values():
+			for field in ["schema_version", "material_revision", "mass_milligrams"]: receipt[field] = int(receipt[field])
+			for origin in receipt["parcels"]: receipt["parcels"][origin] = int(receipt["parcels"][origin])
 	if record.has("next_materialize_request_number"): record["next_materialize_request_number"] = int(record["next_materialize_request_number"])
 	for cell in record["cells"].values():
 		cell["position_millimetres"] = InventorySpatialMath.normalized(cell["position_millimetres"])

@@ -3,16 +3,21 @@ class_name TerrainTransportCodec
 
 ## Only caller intent crosses this boundary; identity and matter remain host-owned.
 static func is_terrain(value: SimulationCommand) -> bool:
-	return value is TerrainCommand or value is TerrainMaterializeCommand
+	return value is TerrainCommand or value is TerrainMaterializeCommand or value is TerrainReturnCommand
 
 
 static func request_id(number: int, operation: String) -> String:
-	return "%s-%d" % ["terrain-materialize" if operation == "materialize" else "terrain-client", number]
+	return "%s-%d" % ["terrain-return" if operation == "return" else ("terrain-materialize" if operation == "materialize" else "terrain-client"), number]
 
 
 static func command(number: int, operation: String, payload: Dictionary) -> SimulationCommand:
 	var result: SimulationCommand
-	if operation == "materialize":
+	if operation == "return":
+		var returned := TerrainReturnCommand.new()
+		returned.request_number = number
+		returned.payload = payload.duplicate(true)
+		result = returned
+	elif operation == "materialize":
 		var claim := TerrainMaterializeCommand.new()
 		claim.request_number = number
 		claim.payload = payload.duplicate(true)

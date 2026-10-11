@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:terrain-return-command:v1",
+  "title": "Whole owned terrain parcel return intent",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "request_number",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "request_number": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 128
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "item_id",
+        "expected_inventory_revision"
+      ],
+      "properties": {
+        "expected_inventory_revision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740989
+        },
+        "item_id": {
+          "type": "string",
+          "pattern": "^terrain-item-[1-9][0-9]*$",
+          "maxLength": 128
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

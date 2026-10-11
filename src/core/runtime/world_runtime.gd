@@ -388,4 +388,4 @@ func _validate_cross_system_state(system_records: Dictionary, snapshot_tick_numb
 	var terrain := get_simulation_system(TerrainSimulationSystem.SYSTEM_ID) as TerrainSimulationSystem
 	if terrain == null or typeof(system_records.get("terrain")) != TYPE_DICTIONARY: return ServiceResult.failure(&"invalid_terrain_links", "World snapshots require terrain ownership.")
 	var valid_terrain: ServiceResult = terrain.validate_snapshot_record(system_records["terrain"], snapshot_tick_number)
-	return terrain.validate_inventory_links(system_records["terrain"], inventory_record) if valid_terrain.is_success else valid_terrain
+	return terrain.validate_inventory_links(valid_terrain.value["record"], inventory_record) if valid_terrain.is_success else valid_terrain

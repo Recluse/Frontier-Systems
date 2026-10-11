@@ -1,0 +1,235 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:terrain-observation:v3",
+  "description": "Principal-scoped read-only view; never an owner import. Runtime also verifies stable positions, matching capacities, known provenance and visible mass <= finite capacity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "owner_id",
+    "cells",
+    "transfers",
+    "next_request_number",
+    "request_sequence_exhausted",
+    "next_materialize_request_number",
+    "materialize_sequence_exhausted",
+    "materialize_ready",
+    "materialize_message",
+    "returnable_parcels",
+    "fill_only_transfers",
+    "next_return_request_number",
+    "return_sequence_exhausted",
+    "return_ready",
+    "return_message"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 3
+    },
+    "owner_id": {
+      "const": "terrain.fixture.dirt"
+    },
+    "next_request_number": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740990
+    },
+    "request_sequence_exhausted": {
+      "type": "boolean"
+    },
+    "cells": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "terrain.dirt.source",
+        "terrain.dirt.fill"
+      ],
+      "properties": {
+        "terrain.dirt.source": {
+          "$ref": "#/$defs/cell",
+          "properties": {
+            "position_millimetres": {
+              "const": [
+                0,
+                0,
+                1000
+              ]
+            },
+            "state": {
+              "properties": {
+                "cell_id": {
+                  "const": "terrain.dirt.source"
+                }
+              }
+            }
+          }
+        },
+        "terrain.dirt.fill": {
+          "$ref": "#/$defs/cell",
+          "properties": {
+            "position_millimetres": {
+              "const": [
+                500,
+                0,
+                1000
+              ]
+            },
+            "state": {
+              "properties": {
+                "cell_id": {
+                  "const": "terrain.dirt.fill"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "transfers": {
+      "type": "object",
+      "maxProperties": 256,
+      "propertyNames": {
+        "pattern": "^terrain-transfer-[1-9][0-9]{0,15}$"
+      },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "material_id",
+          "material_revision",
+          "mass_milligrams",
+          "parcels"
+        ],
+        "properties": {
+          "material_id": {
+            "const": "material.dirt"
+          },
+          "material_revision": {
+            "const": 1
+          },
+          "mass_milligrams": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2000000
+          },
+          "parcels": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "terrain.dirt.source.generation"
+            ],
+            "properties": {
+              "terrain.dirt.source.generation": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 2000000
+              }
+            }
+          }
+        }
+      }
+    },
+    "next_materialize_request_number": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 128
+    },
+    "materialize_sequence_exhausted": {
+      "type": "boolean"
+    },
+    "materialize_ready": {
+      "type": "boolean"
+    },
+    "materialize_message": {
+      "type": "string",
+      "maxLength": 512
+    },
+    "returnable_parcels": {
+      "type": "object",
+      "maxProperties": 128,
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^terrain-item-[1-9][0-9]*$",
+        "maxLength": 128
+      },
+      "additionalProperties": {
+        "$ref": "urn:frontier-systems:schema:terrain-portable-receipt:v1"
+      }
+    },
+    "fill_only_transfers": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^terrain-transfer-[1-9][0-9]*$",
+        "maxLength": 128
+      }
+    },
+    "next_return_request_number": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 128
+    },
+    "return_sequence_exhausted": {
+      "type": "boolean"
+    },
+    "return_ready": {
+      "type": "boolean"
+    },
+    "return_message": {
+      "type": "string",
+      "maxLength": 512
+    }
+  },
+  "$defs": {
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "position_millimetres",
+        "capacity_milligrams",
+        "work_ready",
+        "work_message"
+      ],
+      "properties": {
+        "state": {
+          "$ref": "urn:frontier-systems:schema:terrain-material-state:v1",
+          "properties": {
+            "material_id": {
+              "const": "material.dirt"
+            },
+            "material_revision": {
+              "const": 1
+            },
+            "mass_milligrams": {
+              "maximum": 2000000
+            }
+          }
+        },
+        "position_millimetres": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "type": "integer"
+          }
+        },
+        "capacity_milligrams": {
+          "enum": [
+            0,
+            2000000
+          ]
+        },
+        "work_ready": {
+          "type": "boolean"
+        },
+        "work_message": {
+          "type": "string",
+          "maxLength": 512
+        }
+      }
+    }
+  }
+}

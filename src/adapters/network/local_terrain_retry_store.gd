@@ -6,7 +6,7 @@ const MAX_BYTES: int = 8192
 
 
 static func valid(value: Variant) -> bool:
-	return typeof(value) == TYPE_DICTIONARY and ToolComponentCatalog.exact(value, ["schema_version", "world_id", "region_id", "slot", "request_number", "operation", "payload"]) and ControlContractValidation.is_integer(value["schema_version"], 1, 2) and (value["schema_version"] == 2 or value["operation"] != "materialize") and ControlContractValidation.is_id(value["world_id"]) and ControlContractValidation.is_id(value["region_id"]) and ControlContractValidation.is_integer(value["slot"], 0, 1) and TerrainObservationValidation.valid_intent(value["request_number"], value["operation"], value["payload"])
+	return typeof(value) == TYPE_DICTIONARY and ToolComponentCatalog.exact(value, ["schema_version", "world_id", "region_id", "slot", "request_number", "operation", "payload"]) and ControlContractValidation.is_integer(value["schema_version"], 1, 3) and (value["schema_version"] >= 2 or value["operation"] != "materialize") and (value["schema_version"] == 3 or value["operation"] != "return") and ControlContractValidation.is_id(value["world_id"]) and ControlContractValidation.is_id(value["region_id"]) and ControlContractValidation.is_integer(value["slot"], 0, 1) and TerrainObservationValidation.valid_intent(value["request_number"], value["operation"], value["payload"])
 
 
 static func read_intent(path: String) -> ServiceResult:

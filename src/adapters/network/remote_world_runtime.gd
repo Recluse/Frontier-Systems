@@ -168,15 +168,15 @@ func enqueue_command(command: SimulationCommand) -> ServiceResult:
 		return ServiceResult.failure(&"remote_command_invalid", "Unsupported or duplicate client request.")
 	var frame: Dictionary = {"type": "command", "request_id": String(command.command_id), "system": system, "operation": command.operation, "payload": command.payload}
 	if TerrainTransportCodec.is_terrain(command):
-		if (command is TerrainMaterializeCommand) != (command.operation == "materialize") or _terrain_record.is_empty() or not TerrainObservationValidation.valid_intent(command.request_number, command.operation, command.payload) or String(command.command_id) != TerrainTransportCodec.request_id(command.request_number, command.operation):
+		if (command is TerrainMaterializeCommand) != (command.operation == "materialize") or (command is TerrainReturnCommand) != (command.operation == "return") or _terrain_record.is_empty() or not TerrainObservationValidation.valid_intent(command.request_number, command.operation, command.payload) or String(command.command_id) != TerrainTransportCodec.request_id(command.request_number, command.operation):
 			return ServiceResult.failure(&"terrain_intent_invalid", "Use an observed bounded terrain intent and its stable ordinal.")
-		var intent: Dictionary = {"schema_version": 2 if command is TerrainMaterializeCommand else 1, "world_id": String(world_id), "region_id": String(region_id), "slot": server_slot, "request_number": command.request_number, "operation": command.operation, "payload": command.payload.duplicate(true)}
+		var intent: Dictionary = {"schema_version": 3 if command is TerrainReturnCommand else (2 if command is TerrainMaterializeCommand else 1), "world_id": String(world_id), "region_id": String(region_id), "slot": server_slot, "request_number": command.request_number, "operation": command.operation, "payload": command.payload.duplicate(true)}
 		if not _terrain_intent.is_empty(): intent["schema_version"] = _terrain_intent["schema_version"]
 		intent = LocalTerrainRetryStore.normalized(intent)
 		if not _terrain_intent.is_empty() and _terrain_intent != intent:
 			return ServiceResult.failure(&"terrain_retry_required", "Reconcile the original unresolved terrain intent before starting fresh work.")
-		var ordinal_field: String = "next_materialize_request_number" if command is TerrainMaterializeCommand else "next_request_number"
-		var exhausted_field: String = "materialize_sequence_exhausted" if command is TerrainMaterializeCommand else "request_sequence_exhausted"
+		var ordinal_field: String = "next_return_request_number" if command is TerrainReturnCommand else ("next_materialize_request_number" if command is TerrainMaterializeCommand else "next_request_number")
+		var exhausted_field: String = "return_sequence_exhausted" if command is TerrainReturnCommand else ("materialize_sequence_exhausted" if command is TerrainMaterializeCommand else "request_sequence_exhausted")
 		if _terrain_intent.is_empty() and (not _terrain_record.has(ordinal_field) or command.request_number != _terrain_record[ordinal_field] or _terrain_record[exhausted_field]):
 			return ServiceResult.failure(&"terrain_ordinal_invalid", "Use the observed next ordinal for fresh work only.")
 		if not terrain_retry_directory.is_empty():
