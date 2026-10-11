@@ -28,7 +28,7 @@ The component section integrates the observed prerequisite helper for fabricatio
 
 New equipment is seeded **only for new cooperative worlds**. Existing saves preserve their items and are not silently granted tools/backpacks. Choose a new `-WorldName` to see the starter kit while retaining old worlds. Client and host should run the same source revision; protocol negotiation for mixed builds is future work.
 
-Godot editor import and script parsing were performed for this implementation. No gameplay test suites or graphical acceptance runs were executed for this UI update. Earlier first-playable screenshots/results describe the previous revision and must not be presented as verification of these new controls.
+Component presentation now wraps full selected IDs outside clipped pickers, flows action rows within the pane, follows keyboard focus while scrolling, and reveals labeled exact pending fields after layout settles. Focus the Inventory scroll pane to navigate long observed prerequisites with the configured UI Up/Down bindings. Component pending actions also retire item-list keyboard focus until the matching receipt. See [inventory panel usability](../development/inventory-panel-usability-milestone.md) for the seven focused Windows checks and native Default-theme engine fixture at desktop/narrow pane sizes. This evidence uses injected input and real paid domain commands; integrated client/network, human, controller/VR and Linux graphical acceptance remain unverified. Earlier first-playable screenshots describe their own revisions.
 
 ## Cursor and controls
 

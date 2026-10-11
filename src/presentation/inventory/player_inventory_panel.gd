@@ -28,6 +28,7 @@ var _equipment := Label.new()
 var _result := Label.new()
 var _buttons: Array[Button] = []
 var _pending: String = ""
+var _shown_pending: String = ""
 var _view_key: String = ""
 var _tools: Dictionary = {}
 var _tool_parts := OptionButton.new()
@@ -35,6 +36,7 @@ var _tool_mounts := OptionButton.new()
 var _loose_parts := OptionButton.new()
 var _part_blueprints := OptionButton.new()
 var _component_details := Label.new()
+var _component_selections: Dictionary = {}
 var _component_buttons: Dictionary = {}
 var _pending_component: Dictionary = {}
 var _inspected_tool: String = ""
@@ -44,6 +46,12 @@ var _work_status := Label.new()
 
 func configure(remote: RemoteWorldRuntime) -> void:
 	_remote = remote
+	if get_parent() is ScrollContainer:
+		var scroll := get_parent() as ScrollContainer
+		scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		scroll.follow_focus = true
+		scroll.focus_mode = Control.FOCUS_ALL
+		scroll.gui_input.connect(_scroll_input)
 	for picker in [_source, _destination, _slot, _deposit, _carrier, _tool_parts, _tool_mounts, _loose_parts, _part_blueprints]:
 		picker.fit_to_longest_item = false
 		picker.clip_text = true
@@ -63,7 +71,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_details)
 	_label("Equipment slot")
 	add_child(_slot)
-	var equipment_actions := HBoxContainer.new()
+	var equipment_actions := HFlowContainer.new()
 	add_child(equipment_actions)
 	_button(equipment_actions, "Equip", _self_action.bind("equip"), "equip")
 	_button(equipment_actions, "Unequip", _self_action.bind("unequip"), "unequip")
@@ -86,7 +94,7 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_world_items)
 	_world_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_world_details)
-	var world_actions := HBoxContainer.new()
+	var world_actions := HFlowContainer.new()
 	add_child(world_actions)
 	_button(world_actions, "Collect selected", _world_action.bind("pickup"), "pickup")
 	_button(world_actions, "Drop selected", _world_action.bind("drop"), "drop")
@@ -110,22 +118,25 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	_button(self, "Resume reserved extraction", _sustained_action.bind("resume_tool_extract"))
 	_button(self, "Cancel and release remaining source reservation", _sustained_action.bind("cancel_tool_extract"))
 	_label("Tool component maintenance · select a tool above, then a component")
-	add_child(_tool_parts)
+	_component_picker(_tool_parts, "Mounted component")
 	_button(self, "Maintain selected component at workstation", _repair_component)
 	_label("Tool parts · manufacture from workstation materials")
-	add_child(_part_blueprints)
+	_component_picker(_part_blueprints, "Fabrication blueprint")
 	_button(self, "Manufacture selected part", _part_action.bind("fabricate_tool_part"), "fabricate_tool_part")
 	_label("Owned loose part · use an equipment mount to replace or upgrade")
-	add_child(_loose_parts)
-	add_child(_tool_mounts)
+	_component_picker(_loose_parts, "Owned loose part")
+	_component_picker(_tool_mounts, "Equipment mount")
 	_button(self, "Fit loose part in selected tool mount", _part_action.bind("fit_tool_part"), "fit_tool_part")
 	_button(self, "Detach selected tool mount into inventory", _part_action.bind("detach_tool_part"), "detach_tool_part")
 	_button(self, "Recycle selected loose part", _part_action.bind("recycle_tool_part"), "recycle_tool_part")
 	_component_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_label("Observed component prerequisites · scroll to read all costs and host checks")
 	add_child(_component_details)
 	for picker in [_part_blueprints, _loose_parts, _tool_mounts, _tool_parts]:
 		picker.item_selected.connect(func(_index: int) -> void: _update_buttons())
 	_label("Equip the extractor in a hand, make that hand active, carry a canister and approach the source. Mounted extraction remains available through Workstation. Crowbar world interactions are a later integration.")
+	_result.focus_mode = Control.FOCUS_ALL
+	_result.tooltip_text = "Action feedback; Tab to review the exact pending target or host receipt."
 	add_child(_result)
 	remote.command_completed.connect(_completed)
 	remote.connection_closed.connect(_disconnected)
@@ -467,7 +478,7 @@ func _part_action(operation: String) -> void:
 	if not _pending.is_empty():
 		_pending_component = payload.duplicate(true)
 		_pending_component["operation"] = operation
-		_result.text = "Waiting for host · " + JSON.stringify(_pending_component) + ". No output or mount change confirmed."
+		_result.text = "Waiting for host\n" + _pending_component_text() + "\nNo output or mount change confirmed."
 		_update_buttons()
 
 
@@ -504,6 +515,10 @@ func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 
 
 func _update_buttons() -> void:
+	if _shown_pending != _pending:
+		_shown_pending = _pending
+		if not _pending.is_empty() and get_parent() is ScrollContainer:
+			_reveal_feedback.call_deferred(_pending)
 	for button in _buttons:
 		button.disabled = _record.is_empty() or not _pending.is_empty()
 	for operation in _component_buttons:
@@ -511,8 +526,9 @@ func _update_buttons() -> void:
 		var reason: String = _component_prerequisite(operation)
 		component_button.disabled = component_button.disabled or not reason.is_empty()
 		component_button.tooltip_text = reason if not reason.is_empty() else "Host rechecks current prerequisites at the tick."
+	_update_component_selections()
 	_component_details.text = EquipmentPrerequisiteView.part_text(_tools, _production, _picker_id(_part_blueprints), _selected_id(_items), _picker_id(_tool_mounts), _picker_id(_loose_parts), not _pending.is_empty())
-	if not _pending_component.is_empty(): _component_details.text += "\nPending exact IDs and revisions: " + JSON.stringify(_pending_component)
+	if not _pending_component.is_empty(): _component_details.text += "\nPending exact targets\n" + _pending_component_text()
 	for operation in _inventory_buttons:
 		var button: Button = _inventory_buttons[operation]
 		var reason: String = _inventory_prerequisite(operation)
@@ -522,9 +538,55 @@ func _update_buttons() -> void:
 		picker.disabled = _record.is_empty() or not _pending.is_empty()
 	_items.mouse_filter = Control.MOUSE_FILTER_IGNORE if not _pending.is_empty() else Control.MOUSE_FILTER_STOP
 	_world_items.mouse_filter = _items.mouse_filter
+	_items.focus_mode = Control.FOCUS_ALL if _pending.is_empty() else Control.FOCUS_NONE
+	_world_items.focus_mode = _items.focus_mode
 	_items.set_process_input(_pending.is_empty())
 	_world_items.set_process_input(_pending.is_empty())
 	_storage_status.text = PlayerInventoryPresentation.storage_hint(_record, _picker_id(_destination)) if not _record.is_empty() else ""
+
+func _pending_component_text() -> String:
+	var lines := PackedStringArray(["Action: " + str(_pending_component.get("operation", ""))])
+	for field: String in ["blueprint_id", "item_id", "slot_id", "part_id", "expected_revision", "expected_tool_revision"]:
+		if not _pending_component.has(field): continue
+		var title: String = {"blueprint_id": "Blueprint ID", "item_id": "Tool ID", "slot_id": "Mount ID", "part_id": "Loose part ID", "expected_revision": "Production revision", "expected_tool_revision": "Tool revision"}[field]
+		lines.append(title + ": " + str(_pending_component[field]))
+	return "\n".join(lines)
+
+
+func _scroll_input(event: InputEvent) -> void:
+	var scroll := get_parent() as ScrollContainer
+	if scroll == null or not scroll.has_focus(): return
+	var direction: int = 1 if event.is_action_pressed("ui_down") else (-1 if event.is_action_pressed("ui_up") else 0)
+	if direction != 0:
+		scroll.scroll_vertical += direction * 80
+		scroll.accept_event()
+
+
+func _reveal_feedback(request_id: String) -> void:
+	# Wrapped text changes height after container sorting; reveal its final bounds.
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if _pending == request_id and get_parent() is ScrollContainer:
+		(get_parent() as ScrollContainer).ensure_control_visible(_result)
+
+
+func _component_picker(picker: OptionButton, title: String) -> void:
+	_label(title)
+	add_child(picker)
+	var selection := Label.new()
+	selection.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(selection)
+	_component_selections[picker] = selection
+
+
+func _update_component_selections() -> void:
+	for picker: OptionButton in _component_selections:
+		var selection: Label = _component_selections[picker]
+		var id: String = _picker_id(picker)
+		selection.text = "No selection; choose explicitly above."
+		if not id.is_empty():
+			selection.text = "%s\nID: %s%s" % [picker.get_item_text(picker.selected), id, " · unavailable in latest host view" if picker.is_item_disabled(picker.selected) else ""]
+		picker.tooltip_text = selection.text
 
 
 func _label(text: String) -> void:
@@ -537,6 +599,7 @@ func _label(text: String) -> void:
 func _button(parent: Node, text: String, callback: Callable, inventory_operation: String = "") -> void:
 	var button := Button.new()
 	button.text = text
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(callback)
 	parent.add_child(button)
