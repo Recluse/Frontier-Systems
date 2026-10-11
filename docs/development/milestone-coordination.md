@@ -1,5 +1,22 @@
 # Coordinated milestone work
 
+## Terrain lifecycle and recipe requirements integration (2026-10-11 04:19 UTC heartbeat)
+
+Reused immutable source review for PR #27 head `87303b5064ac7377ffd5cc2fb62280b6012fca6a`: exact mass/material display, pinned missing/reappearing selections, original pending retry, authenticated observation guards, legacy unavailable state and unchanged canonical ownership. All 24 exact-head checks passed; main PR/push `38110432302` / `38110424268`, focused PR `38110432364` / `38110432464`. Verified matching-head squash merge `2f783088548f373d8c8a216763f7d4af3772ee44`. Five combined Windows checks passed on that merge: import/startup, terrain_parcel_usability_test, terrain_return_test and first_playable_task_guide_test (`var/ci/coordinator-terrain-lifecycle`, ignored). No images were supplied.
+
+Reviewed PR #28 head `b1356946f150246116a3be7ff0619bb5c22a8919`: catalog-derived detached recipe inputs/energy/station; bounded validation, stable identity per connection, v7 legacy unavailable handling and no observation-to-persistence restore. Observation becomes v8; persistence remains v7. Old v7-only clients need matching builds, with no negotiation claimed. Reviewed real receive-path tests, alternate catalog, malformed/identity-change rejection, read-only state and schema fixtures. All 28 exact-head checks passed: full PR/push `38110828337` / `38110824311`, recipe PR/push `38110828264` / `38110824392`, terrain client/portable PR `38110828314` / `38110828358`. Verified matching-head squash merge `67e5a9c75bc11d79ead76660c7d0e212fea5399c`. No admin bypass or gate waiver. Clean primary fast-forwarded.
+
+Seven combined Windows checks passed on `67e5a9c`: import/startup, recipe_requirements_test, workstation_resource_view_test, terrain_parcel_usability_test, repair_usability_test and first_playable_task_guide_test. Evidence ignored under `var/ci/coordinator-recipes-terrain`. No fixed sockets, graphical/human/VR acceptance or media uploads. Individual exact-head CI supplies Linux evidence. Recent Ko-fi update remains sufficient for these incremental changes.
+
+Separate Sol/medium successors, current-origin managed worktrees/codex branches, attached draft PR and own milestone docs:
+
+- **Show finite terrain mass and work targets in the world**, `01a12930-f4d3-7792-a391-4b19cf0a742c`: terrain preview/helper/tests only, accurate bounded mass/full/depleted/unavailable anchors, no editable-mesh claim; excludes terrain controls and habitat targeting.
+- **Expose authoritative tool maintenance prerequisites**, `01a12932-1757-7b00-8e7e-bc6c0319d530`: sole minimal tool observation/schema worker plus maintenance presentation, preserve existing paid repair/provenance, no new repair commands or wear rules.
+
+Both snapshots confirm work started. Native targeting chat `01a12921-8ca5-78e3-b91e-92fa23a54446` retains draft #29 head `4405f5390f9c7c8b09f7172786fbbe45fe676b1b` for Coordinator review. Three gameplay chats remain assigned. Every handoff retains Coordinator approval routing, explicit feature publication authorization, no AI-generated imagery, no media/LFS upload and port reservation rules. Website certificate remains `new`; cross-link PRs stay held.
+
+PR #29 is held despite 20 green exact-head checks: new `WorldSelectionInput._input` consumes `world_select` before GUI dispatch while GUI focus exists. Default mouse selection also activates UI controls, so this can swallow legitimate focused UI clicks. Coordinator routed the blocking regression and requested a native focused-control-to-button activation test that preserves world-picking suppression and rebinding. Worker may change source only for this fix; final new head and CI must be reviewed. Existing local capture remains internal and was not approved for public showcasing.
+
 ## Controls and workstation integration (2026-10-11 03:59 UTC heartbeat)
 
 Reviewed PR #25 immutable head `4981e1699855593b650da45e96e90b6b242ea00e`: existing-binding descriptions, focus-scoped help/scroll/cancel, stable tab indices, rebinding isolation and settings clipping. No world authority or connection-dependent state. All 20 exact-head checks passed (PR `38109458803`, push `38109457006`). Verified squash merge `227b4bcb2f92dfa2b5e971e3acd1ff87a5120fb0`.
