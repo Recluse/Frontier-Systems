@@ -141,8 +141,11 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	for picker in [_part_blueprints, _loose_parts, _tool_mounts, _tool_parts]:
 		picker.item_selected.connect(func(_index: int) -> void: _update_buttons())
 	_label("Equip the extractor in a hand, make that hand active, carry a canister and approach the source. Mounted extraction remains available through Workstation. Crowbar world interactions are a later integration.")
-	_result.focus_mode = Control.FOCUS_ALL
-	_result.tooltip_text = "Action feedback; Tab to review the exact pending target or host receipt."
+	for guidance: Label in [_storage_status, _transfer_preview, _world_transfer_preview, _world_status, _result]:
+		guidance.focus_mode = Control.FOCUS_ALL
+		guidance.gui_input.connect(_guidance_input.bind(guidance))
+		guidance.tooltip_text = "Tab to review; Up/Down or Page Up/Page Down scroll the Inventory pane."
+	_result.tooltip_text = "Action feedback; Tab to review the exact pending target or host receipt; Up/Down or Page Up/Page Down to scroll."
 	add_child(_result)
 	remote.command_completed.connect(_completed)
 	remote.connection_closed.connect(_disconnected)
@@ -573,6 +576,20 @@ func _scroll_input(event: InputEvent) -> void:
 	if direction != 0:
 		scroll.scroll_vertical += direction * 80
 		scroll.accept_event()
+
+
+## Large wrapped guidance remains readable without leaving its keyboard focus.
+func _guidance_input(event: InputEvent, guidance: Label) -> void:
+	var scroll := get_parent() as ScrollContainer
+	if scroll == null or not guidance.has_focus(): return
+	var amount: int = 0
+	if event.is_action_pressed("ui_down"): amount = 80
+	elif event.is_action_pressed("ui_up"): amount = -80
+	elif event.is_action_pressed("ui_page_down"): amount = int(scroll.size.y)
+	elif event.is_action_pressed("ui_page_up"): amount = -int(scroll.size.y)
+	if amount != 0:
+		scroll.scroll_vertical += amount
+		guidance.accept_event()
 
 
 func _reveal_feedback(request_id: String) -> void:

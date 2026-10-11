@@ -39,3 +39,9 @@ slot IDs together, with loaded item mass and destination load/capacity. Tray dro
 collection have separate summaries so their different destinations stay explicit.
 Unavailable observation fields remain unavailable; the panel predicts no fit or
 authoritative outcome. See [inventory transfer preview](../development/inventory-transfer-preview-milestone.md).
+
+Transfer/capacity summaries, tray status and host receipts accept keyboard focus.
+Use Tab/Shift+Tab to review them and Up/Down or Page Up/Page Down to scroll
+the Inventory pane while keeping guidance focused, including receipts taller
+than the pane. Enabled action buttons remain in the same relative order and
+focus-following scrolling reveals them. See [transfer layout verification](../development/inventory-transfer-layout-milestone.md).

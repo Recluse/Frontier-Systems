@@ -1,5 +1,6 @@
 param(
     [string]$Godot = 'godot',
+    [ValidateSet('client_inventory_shell_test.gd', 'player_inventory_transfer_layout_test.gd')][string]$Fixture = 'client_inventory_shell_test.gd',
     [ValidateSet('gl_compatibility', 'forward_plus')][string]$RenderingMethod = 'gl_compatibility',
     [ValidateRange(1, 120)][int]$TimeoutSeconds = 60
 )
@@ -7,7 +8,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $executable = (Get-Command $Godot -CommandType Application | Select-Object -First 1).Source
-$output = Join-Path $projectRoot 'var/ci/client-inventory-render'
+$outputName = if ($Fixture -eq 'player_inventory_transfer_layout_test.gd') { 'inventory-transfer-layout-render' } else { 'client-inventory-render' }
+$output = Join-Path $projectRoot ("var/ci/" + $outputName)
 $overridePath = Join-Path $projectRoot 'override.cfg'
 if (Test-Path -LiteralPath $overridePath) { throw 'Preserve existing override.cfg; use a clean isolated worktree.' }
 New-Item -ItemType Directory -Force -Path $output | Out-Null
@@ -23,9 +25,9 @@ $manifest = [ordered]@{
     renderer = $RenderingMethod
     profile = $profileName
     started_utc = [DateTime]::UtcNow.ToString('o')
-    fixture = 'client_inventory_shell_test.gd'
+    fixture = $Fixture
     sockets = $false
-    acceptance = 'Automated actual-shell presentation with injected keyboard and canonical inventory commands; human/controller/VR/network recovery unverified.'
+    acceptance = 'Automated actual-shell presentation with injected keyboard; selected fixture defines canonical versus detached observation coverage; human/controller/VR/network recovery unverified.'
 }
 [IO.File]::WriteAllText((Join-Path $output 'manifest.json'), ($manifest | ConvertTo-Json -Depth 4))
 try {
@@ -40,7 +42,7 @@ try {
     $info.RedirectStandardError = $true
     $info.Environment['FRONTIER_EVENT_URL'] = ''
     $info.Environment['FRONTIER_EVENT_TOKEN'] = ''
-    foreach ($argument in @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', $RenderingMethod, '--path', '.', '--script', 'res://tests/godot/client_inventory_shell_test.gd', '--', '--capture-inventory')) {
+    foreach ($argument in @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', $RenderingMethod, '--path', '.', '--script', ("res://tests/godot/" + $Fixture), '--', '--capture-inventory')) {
         $info.ArgumentList.Add($argument)
     }
     $process = [Diagnostics.Process]::new()
@@ -59,7 +61,7 @@ try {
         Write-Host $log.Substring(0, [Math]::Min(3000, $log.Length))
         throw "Client inventory render verification failed; see $output."
     }
-    Write-Host "PASS client inventory shell native $RenderingMethod rendering; injected keyboard/real domain fixture only; human acceptance unverified. Captures: $output"
+    Write-Host "PASS client inventory shell native $RenderingMethod rendering; fixture $Fixture with injected keyboard; human acceptance unverified. Captures: $output"
 } finally {
     if ($null -ne $process) {
         if (-not $process.HasExited) { $process.Kill($true) }

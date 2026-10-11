@@ -5,9 +5,11 @@ on:
     paths:
       - 'src/presentation/inventory/**'
       - 'tests/godot/player_inventory*'
+      - 'tests/godot/client_inventory_shell_test.gd'
+      - 'src/app/first_playable_bootstrap.gd'
       - '.github/workflows/inventory-transfer-preview.yml'
   push:
-    branches: [inventory-transfer-preview]
+    branches: [inventory-transfer-preview, inventory-transfer-layout]
 permissions:
   contents: read
 concurrency:
@@ -33,7 +35,7 @@ jobs:
           include-templates: false
       - name: Run bounded inventory panel fixtures
         shell: pwsh
-        run: ./tools/ci/run-godot-checks.ps1 -TestNames player_inventory_transfer_preview_test.gd,player_inventory_handoffs_test.gd,player_inventory_feedback_test.gd,client_inventory_shell_test.gd -TestTimeoutSeconds 120
+        run: ./tools/ci/run-godot-checks.ps1 -TestNames player_inventory_transfer_layout_test.gd,player_inventory_transfer_preview_test.gd,player_inventory_handoffs_test.gd,player_inventory_feedback_test.gd,client_inventory_shell_test.gd -TestTimeoutSeconds 120
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
