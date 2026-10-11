@@ -121,14 +121,18 @@ func conflicts(action: String, event: InputEvent) -> PackedStringArray:
 
 
 func request_capture(owner: Node) -> void:
-	if rebinding or _suspended or Input.is_action_pressed("ui_cursor"):
+	if rebinding or _suspended or Input.is_action_pressed("ui_cursor") or _gui_has_focus(owner):
 		return
 	_owner = owner
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func can_navigate(owner: Node) -> bool:
-	return is_instance_valid(_owner) and _owner == owner and not rebinding and not _suspended and not Input.is_action_pressed("ui_cursor") and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+	return is_instance_valid(_owner) and _owner == owner and not rebinding and not _suspended and not Input.is_action_pressed("ui_cursor") and not _gui_has_focus(owner) and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED
+
+
+func _gui_has_focus(owner: Node) -> bool:
+	return get_tree().root.gui_get_focus_owner() != null or (is_instance_valid(owner) and owner.get_viewport().gui_get_focus_owner() != null)
 
 
 func accepts_gameplay_input() -> bool:
@@ -158,7 +162,7 @@ func _input(event: InputEvent) -> void:
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 	elif event.is_action_released("ui_cursor"):
 		if is_instance_valid(_owner) and Input.is_action_pressed("look") and not rebinding and not _suspended:
-			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+			request_capture(_owner)
 		else:
 			release_all()
 

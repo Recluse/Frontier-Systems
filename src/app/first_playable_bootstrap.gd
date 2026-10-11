@@ -25,6 +25,7 @@ var _hands_hud: Label
 var _terrain_panel: TerrainControlsPanel
 var _terrain_preview: TerrainCellPreview
 var _task_guide: FirstPlayableTaskGuidePanel
+var _look_viewport: SubViewport
 
 
 func _ready() -> void:
@@ -344,6 +345,33 @@ func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
 	_status.text = result.message if not result.is_success else _status.text
 	if command is CheckpointRequest and result.is_success:
 		_status.text = "Shared world checkpoint confirmed on disk."
+
+
+# A look gesture belongs to the preview, not to the root GUI mouse latch.
+# Dispatch it before GUI hit-testing so held RMB cannot pin later UI clicks
+# to the SubViewportContainer. Ordinary world selection keeps native routing.
+func _input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.is_action_pressed("look"):
+		if _habitat == null or not is_instance_valid(_habitat):
+			return
+		var viewport: SubViewport = _habitat.get_viewport()
+		var surface: SubViewportContainer = viewport.get_parent()
+		if not surface.is_visible_in_tree() or not surface.get_global_rect().has_point(event.position) or not WorldSelectionInput.gameplay_allowed(viewport):
+			return
+		_look_viewport = viewport
+	elif not (event.is_action_released("look") or event.is_action_pressed("release_cursor")) or not is_instance_valid(_look_viewport):
+		return
+	var forwarded: InputEvent = event
+	if event is InputEventMouse:
+		var surface: SubViewportContainer = _look_viewport.get_parent()
+		forwarded = event.xformed_by(surface.get_global_transform_with_canvas().affine_inverse())
+		if surface.stretch:
+			forwarded = forwarded.xformed_by(Transform2D().scaled(Vector2.ONE / surface.stretch_shrink))
+	_look_viewport.push_input(forwarded, true)
+	if event.is_action_released("look") or event.is_action_pressed("release_cursor"):
+		_look_viewport = null
+	if event is InputEventMouseButton:
+		get_viewport().set_input_as_handled()
 
 
 func _unhandled_input(event: InputEvent) -> void:
