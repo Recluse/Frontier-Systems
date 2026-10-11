@@ -26,6 +26,8 @@ Local browser/crawler/CI proof is ignored under `var/ci/frontier-website/`. It i
 
 ## Upkeep and sale boundary
 
+Owner requested a Frontier Systems entry in Valgorithms' project shelf. The existing Valgorithms PR #6 now also adds a Games card with official website, source and support links, truthful prototype/sales status and existing shelf styling. Its new exact head is `063683460dc3604ebd022a65bb618fcddf6943cd`, superseding `08d3f7e3474b8b3733a6e5db00d0de7c5a039ffe` for review/CI/merge. Local syntax, build and output checks passed (8 pages, 7 assets, six preview tests); desktop and 390px mobile shelf inspected, no horizontal overflow/browser errors. It remains unpublished until HTTPS is ready and this new head's CI passes. Local isolated checkout: ignored `var/valgorithms-site-repo`.
+
 Update website copy after meaningful verified player-visible milestones alongside campaign upkeep. The website repository's `site/content.json` controls URLs and reviewed status date; `tools/build.mjs` generates the static pages. Public links lead to existing $5,000 USD initial-development funding and $5/$15/$30 memberships on Ko-fi; no unverified raised totals are shown.
 
 The buy page currently explains that no finished-game sale is open and links source-prototype instructions/acceptance. Contributions are not preorders or game keys. Future sale support is implemented through an owner-approved `storeUrl`, `saleLabel` and `saleDescription`; an incomplete offer fails the build. The site does not process transactions or hold payment information. Review an actual release, price/offer and official storefront before opening sales.
