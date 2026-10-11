@@ -194,9 +194,10 @@ func _start_client() -> void:
 	)
 	_habitat.world_inventory.skip_machine_roots = true
 	_tabs.tab_changed.connect(func(index: int) -> void:
-		_habitat.production.set_labels_visible(index != 3)
-		_habitat.world_inventory.labels_visible = index != 3
-		for label in _habitat.world_inventory.find_children("*", "Label3D", true, false): label.visible = index != 3
+		var show_workstation_labels: bool = index not in [3, 4]
+		_habitat.production.set_labels_visible(show_workstation_labels)
+		_habitat.world_inventory.labels_visible = show_workstation_labels
+		for label in _habitat.world_inventory.find_children("*", "Label3D", true, false): label.visible = show_workstation_labels
 	)
 	_habitat.focus_production()
 	_habitat.world_inventory.player_facing_labels = true

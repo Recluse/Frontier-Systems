@@ -80,6 +80,9 @@ func _run() -> void:
 	client._habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW)
 	client._habitat.camera._radius = 14.0
 	client._habitat.camera._update_overview()
+	if terrain_route:
+		client._habitat.camera.position = Vector3(-3.5, 3.5, 6.0)
+		client._habitat.camera.look_at(Vector3(-5.75, 0.35, 3.0))
 	if wall_route:
 		(client._machinery_panel.get_parent() as ScrollContainer).scroll_vertical = 650
 	await RenderingServer.frame_post_draw
@@ -88,9 +91,9 @@ func _run() -> void:
 	if tool_parts_route: directory = "res://reports/tool-parts"
 	if machinery_route: directory = "res://reports/machinery"
 	if wall_route: directory = "res://reports/spatial-walls"
-	if terrain_route: directory = "res://reports/terrain-controls"
+	if terrain_route: directory = "res://docs/gallery/terrain-controls"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
-	var error: Error = image.save_png(directory.path_join("client.png"))
+	var error: Error = image.save_png(directory.path_join("terrain-dig-fill.png" if terrain_route else "client.png"))
 	print("First playable graphical client completed its seven-step loop using local physics and authenticated guide commands; screenshot result: %d" % error)
 	client.free()
 	DirAccess.remove_absolute(retry_directory)

@@ -18,7 +18,7 @@ func observe(record: Dictionary) -> void:
 			material.albedo_color = Color("#bf935b") if id == "terrain.dirt.source" else Color("#739bac")
 			marker.material_override = material
 			var label := Label3D.new()
-			label.position.y = 0.45
+			label.position = Vector3(-0.3, 0.45, 0) if id == "terrain.dirt.source" else Vector3(0.3, 0.75, 0)
 			label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			label.font_size = 32
 			marker.add_child(label)
