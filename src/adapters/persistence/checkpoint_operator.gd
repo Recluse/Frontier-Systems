@@ -31,10 +31,14 @@ static func _decimal(text: String, minimum: int, maximum: int) -> bool:
 
 
 static func parse_arguments(arguments: PackedStringArray) -> ServiceResult:
-	if arguments.is_empty() or arguments.size() > 7 or arguments[0] not in ["list", "recover"]:
+	if arguments.is_empty() or arguments.size() > 7 or arguments[0] not in ["list", "preflight", "recover"]:
 		return _options_failure()
 	var options: Dictionary = {"action": arguments[0]}
-	var allowed: PackedStringArray = PackedStringArray(["--source"]) if arguments[0] == "list" else PackedStringArray(["--source", "--descriptor", "--destination"])
+	var allowed := PackedStringArray(["--source"])
+	if arguments[0] != "list":
+		allowed.append("--descriptor")
+	if arguments[0] == "recover":
+		allowed.append("--destination")
 	var index: int = 1
 	while index < arguments.size():
 		var key: String = arguments[index]
@@ -51,7 +55,7 @@ static func parse_arguments(arguments: PackedStringArray) -> ServiceResult:
 
 
 static func _options_failure() -> ServiceResult:
-	return ServiceResult.failure(&"operator_options", "Use list --source ABSOLUTE_DIR or recover --source ABSOLUTE_DIR --descriptor ABSOLUTE_JSON_FILE --destination ABSOLUTE_FRESH_DIR.")
+	return ServiceResult.failure(&"operator_options", "Use list --source ABSOLUTE_DIR or preflight --source ABSOLUTE_DIR --descriptor ABSOLUTE_JSON_FILE or recover --source ABSOLUTE_DIR --descriptor ABSOLUTE_JSON_FILE --destination ABSOLUTE_FRESH_DIR.")
 
 
 ## Injected I/O and disposable initialized world/adapter support isolated verification.
@@ -84,6 +88,11 @@ static func run(arguments: PackedStringArray, world: WorldRuntime = null, adapte
 	for field in ["slot", "sequence", "tick_number", "bytes"]:
 		if ControlContractValidation.is_integer(json.data.get(field), 0, LocalWorldSaveStore.MAX_SEQUENCE):
 			json.data[field] = int(json.data[field])
+	if options["action"] == "preflight":
+		var validated: ServiceResult = adapter.preflight_from_backup(world, options["--source"], json.data, files)
+		if not validated.is_success:
+			return failure(EXIT_RECOVERY, validated, "Preflight rejected. Preserve source; discard this disposable world. Re-list changed selections and keep the source host stopped; no lock is acquired.")
+		return {"exit_status": EXIT_OK, "action": "preflight", "source_sequence": validated.value["source_sequence"], "tick_number": validated.value["tick_number"], "message": "Selected backup passed startup validation in a disposable stopped world. No destination created or source changed. Discard this world; recovery revalidates selection. Keep source host stopped; no cross-process lock is acquired."}
 	var recovered: ServiceResult = adapter.configure_from_backup(world, options["--source"], json.data, options["--destination"], files)
 	if not recovered.is_success:
 		return failure(EXIT_RECOVERY, recovered, "Recovery rejected. Preserve source and any partial destination; discard this startup world. Re-list changed selections; use an absent destination outside source and a fresh stopped world.")
