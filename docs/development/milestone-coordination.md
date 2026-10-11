@@ -22,13 +22,29 @@ The owner now explicitly authorizes the coordinator to review completed mileston
 
 No admin bypass was needed. Review confirmed presentation-only ghost state and preserved v7 wall controls; verified staged writes, bounded recovery and matching worker acknowledgements; and finite terrain provenance, pure plans, retained/expired retries and restart replay. Terrain remains a domain owner; it does not yet imply live inventory transfer or graphical excavation. Exact branch/PR CI includes Windows/Linux PHP, Godot, telemetry integrations and development exports. Merged-head integration CI is separate: [first combined run](https://github.com/Valgorithms/Frontier-Systems/actions/runs/38098099136). On combined head `7e2c4da`, all seven coordinator checks passed: import, startup, checkpoint recovery, real two-client durable acceptance, machine placement feedback, spatial walls and terrain ownership. Logs/JUnit are under ignored `var/ci/coordinator-wave-1`.
 
-## Active successor wave
+## Completed second wave
 
 | Chat | ID | Scope | Integration constraints |
 | --- | --- | --- | --- |
 | Add wall construction placement feedback | `01a12853-6d0b-7920-8136-b6cf06fb886c` | Floor/grid/orientation ghost, owned-plate intent, pending target and selected wall feedback | Presentation only; wall commands, schemas and authority unchanged |
 | Add bounded checkpoint backup history | `01a12854-5d3d-7a03-b098-cfa237928117` | Opt-in bounded verified history, pruning and explicit stopped-world recovery selection | Detached worker I/O; active save acknowledgement remains separate from backup failure |
 | Register authoritative terrain commands and recovery | `01a12855-3bab-7a10-9ef3-8a12c805ae5e` | Fixed-tick terrain owner registration, authenticated tool/reach/retry commands and checkpoint migration | Separate finite fixture budget; legacy saves grant no matter; loose transfer escrow stays terrain-owned |
+
+| Milestone | Reviewed head | PR | Exact-head required CI | Verified merge |
+| --- | --- | --- | --- | --- |
+| Opt-in checkpoint history | `3e285d20ab4b9ed02fbb5ea2c031303d423be286` | [#4](https://github.com/Valgorithms/Frontier-Systems/pull/4) | [PR CI](https://github.com/Valgorithms/Frontier-Systems/actions/runs/38098740532), [push CI](https://github.com/Valgorithms/Frontier-Systems/actions/runs/38098739445): success | `552a68b910491c4ee1315db3a4b3c7768ade5da4` |
+| Physical wall previews | `5fca8f681275a1576bcd4f2fa0580a487bcac570` | [#5](https://github.com/Valgorithms/Frontier-Systems/pull/5) | [PR CI](https://github.com/Valgorithms/Frontier-Systems/actions/runs/38098724926), [push CI](https://github.com/Valgorithms/Frontier-Systems/actions/runs/38098722054): success | `2f879448c5079fafea4d14610a84ff2ccfc787cc` |
+| Terrain runtime/escrow | `cb8c79cb70842a8f9a61d711748d7733bb41ee9c` | [#6](https://github.com/Valgorithms/Frontier-Systems/pull/6) | [PR CI](https://github.com/Valgorithms/Frontier-Systems/actions/runs/38098862021), [push CI](https://github.com/Valgorithms/Frontier-Systems/actions/runs/38098860031): success | `ad2367296149647e29bb38c9ad8299291258c19e` |
+
+Review found no outstanding runtime/authority blockers. The wall reproduction paths were corrected before final CI. Checkpoint history preserves active acknowledgements, last recoverable backups and explicit stopped-world recovery into a fresh destination; its diagnostics stay separate from the wire status. Terrain runtime validates tools, reach, supporting hands, claimant permissions, sequence allocation and atomic restart, with zero-budget legacy migration. Neither terrain escrow nor previews imply physical terrain pickup or room sealing. Admin bypass was not needed. On combined head `ad23672`, all nine Windows Godot checks passed: import, startup, history, recovery, real two-client checkpoint acceptance, machine placement feedback, spatial walls, terrain runtime and wall placement feedback. Logs/JUnit are under ignored `var/ci/coordinator-wave-2`.
+
+## Active third wave
+
+| Chat | ID | Scope | Integration constraints |
+| --- | --- | --- | --- |
+| Expose checkpoint history operator controls | `01a12865-952a-71f3-b022-34e1b61205e5` | Strict opt-in launch configuration, bounded metadata listing and explicit fresh-destination recovery | Persistence/operator tooling and narrow host-startup wiring; no network/domain schemas or automatic rollback |
+| Enforce machinery placement obstruction rules | `01a12865-b991-7a00-a83d-0698045fe6c3` | Conservative server placement/growing-module obstruction checks | Machinery/Production only; deliberate legacy restore compatibility; no terrain or presentation redesign |
+| Add cooperative terrain command controls | `01a12867-4ceb-7fe0-b38a-0c3e16b1cd29` | Authenticated two-client terrain commands, validated scoped projection and readable escrow controls | No physical terrain pickup, second payload provider, timed digging or mesh editing; peer ordinals must not collide in ack routing |
 
 Each successor starts from current origin/dev-master in its own managed worktree and owns its own milestone documentation. Rebase before final validation. The coordinator owns cross-milestone review, merge and successor creation.
 
