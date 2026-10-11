@@ -49,7 +49,7 @@ func _process(delta: float) -> void:
 		var socket: WebSocketPeer = peer["socket"]
 		socket.poll()
 		if socket.get_ready_state() == WebSocketPeer.STATE_CLOSED:
-			_peers.erase(id)
+			_drop_peer(id)
 			continue
 		if peer["slot"] < 0 and Time.get_ticks_msec() - peer["created"] > 5000:
 			socket.close(1008, "Authentication timeout")
@@ -83,8 +83,22 @@ func _process(delta: float) -> void:
 				_publish(id)
 
 
-func _context(slot: int) -> AuthenticatedCommandContext:
-	return AuthenticatedCommandContext.from_authenticated_session(&"local-inventory-actor" if slot == 0 else &"local-inventory-target", StringName("invite-slot-%d" % slot), _world.world_id, _world.region_id, PackedStringArray(["inventory.operate"]))
+func _context(slot: int, peer_id: int = 0) -> AuthenticatedCommandContext:
+	# These grants belong to the trusted two-slot host policy, never the frame.
+	return AuthenticatedCommandContext.from_authenticated_session(&"local-inventory-actor" if slot == 0 else &"local-inventory-target", StringName("invite-slot-%d-peer-%d" % [slot, peer_id]), _world.world_id, _world.region_id, PackedStringArray(["inventory.operate", "terrain.operate"]))
+
+
+func _route_key(command: SimulationCommand) -> String:
+	if command.authenticated_context == null: return ""
+	return JSON.stringify([String(command.authenticated_context.principal_id), String(command.authenticated_context.session_id), String(command.command_id)])
+
+
+func _drop_peer(id: int) -> void:
+	_peers.erase(id)
+	for key in _pending.keys():
+		if _pending[key]["peer"] == id: _pending.erase(key)
+	_events = _events.filter(func(event: Dictionary) -> bool: return event.get("peer", -1) != id)
+	if _checkpoint_request.get("peer", -1) == id: _checkpoint_request = {}
 
 
 func _receive(id: int, value: Dictionary) -> void:
@@ -109,7 +123,9 @@ func _receive(id: int, value: Dictionary) -> void:
 		peer["window"] = Time.get_ticks_msec()
 		peer["commands"] = 0
 	peer["commands"] += 1
-	if peer["commands"] > 20 or not ControlContractValidation.has_exact_fields(value, PackedStringArray(["type", "request_id", "system", "operation", "payload"])) or value["type"] != "command" or not ControlContractValidation.is_id(value.get("request_id")) or String(value["request_id"]).length() > 90 or typeof(value.get("payload")) != TYPE_DICTIONARY:
+	var fields := PackedStringArray(["type", "request_id", "system", "operation", "payload"])
+	if value.get("system") == "terrain": fields.append("request_number")
+	if peer["commands"] > 20 or not ControlContractValidation.has_exact_fields(value, fields) or value["type"] != "command" or not ControlContractValidation.is_id(value.get("request_id")) or String(value["request_id"]).length() > 90 or typeof(value.get("payload")) != TYPE_DICTIONARY:
 		peer["socket"].close(1008, "Invalid or excessive command")
 		return
 	var command: SimulationCommand
@@ -123,7 +139,16 @@ func _receive(id: int, value: Dictionary) -> void:
 		else:
 			_ack(id, value["request_id"], checkpoint)
 		return
-	if value["system"] == "production":
+	if value["system"] == "terrain":
+		if not TerrainObservationValidation.valid_intent(value.get("request_number"), value.get("operation"), value["payload"]) or value["request_id"] != "terrain-client-%d" % int(value["request_number"]):
+			_ack(id, value["request_id"], ServiceResult.failure(&"terrain_intent_invalid", "Use a bounded terrain intent with its original principal ordinal."))
+			return
+		var terrain_command := TerrainCommand.new()
+		terrain_command.request_number = int(value["request_number"])
+		terrain_command.operation = value["operation"]
+		terrain_command.payload = value["payload"].duplicate(true)
+		command = terrain_command
+	elif value["system"] == "production":
 		var production_command := ProductionDevelopmentCommand.new()
 		production_command.operation = value["operation"] if typeof(value["operation"]) == TYPE_STRING else ""
 		production_command.payload = value["payload"]
@@ -147,14 +172,19 @@ func _receive(id: int, value: Dictionary) -> void:
 	else:
 		_ack(id, value["request_id"], ServiceResult.failure(&"system_denied", "This session cannot access that command system."))
 		return
-	command.command_id = StringName("net-%d-%s" % [peer["slot"], value["request_id"]])
-	command.authenticated_context = _context(peer["slot"])
-	if _pending.has(String(command.command_id)):
+	command.command_id = StringName(value["request_id"] if command is TerrainCommand else "net-%d-%s" % [peer["slot"], value["request_id"]])
+	command.authenticated_context = _context(peer["slot"], id)
+	var route: String = _route_key(command)
+	if _pending.has(route):
 		_ack(id, value["request_id"], ServiceResult.failure(&"request_pending", "That request is already queued."))
+		return
+	if _pending.size() >= 32:
+		peer["pending_move"] = false
+		_ack(id, value["request_id"], ServiceResult.failure(&"host_backpressure", "Host pending request budget exhausted."))
 		return
 	var queued: ServiceResult = _world.enqueue_command(command)
 	if queued.is_success:
-		_pending[String(command.command_id)] = {"peer": id, "request_id": value["request_id"]}
+		_pending[route] = {"peer": id, "request_id": value["request_id"]}
 	else:
 		peer["pending_move"] = false
 		_ack(id, value["request_id"], queued)
@@ -169,13 +199,14 @@ func _publish(id: int) -> void:
 	var world_items: ServiceResult = inventory.world_inventory_observation(context)
 	var tools := _world.get_simulation_system(ToolSimulationSystem.SYSTEM_ID) as ToolSimulationSystem
 	var tool_view: ServiceResult = tools.observation(context)
+	var terrain: ServiceResult = _world.terrain_observation(context)
 	if production.is_success and own.is_success and position.is_success:
 		var players: Array = []
 		for peer in _peers.values():
 			if peer["slot"] >= 0:
 				var peer_position: ServiceResult = inventory.own_position(_context(peer["slot"]))
 				players.append({"slot": peer["slot"], "position": peer_position.value})
-		_send(id, {"type": "observation", "tick_number": _world.current_tick_number(), "production": production.value, "tools": tool_view.value if tool_view.is_success else {}, "inventory": own.value, "position": position.value, "players": players, "persistence": persistence.status() if persistence != null else {}, "world_items": world_items.value if world_items.is_success else {}})
+		_send(id, {"type": "observation", "tick_number": _world.current_tick_number(), "production": production.value, "tools": tool_view.value if tool_view.is_success else {}, "terrain": terrain.value if terrain.is_success else {}, "inventory": own.value, "position": position.value, "players": players, "persistence": persistence.status() if persistence != null else {}, "world_items": world_items.value if world_items.is_success else {}})
 
 
 func _send(id: int, value: Dictionary) -> void:
@@ -190,11 +221,11 @@ func _send(id: int, value: Dictionary) -> void:
 
 
 func _ack(id: int, request_id: String, result: ServiceResult) -> void:
-	_send(id, {"type": "ack", "request_id": request_id, "ok": result.is_success, "message": result.message})
+	_send(id, {"type": "ack", "request_id": request_id, "ok": result.is_success, "code": String(result.error_code), "message": result.message})
 
 
 func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
-	var id: String = String(command.command_id)
+	var id: String = _route_key(command)
 	if not _pending.has(id):
 		return
 	var pending: Dictionary = _pending[id]
@@ -203,7 +234,7 @@ func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
 		if command is InventoryDevelopmentCommand and command.operation == "move_to":
 			_peers[pending["peer"]]["pending_move"] = false
 		if _events.size() < 64:
-			_events.append({"peer": pending["peer"], "frame": {"type": "ack", "request_id": pending["request_id"], "ok": result.is_success, "message": result.message}})
+			_events.append({"peer": pending["peer"], "frame": {"type": "ack", "request_id": pending["request_id"], "ok": result.is_success, "code": String(result.error_code), "message": result.message}})
 
 
 func _on_batch_completed(recipe_id: String, tick: int) -> void:

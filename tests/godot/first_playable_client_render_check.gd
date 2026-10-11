@@ -6,7 +6,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	OS.set_environment("FRONTIER_HOST_URL", "ws://127.0.0.1:27850")
+	var terrain_route: bool = OS.get_cmdline_user_args().has("--terrain")
+	var port: int = 27854 if terrain_route else 27850
+	OS.set_environment("FRONTIER_HOST_URL", "ws://127.0.0.1:%d" % port)
 	OS.set_environment("FRONTIER_INVITE_KEY", "render-player-one-key-000000000000000")
 	var world := WorldRuntime.new()
 	world.resource_carriers_enabled = true
@@ -14,11 +16,14 @@ func _run() -> void:
 	var host := FirstPlayableHost.new()
 	root.add_child(host)
 	var keys: Array[String] = [OS.get_environment("FRONTIER_INVITE_KEY"), "render-player-two-key-000000000000000"]
-	if not host.configure(world, keys, 27850).is_success or not world.start_simulation().is_success:
+	if not host.configure(world, keys, port).is_success or not world.start_simulation().is_success:
 		quit(1)
 		return
 	var client := FirstPlayableBootstrap.new()
 	root.add_child(client)
+	# Override before the first network poll; never read a player's real journal.
+	var retry_directory: String = "user://first-playable-render-intent-%d" % Time.get_ticks_usec()
+	client._remote.terrain_retry_directory = retry_directory
 	await create_timer(3.0).timeout
 	if client._latest.is_empty() or client._production_panel == null:
 		push_error("Graphical client failed to authenticate or build its production HUD.")
@@ -47,7 +52,11 @@ func _run() -> void:
 	var wall_route: bool = OS.get_cmdline_user_args().has("--walls")
 	var equipment_route: bool = OS.get_cmdline_user_args().has("--equipment-fabrication")
 	var tool_parts_route: bool = OS.get_cmdline_user_args().has("--tool-parts")
-	if wall_route:
+	if terrain_route:
+		if not await _terrain_route(client):
+			quit(1)
+			return
+	elif wall_route:
 		if not await _wall_route(client):
 			quit(1)
 			return
@@ -71,6 +80,9 @@ func _run() -> void:
 	client._habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW)
 	client._habitat.camera._radius = 14.0
 	client._habitat.camera._update_overview()
+	if terrain_route:
+		client._habitat.camera.position = Vector3(-5.75, 2.3, 4.5)
+		client._habitat.camera.look_at(Vector3(-5.75, 1.0, 3.0))
 	if wall_route:
 		(client._machinery_panel.get_parent() as ScrollContainer).scroll_vertical = 650
 	await RenderingServer.frame_post_draw
@@ -79,13 +91,63 @@ func _run() -> void:
 	if tool_parts_route: directory = "res://reports/tool-parts"
 	if machinery_route: directory = "res://reports/machinery"
 	if wall_route: directory = "res://reports/spatial-walls"
+	if terrain_route: directory = "res://docs/gallery/terrain-controls"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
-	var error: Error = image.save_png(directory.path_join("client.png"))
+	var error: Error = image.save_png(directory.path_join("terrain-dig-fill.png" if terrain_route else "client.png"))
 	print("First playable graphical client completed its seven-step loop using local physics and authenticated guide commands; screenshot result: %d" % error)
 	client.free()
+	DirAccess.remove_absolute(retry_directory)
 	host.free()
 	world.free()
 	quit(0 if error == OK else 1)
+
+
+func _terrain_route(client: FirstPlayableBootstrap) -> bool:
+	var production: LocalProductionPanel = client._production_panel
+	for _batch in range(3):
+		if not await _walk(client, Vector3(-9.0, 0.95, 1.0)): return false
+		production._send("extract", {"deposit_id": "deposit.iron", "carrier_id": "resource-canister-1", "amount_milligrams": 1000000})
+		await create_timer(0.5).timeout
+		if not await _walk(client, Vector3(-6.0, 0.95, 2.0)): return false
+		production._send("unload_cargo", {"carrier_id": "resource-canister-1", "material": "ore.iron", "amount_milligrams": 1000000})
+		await create_timer(0.5).timeout
+		production._send("process", {"recipe_id": "refine.iron"})
+		await create_timer(2.5).timeout
+	for index in range(production._blueprint.item_count):
+		if production._blueprint.get_item_metadata(index) == "equipment.shovel": production._blueprint.select(index)
+	production._fabricate_equipment()
+	await create_timer(0.5).timeout
+	var shovel: String = ""
+	for item in client._latest["inventory"]["items"]:
+		if item["definition_id"] == "item.shovel.fabricated": shovel = item["item_id"]
+	if shovel.is_empty(): return false
+	client._tabs.current_tab = 1
+	var inventory: PlayerInventoryPanel = client._inventory_panel
+	for index in range(inventory._items.item_count):
+		if inventory._items.get_item_metadata(index)["item_id"] == shovel: inventory._items.select(index)
+	for index in range(inventory._slot.item_count):
+		if inventory._slot.get_item_metadata(index) == "hand.left": inventory._slot.select(index)
+	inventory._self_action("equip")
+	await create_timer(0.5).timeout
+	inventory._self_action("select_hand")
+	await create_timer(0.5).timeout
+	if not await _walk(client, Vector3(-6, 0.95, 3)): return false
+	client._tabs.current_tab = 4
+	var terrain: TerrainControlsPanel = client._terrain_panel
+	terrain._amount.value = 0.25
+	if terrain._dig.disabled: return false
+	terrain._dig.pressed.emit()
+	await create_timer(0.6).timeout
+	if terrain._feedback.text != "Completed" or client._latest["terrain"]["transfers"].size() != 1: return false
+	terrain._target.select(1)
+	terrain._refresh()
+	if terrain._fill.disabled: return false
+	terrain._fill.pressed.emit()
+	await create_timer(0.6).timeout
+	if terrain._feedback.text != "Completed" or not client._latest["terrain"]["transfers"].is_empty() or client._latest["terrain"]["cells"]["terrain.dirt.fill"]["state"]["mass_milligrams"] != 250000: return false
+	if client._terrain_preview._markers.size() != 2 or not terrain._status.text.contains("Host capability: ready"): return false
+	print("Graphical terrain: finite shovel fabrication, inventory equip, local physical walking, real dig/fill button route, scoped escrow and two stable cell markers passed.")
+	return true
 
 
 func _wall_route(client: FirstPlayableBootstrap) -> bool:

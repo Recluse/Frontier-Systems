@@ -15,6 +15,10 @@ var _nonce: String = ""
 var server_slot: int = -1
 var _connecting: bool = false
 var _connect_started: int = 0
+var _terrain_record: Dictionary = {}
+var _terrain_intent: Dictionary = {}
+## Optional client intent journal; contains no keys or authoritative world records.
+var terrain_retry_directory: String = ""
 
 
 func _ready() -> void:
@@ -33,6 +37,7 @@ func connect_host(url: String, invite_key: String) -> ServiceResult:
 	var error: Error = _socket.connect_to_url(url)
 	_connecting = error == OK
 	_connect_started = Time.get_ticks_msec()
+	set_process(true)
 	return ServiceResult.success() if error == OK else ServiceResult.failure(&"remote_connect", "Cannot connect to the host.")
 
 
@@ -42,8 +47,13 @@ func _process(_delta: float) -> void:
 		_socket.close(-1)
 	if _socket.get_ready_state() == WebSocketPeer.STATE_CLOSED and _connecting:
 		_projection.record = {}
+		_terrain_record = {}
+		_observation = {}
+		_authenticated = false
+		_sent_auth = false
+		_connecting = false
 		for command in _requests.values():
-			command_completed.emit(command, ServiceResult.failure(&"remote_disconnected", "Host connection closed; refresh before retrying."))
+			command_completed.emit(command, ServiceResult.failure(&"remote_disconnected", "Host connection closed; preserve the original terrain intent and retry after reconnecting."))
 		_requests.clear()
 		connection_closed.emit("Host connection closed")
 		set_process(false)
@@ -69,13 +79,22 @@ func _process(_delta: float) -> void:
 func _receive(frame: Dictionary) -> void:
 	match frame.get("type"):
 		"authenticated":
-			if typeof(frame.get("world_id")) != TYPE_STRING or typeof(frame.get("region_id")) != TYPE_STRING or not ControlContractValidation.is_integer(frame.get("slot"), 0, 1):
+			if _authenticated or not ToolComponentCatalog.exact(frame, ["type", "world_id", "region_id", "slot"]) or not ControlContractValidation.is_id(frame.get("world_id")) or not ControlContractValidation.is_id(frame.get("region_id")) or not ControlContractValidation.is_integer(frame.get("slot"), 0, 1):
+				_socket.close(1008, "Invalid authenticated scope")
 				return
 			world_id = StringName(frame["world_id"])
 			region_id = StringName(frame["region_id"])
 			_authenticated = true
 			server_slot = int(frame["slot"])
+			if _terrain_intent.is_empty() and not terrain_retry_directory.is_empty():
+				var loaded: ServiceResult = LocalTerrainRetryStore.read_intent(_retry_path())
+				if loaded.is_success: _terrain_intent = loaded.value
+				elif loaded.error_code != &"terrain_retry_missing":
+					_socket.close(1008, "Invalid local terrain retry journal")
 		"observation":
+			if not TerrainObservationValidation.valid(frame.get("terrain")):
+				_socket.close(1008, "Invalid terrain observation")
+				return
 			if not ToolObservationValidation.valid(frame.get("tools")):
 				_socket.close(1008, "Invalid tool observation")
 				return
@@ -91,13 +110,20 @@ func _receive(frame: Dictionary) -> void:
 			if not _projection.accept_record(frame["production"]).is_success:
 				_socket.close(1008, "Invalid production observation")
 				return
+			_terrain_record = TerrainObservationValidation.normalized(frame["terrain"])
+			frame["terrain"] = _terrain_record.duplicate(true)
 			_observation = frame.duplicate(true)
 			observation_received.emit(_observation.duplicate(true))
 		"ack":
-			if _requests.has(frame.get("request_id")) and typeof(frame.get("ok")) == TYPE_BOOL and typeof(frame.get("message")) == TYPE_STRING:
+			if _requests.has(frame.get("request_id")) and typeof(frame.get("ok")) == TYPE_BOOL and typeof(frame.get("code")) == TYPE_STRING and frame["code"].length() <= 128 and typeof(frame.get("message")) == TYPE_STRING and frame["message"].length() <= 512:
 				var command: SimulationCommand = _requests[frame["request_id"]]
 				_requests.erase(frame["request_id"])
-				command_completed.emit(command, ServiceResult.success() if frame["ok"] else ServiceResult.failure(&"remote_command_rejected", frame["message"]))
+				if command is TerrainCommand and frame["code"] != "request_pending":
+					if terrain_retry_directory.is_empty() or LocalTerrainRetryStore.clear_intent(_retry_path()).is_success: _terrain_intent = {}
+					# Wait for a post-completion projection before allocating fresh
+					# work; the pre-ack next ordinal may identify the retained receipt.
+					_terrain_record = {}
+				command_completed.emit(command, ServiceResult.success() if frame["ok"] else ServiceResult.failure(StringName(frame["code"]), frame["message"]))
 		"batch_completed":
 			if typeof(frame.get("recipe_id")) == TYPE_STRING and ControlContractValidation.is_integer(frame.get("tick_number"), 0, 9007199254740000):
 				_projection.batch_completed.emit(frame["recipe_id"], int(frame["tick_number"]))
@@ -111,13 +137,63 @@ func production_observation(_context: AuthenticatedCommandContext) -> ServiceRes
 	return _projection.observation(null)
 
 
+func terrain_observation(_context: AuthenticatedCommandContext) -> ServiceResult:
+	return ServiceResult.success(_terrain_record.duplicate(true)) if not _terrain_record.is_empty() else ServiceResult.failure(&"remote_not_ready", "Waiting for terrain observation.")
+
+
+func terrain_pending_intent() -> Dictionary:
+	return _terrain_intent.duplicate(true)
+
+
+func restore_terrain_intent(record: Dictionary) -> ServiceResult:
+	if not _terrain_intent.is_empty() or not LocalTerrainRetryStore.valid(record): return ServiceResult.failure(&"terrain_retry_invalid", "Restore one exact bounded client intent.")
+	_terrain_intent = LocalTerrainRetryStore.normalized(record)
+	return ServiceResult.success()
+
+
+func retry_terrain_intent() -> ServiceResult:
+	if _terrain_intent.is_empty(): return ServiceResult.failure(&"terrain_retry_missing", "There is no unresolved terrain intent.")
+	var command := TerrainCommand.new()
+	command.request_number = int(_terrain_intent["request_number"])
+	command.command_id = StringName("terrain-client-%d" % command.request_number)
+	command.operation = _terrain_intent["operation"]
+	command.payload = _terrain_intent["payload"].duplicate(true)
+	return enqueue_command(command)
+
+
+func _retry_path() -> String:
+	return terrain_retry_directory.path_join(JSON.stringify([String(world_id), String(region_id), server_slot]).sha256_text() + ".json")
+
+
 func enqueue_command(command: SimulationCommand) -> ServiceResult:
 	if not _authenticated or _socket.get_ready_state() != WebSocketPeer.STATE_OPEN or _requests.size() >= 8:
 		return ServiceResult.failure(&"remote_not_ready", "Host is not ready or requests are pending.")
-	var system: String = "production" if command is ProductionDevelopmentCommand else ("inventory" if command is InventoryDevelopmentCommand else ("world" if command is CheckpointRequest else ""))
+	var system: String = "terrain" if command is TerrainCommand else ("production" if command is ProductionDevelopmentCommand else ("inventory" if command is InventoryDevelopmentCommand else ("world" if command is CheckpointRequest else "")))
 	if system.is_empty() or String(command.command_id).length() > 90 or _requests.has(String(command.command_id)):
 		return ServiceResult.failure(&"remote_command_invalid", "Unsupported or duplicate client request.")
 	var frame: Dictionary = {"type": "command", "request_id": String(command.command_id), "system": system, "operation": command.operation, "payload": command.payload}
+	if command is TerrainCommand:
+		if _terrain_record.is_empty() or not TerrainObservationValidation.valid_intent(command.request_number, command.operation, command.payload) or String(command.command_id) != "terrain-client-%d" % command.request_number:
+			return ServiceResult.failure(&"terrain_intent_invalid", "Use an observed bounded terrain intent and its stable ordinal.")
+		var intent: Dictionary = {"schema_version": 1, "world_id": String(world_id), "region_id": String(region_id), "slot": server_slot, "request_number": command.request_number, "operation": command.operation, "payload": command.payload.duplicate(true)}
+		intent = LocalTerrainRetryStore.normalized(intent)
+		if not _terrain_intent.is_empty() and _terrain_intent != intent:
+			return ServiceResult.failure(&"terrain_retry_required", "Reconcile the original unresolved terrain intent before starting fresh work.")
+		if _terrain_intent.is_empty() and (command.request_number != _terrain_record["next_request_number"] or _terrain_record["request_sequence_exhausted"]):
+			return ServiceResult.failure(&"terrain_ordinal_invalid", "Use the observed next ordinal for fresh work only.")
+		if not terrain_retry_directory.is_empty():
+			var stored: ServiceResult = LocalTerrainRetryStore.write_intent(_retry_path(), intent)
+			if not stored.is_success: return stored
+		_terrain_intent = intent
+		frame["request_number"] = command.request_number
+		frame["payload"] = intent["payload"].duplicate(true)
+		# Freeze the completion identity too: callers may reuse their mutable object.
+		var frozen := TerrainCommand.new()
+		frozen.command_id = command.command_id
+		frozen.request_number = command.request_number
+		frozen.operation = command.operation
+		frozen.payload = intent["payload"].duplicate(true)
+		command = frozen
 	var sent: Error = _socket.send_text(JSON.stringify(frame))
 	if sent != OK:
 		return ServiceResult.failure(&"remote_send", "Host send buffer is unavailable.")
