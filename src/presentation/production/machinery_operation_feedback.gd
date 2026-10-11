@@ -64,9 +64,11 @@ func observe(production: Dictionary) -> bool:
 		if energy == 0: power += " · empty; delivery unconfirmed"
 		var job: Dictionary = workshop["jobs"].get(id, {})
 		var job_text: String = "No active batch observed"
+		var preview_job: String = "No active batch observed"
 		var prior: Dictionary = _previous.get(id, {})
 		if job.is_empty() and not prior.is_empty():
 			job_text += " · previous batch ended; completion/cancellation not distinguished"
+			preview_job = "Batch ended · outcome unconfirmed"
 		elif not job.is_empty():
 			var activity: String = "Awaiting progress observation"
 			if job["paused"]: activity = "Paused · Resume required"
@@ -74,10 +76,16 @@ func observe(production: Dictionary) -> bool:
 			elif not prior.is_empty() and prior["recipe"] == job["recipe"] and tick > _tick:
 				activity = "Running · observed progress" if int(job["progress"]) > int(prior["progress"]) else "Not advancing · parts/power/feedstock/capacity may block"
 			job_text = "%s · %d ticks · %d J spent · %s" % [job["recipe"], job["progress"], job["energy_spent"], activity]
+			preview_job = "%s · %d ticks\n%s" % [job["recipe"], job["progress"], "Paused · Resume" if job["paused"] else ("Progress observed" if activity.begins_with("Running") else "Awaiting / blocked")]
 		if tick == _tick and job == prior and prior_text.has(id):
 			job_text = prior_text[id]["job"]
+			preview_job = prior_text[id]["preview_job"]
 		next[id] = job.duplicate(true)
-		machines[id] = {"text": "%s\n%s\n%s\n%s" % [state, "; ".join(capabilities), power, job_text], "job": job_text}
+		var preview_condition: String = ""
+		if not broken.is_empty(): preview_condition = "\nBroken modules retained"
+		elif not damaged.is_empty(): preview_condition = "\nDamaged modules"
+		elif not unknown.is_empty(): preview_condition = "\nModule condition unobserved"
+		machines[id] = {"text": "%s\n%s\n%s\n%s" % [state, "; ".join(capabilities), power, job_text], "job": job_text, "preview_job": preview_job, "preview_text": "%s%s\nBuffer %d J\n%s" % [state, preview_condition, energy, preview_job]}
 	grid_text = "Observed grid: %d frame buffers total %d J · %d cable links. Buffers are separate; links do not certify delivery or job readiness. Host validates operations." % [workshop["placements"].size(), total, workshop["links"].size()]
 	if tick > _tick:
 		_previous = next

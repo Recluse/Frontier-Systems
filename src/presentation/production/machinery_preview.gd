@@ -114,8 +114,8 @@ func observe(record: Dictionary) -> void:
 					_box(body, Vector3(0.14, 0.12, 0.14), Color(0.9, 0.6, 0.2), Vector3(-0.2 + outputs * 0.18, 0.55, 0.15))
 					outputs += 1
 		title.position.y = 1.4
-		title.font_size = 36
-		title.pixel_size = 0.004
+		title.font_size = 30
+		title.pixel_size = 0.003
 		title.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 		body.add_child(title)
 		_labels[id] = {"label": title, "fitted": fitted, "outputs": outputs}
@@ -140,7 +140,7 @@ func _update_labels(workshop: Dictionary) -> void:
 		var roles: PackedStringArray = []
 		for kind in _labels[id]["fitted"]:
 			if ROLES.has(kind): roles.append(ROLES[kind])
-		_labels[id]["label"].text = "%s\n%s" % ["\n".join(roles) if not roles.is_empty() else "MACHINE FRAME", _operation_feedback.machines[id]["text"]]
+		_labels[id]["label"].text = "%s\n%s" % ["\n".join(roles) if not roles.is_empty() else "MACHINE FRAME", _operation_feedback.machines[id]["preview_text"]]
 		if _labels[id]["fitted"].has("autolathe"):
 			_labels[id]["label"].text += "\nHOPPER %.3f kg IRON" % (float(workshop["cargo"].get(id, {}).get("iron", 0)) / 1000000.0)
 		if int(_labels[id]["outputs"]) > 0: _labels[id]["label"].text += "\n%d PRINTED OUTPUT" % _labels[id]["outputs"]
