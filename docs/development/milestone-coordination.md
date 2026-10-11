@@ -1,5 +1,14 @@
 # Coordinated milestone work
 
+## Pending successors and Discord onboarding (2026-10-11 03:29 UTC)
+
+- Task guide chat `01a128fb-1aca-79b3-bafc-df0d8fdf00c6` has attached draft PR #21 at `36c280718228ffaa1f93d7d30531652134937627`. Source review confirms current scoped facts, no historical completion or commands, and minimal appended Guide tab wiring. Recipe hints match the pinned current catalog. Exact-head runs `38108397803` / `38108395825` still have Godot jobs in progress; no merge while gates are missing.
+- Maintenance chat `01a128fc-078c-7751-94f3-04ade7de2277` has draft PR #23. Earlier reviewed head `4a2a30fe72c9313343bdc0e66f7b93c75af25057` was superseded by `854cee94aaa60629c8244f4fbcd4385c2fc3652e` to report absent station reserves as unavailable. Require review of that final delta and its completed exact-head CI; neither earlier CI nor local evidence is a substitute. Captures remain ignored/local; no socket ports used.
+- Terrain-return chat `01a128fb-a4bf-73d0-bbf0-c379f313b1da` is implementing draft PR #22. It exclusively owns port 19243. Its bounded v3 proposal retains all original claim receipts/lifetime slots, introduces immutable return history, and prevents repeated claim retries from recreating returned items. Cross-holder return/fill and lifecycle restore tests are required; canonical changes remain serialized to this chat.
+- Owner explicitly requested separate live Discord interest-onboarding task `01a128ff-aa85-7651-822e-b002e0632451`, created with Sol/medium. It is independent community setup, not a fourth gameplay implementation chat. It adds primary/optional secondary activity interests through permissionless self-assignable roles, preserves FAQ/guide/safety/private channels, and routes all genuine approvals through Coordinator. Snapshot shows configuration underway; no live completion is claimed. Its eventual documentation PR needs review but does not require a gameplay successor.
+
+Website certificate remains `new` with HTTPS enforcement disabled. No repeated domain reset, certificate bypass, cross-link merge or duplicate funding update. Active game PRs remain unmerged while required CI is pending.
+
 ## Context, parcel client and wall input integration (2026-10-11 UTC)
 
 | Milestone | Reviewed exact head | Verified successful exact-head CI | Verified squash merge |
