@@ -1,5 +1,9 @@
 # Coordinated milestone work
 
+## Planned playable-character tutorial
+
+Owner requested a [basic gameplay tutorial with recorded, edited captioned videos](basic-gameplay-tutorial-milestone.md). Queue when actual playable characters and a repeatable basic finite engineering loop are verified usable; movement fixtures alone do not satisfy the gate. Prioritize before advanced rail/colony/ship tutorials. Deliver pinned real gameplay recordings, standard nongenerative edits, manually verified synchronized captions, transcripts and provenance. Record/edit work is authorized; final public videos/destination require clearance through Coordinator. No change to active chat scopes or current image-upload restrictions.
+
 ## Terrain preview and targeting integration (2026-10-11 04:40 UTC)
 
 Reused immutable review for #30 head `d2d65021e7bbc0bfe14a8dab3099215f8411ca4b`; all 24 checks now passed, including full PR `38111415799` and push `38111404025`. Matching-head squash merge verified `0922ed44498af3eca2bd815e54628756e475be17`. Five combined Windows checks passed: import/startup, terrain_work_target_test, world_context_label_test and habitat_preview_test, ignored `var/ci/coordinator-terrain-preview`. No images provided.
