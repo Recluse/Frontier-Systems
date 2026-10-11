@@ -5,11 +5,20 @@ param(
     [string]$HostUrl = 'ws://127.0.0.1:27840',
     [string]$InviteFile,
     [ValidatePattern('^[A-Za-z0-9_-]{1,64}$')][string]$WorldName = 'main',
+    [switch]$BackupHistory,
+    [ValidateRange(1, 8)][int]$BackupEntries = 3,
+    [ValidateRange(1, 67108864)][int]$BackupBytes = 33554432,
     [switch]$Initialize,
     [switch]$CheckOnly
 )
 
 $ErrorActionPreference = 'Stop'
+if (($BackupHistory -or $PSBoundParameters.ContainsKey('BackupEntries') -or $PSBoundParameters.ContainsKey('BackupBytes')) -and $Mode -ne 'Host') {
+    throw 'Backup history options require -Mode Host.'
+}
+if (-not $BackupHistory -and ($PSBoundParameters.ContainsKey('BackupEntries') -or $PSBoundParameters.ContainsKey('BackupBytes'))) {
+    throw 'Explicit history bounds require -BackupHistory.'
+}
 $playableProjectPath = Split-Path -Parent $PSScriptRoot
 $playableLocalPath = Join-Path $playableProjectPath 'config/local/first-playable'
 $playableKeysPath = Join-Path $playableLocalPath 'invites.json'
@@ -37,7 +46,7 @@ if ($Mode -eq 'Host') {
     $playableArguments = @('--headless') + $playableArguments + @('--', '--host')
 }
 if ($CheckOnly) {
-    [pscustomobject]@{ Executable = $GodotPath; Arguments = $playableArguments; Mode = $Mode; Slot = $Slot; HostUrl = $HostUrl; SaveDirectory = (Join-Path $playableLocalPath "worlds/$WorldName") }
+    [pscustomobject]@{ Executable = $GodotPath; Arguments = $playableArguments; Mode = $Mode; Slot = $Slot; HostUrl = $HostUrl; BackupHistory = [bool]$BackupHistory; BackupEntries = $(if ($BackupHistory) { $BackupEntries } else { $null }); BackupBytes = $(if ($BackupHistory) { $BackupBytes } else { $null }); SaveDirectory = (Join-Path $playableLocalPath "worlds/$WorldName") }
     return
 }
 if ($Mode -eq 'Client' -and -not [string]::IsNullOrEmpty($InviteFile)) {
@@ -56,5 +65,16 @@ if ($Mode -eq 'Client' -and -not [string]::IsNullOrEmpty($InviteFile)) {
     }
 }
 $env:FRONTIER_HOST_URL = $HostUrl
-& $GodotPath @playableArguments
-exit $LASTEXITCODE
+# Scope backup settings to this child launch, including explicit opt-out when inherited.
+$playablePreviousEntries = [Environment]::GetEnvironmentVariable('FRONTIER_BACKUP_ENTRIES', 'Process')
+$playablePreviousBytes = [Environment]::GetEnvironmentVariable('FRONTIER_BACKUP_BYTES', 'Process')
+try {
+    $env:FRONTIER_BACKUP_ENTRIES = if ($Mode -eq 'Host' -and $BackupHistory) { $BackupEntries.ToString([Globalization.CultureInfo]::InvariantCulture) } else { '' }
+    $env:FRONTIER_BACKUP_BYTES = if ($Mode -eq 'Host' -and $BackupHistory) { $BackupBytes.ToString([Globalization.CultureInfo]::InvariantCulture) } else { '' }
+    & $GodotPath @playableArguments
+    $playableExit = $LASTEXITCODE
+} finally {
+    [Environment]::SetEnvironmentVariable('FRONTIER_BACKUP_ENTRIES', $playablePreviousEntries, 'Process')
+    [Environment]::SetEnvironmentVariable('FRONTIER_BACKUP_BYTES', $playablePreviousBytes, 'Process')
+}
+exit $playableExit
