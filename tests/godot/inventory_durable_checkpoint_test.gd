@@ -4,6 +4,29 @@ class Sessions extends InventoryControllerSessionProvider:
 	func permits_inventory(principal: StringName, session: StringName, world: StringName, region: StringName) -> bool:
 		return principal == ACTOR and session == &"session.acceptance" and world == WorldRuntime.DEFAULT_WORLD_ID and region == WorldRuntime.DEFAULT_REGION_ID
 
+## Delegate successful operations to native temporary storage; fail only one boundary.
+class FaultFiles extends CheckpointFileIO:
+	var fault: String = ""
+
+	func write_text(path: String, text: String) -> ServiceResult:
+		if fault == "open":
+			return ServiceResult.failure(&"save_open", "Injected staging open failure.")
+		if fault == "write" or fault == "cleanup":
+			var partial: ServiceResult = super.write_text(path, text.substr(0, 20))
+			return ServiceResult.failure(&"save_write", "Injected partial write failure.") if partial.is_success else partial
+		return super.write_text(path, text)
+
+	func promote(source: String, destination: String) -> ServiceResult:
+		if fault == "promote":
+			return ServiceResult.failure(&"save_promote", "Injected promotion failure.")
+		return super.promote(source, destination)
+
+	func remove_file(path: String) -> ServiceResult:
+		if fault == "cleanup" and path.ends_with(".tmp"):
+			return ServiceResult.failure(&"save_cleanup", "Injected staging cleanup failure.")
+		return super.remove_file(path)
+
+
 const ACTOR: StringName = &"local-inventory-actor"
 var _failures: int = 0
 var _base: String
@@ -96,6 +119,7 @@ func _run() -> void:
 	_check(_json(_snapshot(recovered)["owner"]) == completed["systems"]["inventory"]["owner"], "retained completion retry and ticks preserve exact owner and one receipt")
 	_destroy(recovered)
 	_test_refusal(paused)
+	await _test_write_faults()
 	for path in _directories:
 		for filename in DirAccess.get_files_at(path):
 			_check(DirAccess.remove_absolute(path.path_join(filename)) == OK, "remove temporary checkpoint")
@@ -103,6 +127,71 @@ func _run() -> void:
 	_check(DirAccess.remove_absolute(_base) == OK, "remove temporary storage root")
 	print("Durable queued inventory checkpoint acceptance: %d failures" % _failures)
 	quit(0 if _failures == 0 else 1)
+
+
+func _test_write_faults() -> void:
+	for fault in ["open", "write", "promote", "cleanup"]:
+		var directory: String = _fixture("write-" + fault)
+		var files := FaultFiles.new()
+		var runtime: Dictionary = _runtime(directory, true, files)
+		var token: InventoryControllerToken = _bind(runtime)
+		_send(runtime, token, "take.fault", "start", _intent(runtime))
+		_step(runtime, 179)
+		_check(_snapshot(runtime)["jobs"][0]["job"]["progress_ticks"] == 179, "seed final-tick work before fault injection")
+		var previous: Dictionary = await _save(runtime, 1)
+		var previous_bytes: String = FileAccess.get_file_as_string(directory.path_join("world-b.json"))
+		_step(runtime, 1)
+		_check(_snapshot(runtime)["owner"]["receipts"].size() == 1, fault + " fixture completes one actual queued transfer")
+		var captured: String = runtime["world"].capture_world_snapshot_json().value
+		var tick: int = runtime["world"].current_tick_number()
+		var counters: Dictionary = runtime["queue"].profiling_counters()
+		var observation: Dictionary = runtime["queue"].local_observation(token, _context()).value
+		var acknowledgements: Array = []
+		var callback: Callable = func(saved_tick: int, result: ServiceResult) -> void: acknowledgements.append({"tick": saved_tick, "result": result})
+		runtime["store"].checkpoint_completed.connect(callback)
+		files.fault = fault
+		for attempt in range(2):
+			_check(runtime["store"].request_checkpoint().is_success, fault + " accepts worker without durable acknowledgement")
+			_check(runtime["store"].status()["busy"] and runtime["store"].status()["saved_tick"] == int(previous["tick_number"]), fault + " pending write retains prior saved tick")
+			_check(runtime["store"].request_checkpoint().error_code == &"checkpoint_busy", fault + " rejects overlapping capture")
+			var deadline: int = Time.get_ticks_msec() + 5000
+			while runtime["store"].status()["busy"] and Time.get_ticks_msec() < deadline:
+				runtime["store"]._process(0.0)
+				await process_frame
+			var expected: StringName = {"open": &"save_open", "write": &"save_write", "promote": &"save_promote", "cleanup": &"save_cleanup"}[fault]
+			_check(not runtime["store"].status()["busy"] and acknowledgements.size() == attempt + 1, fault + " releases worker and emits one bounded completion")
+			if acknowledgements.size() == attempt + 1:
+				_check(acknowledgements.back()["tick"] == tick and acknowledgements.back()["result"].error_code == expected and not acknowledgements.back()["result"].is_success, fault + " reports matching captured-tick failure")
+			_check(runtime["store"].status()["saved_tick"] == int(previous["tick_number"]) and not runtime["store"].status()["last_error"].is_empty(), fault + " never falsely advances saved tick")
+			_check(runtime["world"].capture_world_snapshot_json().value == captured and runtime["queue"].profiling_counters() == counters and runtime["queue"].local_observation(token, _context()).value == observation, fault + " preserves complete canonical world, receipt, queue and controller")
+			var latest: ServiceResult = LocalWorldSaveStore.read_latest(directory)
+			_check(latest.is_success and int(latest.value["sequence"]) == 1 and FileAccess.get_file_as_string(directory.path_join("world-b.json")) == previous_bytes, fault + " retains previous committed bytes")
+			_check(FileAccess.file_exists(directory.path_join("world-a.json.tmp")) == (fault == "cleanup"), fault + " cleanup result agrees with ignored staging presence")
+			runtime["store"]._process(0.0)
+			_check(acknowledgements.size() == attempt + 1, fault + " cannot emit duplicate completion or replay work")
+		# Mutate the injection only after the worker has joined; retry without advancing ticks.
+		files.fault = ""
+		runtime["store"].checkpoint_completed.disconnect(callback)
+		await _save(runtime, 2)
+		_check(LocalWorldSaveStore.read_latest(directory).value["snapshot_json"] == captured and runtime["store"].status()["last_error"].is_empty(), fault + " explicit retry commits exact original capture and clears failure")
+		_check(FileAccess.get_file_as_string(directory.path_join("world-b.json")) == previous_bytes and not FileAccess.file_exists(directory.path_join("world-a.json.tmp")), fault + " retry preserves prior slot and consumes staging")
+		_destroy(runtime)
+		if fault != "cleanup":
+			continue
+		# Envelope-corrupt newer slot permits older valid fallback; domain-invalid slots
+		# remain covered by refusal tests and are never silently bypassed.
+		_check(CheckpointFileIO.new().write_text(directory.path_join("world-a.json"), "truncated").is_success, "corrupt only disposable newer slot")
+		var recovered: Dictionary = _runtime(directory, false)
+		var stale: InventoryControllerToken = _bind(recovered)
+		_check(recovered["queue"].enqueue(stale, _context(), "fallback.volatile", "resume", {"job_id": "take.fault"}).is_success, "queue disposable pre-load intent")
+		_check(recovered["store"].configure(recovered["world"], directory).is_success, fault + " actual adapter falls back to valid older slot")
+		_check(recovered["queue"].advance_tick(int(previous["tick_number"]) + 1, 1.0 / 60.0).error_code == &"queue_restored" and recovered["queue"].profiling_counters()["pending"] == 0, "fallback fences volatile intent without replay")
+		_check(_json(_snapshot(recovered)["owner"]) == previous["systems"]["inventory"]["owner"] and _snapshot(recovered)["jobs"][0]["job"]["state"] == "paused", "fallback retains exact older owner and pauses final-tick work")
+		_start(recovered)
+		_step(recovered, 180)
+		_check(_json(_snapshot(recovered)["owner"]) == previous["systems"]["inventory"]["owner"] and _snapshot(recovered)["jobs"][0]["job"]["progress_ticks"] == 179, "fallback ticks never replay completion or fabricate receipt")
+		_check(FileAccess.get_file_as_string(directory.path_join("world-b.json")) == previous_bytes and FileAccess.get_file_as_string(directory.path_join("world-a.json")) == "truncated", "fallback preserves both source slots")
+		_destroy(recovered)
 
 
 func _test_refusal(paused: Dictionary) -> void:
@@ -133,7 +222,7 @@ func _test_refusal(paused: Dictionary) -> void:
 		_destroy(fresh)
 
 
-func _runtime(directory: String, configure: bool = true) -> Dictionary:
+func _runtime(directory: String, configure: bool = true, files: CheckpointFileIO = null) -> Dictionary:
 	var world := WorldRuntime.new()
 	root.add_child(world)
 	var inventory := world.get_simulation_system(InventorySimulationSystem.SYSTEM_ID) as InventorySimulationSystem
@@ -144,7 +233,7 @@ func _runtime(directory: String, configure: bool = true) -> Dictionary:
 	store.set_process(false)
 	var runtime: Dictionary = {"world": world, "inventory": inventory, "queue": queue, "authority": queue.controller_authority(), "store": store, "directory": directory}
 	if configure:
-		_check(store.configure(world, directory).is_success, "configure empty temporary store")
+		_check(store.configure(world, directory, files).is_success, "configure empty temporary store")
 		_start(runtime)
 	return runtime
 
