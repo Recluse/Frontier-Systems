@@ -145,6 +145,33 @@ func run() -> void:
 		bounded(panel, scroll.size.x)
 		capture_stage = "rejected" if panel._result.text.contains("Host rejected") else "disconnected"
 		await readable(panel._result)
+		# Transport completes requests before emitting connection_closed.
+		selections()
+		request = await activate("move")
+		remote.command_completed.emit(request, ServiceResult.failure(&"remote_disconnected", "Host connection closed"))
+		var recovery: String = panel._result.text
+		remote.connection_closed.emit("Layout fixture disconnect")
+		check(panel._result.text == recovery and panel._pending.is_empty() and panel._pending_inventory.is_empty(), "completion-first disconnect keeps display context but clears live request")
+		for target: String in [String(request.command_id), ids["crowbar-1"], ids["storage.pouch-1"], ids["body.human-1"], "revision " + str(request.payload["expected_revision"])]:
+			check(recovery.contains(target), "unknown Move retains exact target: " + target)
+		check(recovery.contains("outcome is unknown") and recovery.contains("no automatic retry") and not recovery.contains("Waiting for"), "recovery is uncertain historical context, not pending work")
+		remote.command_completed.emit(request, ServiceResult.success())
+		check(panel._result.text == recovery, "late Move success cannot rewrite uncertainty")
+		panel.observe(observed)
+		selections()
+		check(panel._result.text == recovery, "fresh same-revision observation and selection changes keep historical context")
+		await settle()
+		bounded(panel, scroll.size.x)
+		capture_stage = "disconnected"
+		await readable(panel._result)
+		# Also cover connection_closed arriving before remote completion.
+		var fresh_move: SimulationCommand = await activate("move")
+		check(fresh_move.command_id != request.command_id and panel._move_recovery_text.is_empty(), "explicit new submission clears historical context and allocates new identity")
+		remote.connection_closed.emit("Signal-first disconnect")
+		var second_recovery: String = panel._result.text
+		remote.command_completed.emit(fresh_move, ServiceResult.failure(&"remote_disconnected", "Host connection closed"))
+		check(panel._result.text == second_recovery and second_recovery.contains(String(fresh_move.command_id)), "signal-first disconnect keeps fresh exact Move identity")
+		panel.observe(observed)
 		var removed: Dictionary = observed.duplicate(true)
 		removed["inventory"]["items"].clear()
 		removed["inventory"]["container_ids"].clear()
