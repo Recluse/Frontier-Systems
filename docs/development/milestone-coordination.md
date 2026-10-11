@@ -1,5 +1,9 @@
 # Coordinated milestone work
 
+## Owner-requested gameplay reference: Moonbase Alpha
+
+The 2026-10-11 UTC [inspiration review](../design/moonbase-alpha-inspiration.md) records official descriptive sources and independently authored acceptance criteria. After current chats complete, consider a narrow existing-machine diagnosis/repair milestone using current maintenance and inventory owners. Prioritize cooperative repair logistics and readable infrastructure dependencies; defer pressure emergencies, cargo rovers and remote robots until their foundational contracts are integrated. This adds a candidate to successor selection without interrupting active chats or authorizing asset imports.
+
 The owner requested separate milestone chats on 2026-10-10. The primary **Coordinator** chat reviews and integrates milestones. Each implementation chat uses a managed worktree and a feature branch with a draft PR targeting dev-master. Concurrent chats do not push dev-master, merge, deploy or modify global milestone reports. Each reports its exact commit, PR, tests and acceptance limitations for coordinator review.
 
 | Chat | Assigned milestone | Scope | Dependencies / non-goals |
