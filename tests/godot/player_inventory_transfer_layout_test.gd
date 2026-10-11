@@ -152,7 +152,7 @@ func run() -> void:
 		var recovery: String = panel._result.text
 		remote.connection_closed.emit("Layout fixture disconnect")
 		check(panel._result.text == recovery and panel._pending.is_empty() and panel._pending_inventory.is_empty(), "completion-first disconnect keeps display context but clears live request")
-		for target: String in [String(request.command_id), ids["crowbar-1"], ids["storage.pouch-1"], ids["body.human-1"], "revision " + str(request.payload["expected_revision"])]:
+		for target: String in [String(request.command_id), ids["crowbar-1"], ids["storage.pouch-1"], ids["body.human-1"], "revision " + str(int(request.payload["expected_revision"]))]:
 			check(recovery.contains(target), "unknown Move retains exact target: " + target)
 		check(recovery.contains("outcome is unknown") and recovery.contains("no automatic retry") and not recovery.contains("Waiting for"), "recovery is uncertain historical context, not pending work")
 		remote.command_completed.emit(request, ServiceResult.success())
