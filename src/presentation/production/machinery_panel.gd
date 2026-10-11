@@ -73,7 +73,7 @@ func configure(world: WorldRuntime) -> void:
 	add_child(_placement_kind)
 	_placement_kind.item_selected.connect(func(_index: int) -> void: _refresh_placement())
 	_part.item_selected.connect(func(_index: int) -> void: _refresh_placement())
-	_wall.item_selected.connect(func(_index: int) -> void: _refresh_placement())
+	_wall.item_selected.connect(func(_index: int) -> void: select_wall(_selected(_wall)))
 	_wall_turn.item_selected.connect(func(_index: int) -> void: _refresh_placement())
 	_show_placement.text = "Show placement ghost / footprint"
 	_show_placement.toggled.connect(func(_shown: bool) -> void: _refresh_placement())

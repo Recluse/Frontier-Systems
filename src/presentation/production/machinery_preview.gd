@@ -13,6 +13,16 @@ const ROLES: Dictionary = {"autolathe": "AUTOLATHE","solar": "SOLAR GENERATOR", 
 
 
 func observe(record: Dictionary) -> void:
+	if record.is_empty():
+		_signature = ""
+		_labels.clear()
+		_socket_labels.clear()
+		for child in get_children():
+			if child == _feedback_root: continue
+			remove_child(child)
+			child.queue_free()
+		present_feedback({})
+		return
 	var workshop: Dictionary = record["machinery"]
 	var poses: Dictionary = {}
 	for id in workshop["placements"]: poses[id] = workshop["placements"][id]["position"]
