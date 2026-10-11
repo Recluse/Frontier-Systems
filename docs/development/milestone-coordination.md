@@ -1,5 +1,27 @@
 # Coordinated milestone work
 
+## Context, parcel client and wall input integration (2026-10-11 UTC)
+
+| Milestone | Reviewed exact head | Verified successful exact-head CI | Verified squash merge |
+| --- | --- | --- | --- |
+| Context label readability, PR #20 | `ab7610f222a86a1c39c65ae3898a0f5c8e2dbf79` | Full PR run `38107176275`; all 20 PR/push check runs succeeded | `72db574d8edcc2c2dda68eedbe90b87a5cd0ce8a` |
+| Authenticated terrain parcel client, PR #18 | `95c41bb4f00094e7ddb4d208eb1f734160869dd6` | Full PR `38107046450`, focused parcel PR `38107046410`; all 26 check runs succeeded | `f641df3183643f2808137f75b6318be4178b04f3` |
+| Wall placement input usability, PR #19 | `6a0530cac04e87508dd0999fefcdc489ba012fca` | Full PR `38107345136`; all 20 PR/push check runs succeeded | `8bcc1b4331dcf2b312b2131fd28ac89953496215` |
+
+Coordinator reviewed immutable changes against the integration checkout, including callers, scoped authority, retry/persistence, Windows behavior and meaningful tests. Context labels never alter collision/reach or world state; deferred viewport installation resolves the previously failing nested habitat setup. Wall inputs retain draft coordinates, freeze submitted targets, and avoid silently retargeting vanished selections. Parcel transport binds host identity, accepts only transfer/revision intent and preserves one unresolved original journal across lost acknowledgements and both-end restart. The existing owner remains responsible for atomic material/inventory adoption; checkpoints retain their existing durability cadence. Updated the stale PR #20 body before merge. All merges used matching-head guards, without admin bypass.
+
+Fast-forwarded the clean primary checkout to `8bcc1b4`. Eight combined Windows checks passed using the existing bounded runner: import/startup, first_playable_acceptance (36.09 s), habitat_preview_test, terrain_parcel_client_test (18.43 s), wall_input_usability_test, world_context_label_test and world_inventory_preview_test. Logs/JUnit are ignored under `var/ci/coordinator-context-parcel-wall`. The initial invocation named a nonexistent acceptance test and exited before running checks; the corrected filename run passed. Combined acceptance ports 27849/19241/19242 were prechecked and released. No combined graphical/human/VR/controller/Linux graphical acceptance is claimed; individual Windows graphical routes remain milestone evidence.
+
+Reviewed the already-retained context overview locally: SHA256 `17c652f6da541638067f213f9f110790d93abefba7664c9cbcc23263bc1dd09f` matches its LFS pointer, exact source/provenance and internal-only limits. No new image upload or public campaign media. Wall captures stay ignored/local after its upload approval-review rejection; parcel milestone has no images.
+
+| Successor chat | ID | Narrow scope |
+| --- | --- | --- |
+| Guide players through the first finite engineering loop | `01a128fb-1aca-79b3-bafc-df0d8fdf00c6` | Observation-only task guide, minimal first-playable attachment; no authority/network/schema or existing terrain/machinery/production panel edits |
+| Return portable terrain parcels to terrain escrow | `01a128fb-a4bf-73d0-bbf0-c379f313b1da` | Sole terrain/inventory authority/schema task: bounded whole-parcel return lifecycle with immutable original receipts, finite conservation and restart/retry tests |
+| Make tool component maintenance understandable | `01a128fc-078c-7751-94f3-04ade7de2277` | Existing local-production maintenance observation/actions only; no invented quote/capability fields or authority changes |
+
+Each was created after its verified merge with explicit Sol/medium, an isolated current-origin managed worktree/codex branch, attached open draft PR requirement, own milestone doc and Coordinator-only human approval routing. Compact snapshots confirm all three active; no fourth implementation chat. Terrain return exclusively owns test port 19243, subject to immediate listener precheck. Current gameplay captures must remain local; new handoffs prohibit LFS media pushes/public images. Website certificate remains `new`, so cross-link merges remain held. A batched text-only Ko-fi progress update was published and read back; see the fundraising ledger.
+
 ## Owner-requested gameplay reference: Moonbase Alpha
 
 The 2026-10-11 UTC [inspiration review](../design/moonbase-alpha-inspiration.md) records official descriptive sources and independently authored acceptance criteria. After current chats complete, consider a narrow existing-machine diagnosis/repair milestone using current maintenance and inventory owners. Prioritize cooperative repair logistics and readable infrastructure dependencies; defer pressure emergencies, cargo rovers and remote robots until their foundational contracts are integrated. This adds a candidate to successor selection without interrupting active chats or authorizing asset imports.
