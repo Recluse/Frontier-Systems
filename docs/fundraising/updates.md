@@ -17,7 +17,7 @@ Next: portable terrain material and a more approachable cooperative demo. Space 
 
 ## Verification / next delivery
 
-Owner completed Ko-fi location confirmation; the previously observed dashboard warning was absent on reinspection. Connected payment settings were not changed and no test payment was performed. UI proof is retained in ignored `var/ci/fundraising/goal.jpg` and `memberships.jpg`. Initial project image upload was blocked by Edge extension local-file access; no image publication is claimed until verified separately.
+Owner completed Ko-fi location confirmation; the previously observed dashboard warning was absent on reinspection. Connected payment settings were not changed and no test payment was performed. UI proof is retained in ignored `var/ci/fundraising/goal.jpg` and `memberships.jpg`. Project image upload attempts were blocked by Edge extension local-file access; no images were uploaded. The owner then rejected current images for upload, so campaigns remain text-only and current verification media must stay internal.
 
 First supporter roundup and higher-tier engineering note due by 2026-11-09. Coordinator heartbeat handles meaningful stage updates and monthly benefits, recording actual publication rather than treating draft creation as delivery.
 

@@ -2,6 +2,8 @@
 
 Owner-authorized campaign preparation and stage-based upkeep, 2026-10-10. Account: https://ko-fi.com/valgorithms. Currency: USD. Preserve this creator's existing profile, supporters and unrelated projects.
 
+Current campaign media policy: text only. The owner rejected the current screenshots for upload. They remain internal verification evidence; do not upload them to Ko-fi, Library or other external services in their current state. Future public visuals require improved presentation and owner clearance through Coordinator. No screenshot was uploaded during campaign setup.
+
 ## Campaigns
 
 - [Initial development goal](initial-development.md): $5,000 gross, one-time contributions, suggested $5; no all-or-nothing funding gate. Starting progress is zero, not invented support.
