@@ -81,7 +81,7 @@ func _run() -> void:
 	client._habitat.camera._radius = 14.0
 	client._habitat.camera._update_overview()
 	if terrain_route:
-		client._habitat.camera.position = Vector3(-3.5, 3.5, 6.0)
+		client._habitat.camera.position = Vector3(-5.75, 2.3, 4.5)
 		client._habitat.camera.look_at(Vector3(-5.75, 0.35, 3.0))
 	if wall_route:
 		(client._machinery_panel.get_parent() as ScrollContainer).scroll_vertical = 650
