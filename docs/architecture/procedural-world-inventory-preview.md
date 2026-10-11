@@ -42,3 +42,7 @@ Selection survives valid rebuilds only while the same displayed IDs remain, rebi
 
 ## Tray context
 Tray identity/instructions now use the shared [world context layout](world-context-labels.md). This bounds camera-aware text independently of proxy allocation and reserves the existing selected card. Geometry, native pick areas and the selected-item card remain unchanged.
+
+## Ordinary client pointer ownership
+
+The client viewport forwarding surface uses `FOCUS_NONE`; world clicks therefore do not create a GUI focus owner that blocks native physics picking. Actual GUI controls still own focus and consume their pointer activation before world handlers. Habitat target feedback clears local visual selection for an unhandled empty-space click and clears obsolete inventory highlighting on a switch to another target. Its event-local ray never consumes input or queues an intent. `ProceduralWorldInventoryPreview.clear_selection()` clears only the selected proxy key/card and highlight; observed storage, overlay choices, commands and canonical records remain unchanged. The dedicated [pointer milestone](../development/world-pointer-picking-milestone.md) verifies root Window dispatch through the actual client shell with socket-free injected events and canonical snapshot assertions.

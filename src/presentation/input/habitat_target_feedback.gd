@@ -87,10 +87,27 @@ func _register(target: CollisionObject3D) -> void:
 	_connections[id] = {"target": weakref(target), "callback": callback}
 
 
+## GUI dispatch has already had ownership; inspect this event's local pointer,
+## not the OS cursor sampled on a later frame. Native picking still emits IDs.
+func _unhandled_input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton or not event.is_action_pressed("world_select") or not WorldSelectionInput.gameplay_allowed(get_viewport()) or not is_instance_valid(habitat):
+		return
+	var camera: Camera3D = get_viewport().get_camera_3d()
+	if camera == null: return
+	var hit: Dictionary = WorldSelectionInput.ray_target(camera, event.position)
+	var target := hit.get("collider") as CollisionObject3D
+	if describe(target).is_empty():
+		selected = null
+	if target == null or target.get_parent() != habitat.world_inventory._rendered:
+		habitat.world_inventory.clear_selection()
+
+
 func _on_target_input(_camera: Node, event: InputEvent, _point: Vector3, _normal: Vector3, _shape: int, reference: WeakRef) -> void:
 	var target := reference.get_ref() as CollisionObject3D
 	if WorldSelectionInput.gameplay_allowed(get_viewport()) and event.is_action_pressed("world_select") and not event.is_echo() and not describe(target).is_empty():
 		selected = target
+		if target.get_parent() != habitat.world_inventory._rendered:
+			habitat.world_inventory.clear_selection()
 
 
 func _physics_process(_delta: float) -> void:

@@ -181,6 +181,8 @@ func _start_client() -> void:
 		button.pressed.connect(func() -> void: _habitat.activate_character(mode))
 		views.add_child(button)
 	var container := SubViewportContainer.new()
+	# World clicks must not make this forwarding surface a GUI focus owner.
+	container.focus_mode = Control.FOCUS_NONE
 	container.stretch = true
 	container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	views.add_child(container)

@@ -113,6 +113,12 @@ func _rebuild() -> void:
 	_highlight()
 
 
+## Local visual selection only; never changes observed storage or queues an intent.
+func clear_selection() -> void:
+	_selected_key = ""
+	_highlight()
+
+
 func _on_item_input(_camera: Node, event: InputEvent, _position: Vector3, _normal: Vector3, _shape: int, container_id: String, item_id: String) -> void:
 	var key: String = JSON.stringify([container_id, item_id])
 	if not _visible_items.has(key) or not PlayerInputSettings.instance().accepts_gameplay_input() or not event.is_action_pressed("world_select"):
