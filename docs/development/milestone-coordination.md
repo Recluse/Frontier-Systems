@@ -1,5 +1,20 @@
 # Coordinated milestone work
 
+## Terrain preview and targeting integration (2026-10-11 04:40 UTC)
+
+Reused immutable review for #30 head `d2d65021e7bbc0bfe14a8dab3099215f8411ca4b`; all 24 checks now passed, including full PR `38111415799` and push `38111404025`. Matching-head squash merge verified `0922ed44498af3eca2bd815e54628756e475be17`. Five combined Windows checks passed: import/startup, terrain_work_target_test, world_context_label_test and habitat_preview_test, ignored `var/ci/coordinator-terrain-preview`. No images provided.
+
+Reviewed #29 final head `8913836dc7fc8f47b2b9fedd03ef618306d98788`, including the fix for the previously held pre-GUI click guard. `_unhandled_input` now lets GUI dispatch run first and blocks only remaining gameplay selection before native physics picking. Regression reproduced prior failure, then verified focused-control-to-button activation without world actions in headless and native engine fixtures. Reviewed bounded target routes, bindings, stale/unavailable clearing and no canonical commands in the feedback helper. All 20 exact-head checks passed (PR `38111991215`, push `38111988663`). Matching-head squash merge verified `82ed214a9dcadb742b1fbaa778f4d7375f229c49`, no admin bypass. Clean primary fast-forwarded.
+
+Six combined Windows checks passed on `82ed214`: import/startup, habitat_target_feedback_test, desktop_controls_help_test, world_context_label_test and terrain_work_target_test; ignored `var/ci/coordinator-targeting-terrain`. No ports used. Inspected local selected-source capture: readable target card/ring, no secrets/personal data; simple prototype blocks remain unsuitable for public showcasing. Keep original capture/provenance ignored in the worker worktree; no gallery/LFS/public upload. Native Compatibility fixture evidence is separate from unverified Forward+/human/controller/Linux graphical acceptance.
+
+Separate Sol/medium successors, isolated current-origin managed worktree, descriptive branches without `codex/`, attached draft PR/own milestone docs:
+
+- **Make cooperative inventory handoffs and nested storage understandable**, `01a12944-0f5e-7de3-81e2-2b4beb7fd3d9`, exclusively owns PlayerInventoryPanel and helper/tests.
+- **Improve first-playable habitat visual readability**, `01a12945-064e-7452-bb15-26e4b9f29367`, ordinary nongenerative habitat/production rendering only; preserve target routes/anchors and other panels.
+
+Equipment chat `01a12941-e519-75e1-9c02-38bfb1509f32` reported component controls live in PlayerInventoryPanel. Coordinator narrowed it to LocalProductionPanel fabrication plus independent helpers, deferring component replacement UI until the inventory chat merges; both chats received exclusive-boundary messages. Three gameplay chats assigned; all retain Coordinator-only approval routing, no AI imagery, no media/LFS upload and port reservation rules. Website TLS unchanged (`new`). Last confirmed Ko-fi progress post is still under 23 hours old; batch these substantive merged changes for the daily update.
+
 ## Maintenance prerequisite integration (2026-10-11 UTC)
 
 Reviewed PR #31 immutable head `216b93e1da5ce24ef6c82c98d758f23a01fb0fc1`: owner-derived detached full-maintenance quotes from the existing paid part planner, exact owned-part/quote coverage, bounded integer validation, no invented materials, stable action order, legacy v2 unavailable handling and stale-success uncertainty. Tool observation v3 leaves tool-system v1 persistence, paid partial commands, wear/damage and stable provenance unchanged. Old v2-only clients require matching builds; no negotiation. Tests include rounded cost parity, private scope, malformed rejection, actual JSON receive/disconnect, restart and paid partial repair. All 26 exact-head checks succeeded; full PR `38111744991`, push `38111741587` plus ancillary workflows. Verified matching-head squash merge `b0576b1e47fb42582bfbc041cb52547131ef33f6`, no admin bypass. Clean primary fast-forwarded.
