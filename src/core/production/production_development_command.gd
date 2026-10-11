@@ -12,7 +12,7 @@ func validate(simulation_context: Node) -> ServiceResult:
 	if world == null or authenticated_context == null or not authenticated_context.is_valid_for(world.world_id, world.region_id):
 		return ServiceResult.failure(&"production_scope_denied", "Production commands require the current world scope.")
 	var production := world.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem
-	return production.authorize_operation(authenticated_context, operation, payload) if production != null else ServiceResult.failure(&"production_unavailable", "Production is unavailable.")
+	return production.authorize_operation(authenticated_context, operation, payload, String(command_id)) if production != null else ServiceResult.failure(&"production_unavailable", "Production is unavailable.")
 
 
 func apply(simulation_context: Node) -> ServiceResult:

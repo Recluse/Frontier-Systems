@@ -170,11 +170,19 @@ func authorize(context: AuthenticatedCommandContext, voluntary: bool = true) -> 
 	return _inventory.production_capability(context, voluntary)
 
 
-func authorize_operation(context: AuthenticatedCommandContext, operation: String, payload: Dictionary) -> ServiceResult:
+func authorize_operation(context: AuthenticatedCommandContext, operation: String, payload: Dictionary, request_id: String = "") -> ServiceResult:
 	if operation in ["wall_build", "wall_remove"]: return _inventory.production_capability(context, true, [])
 	if operation.begins_with("machine_"): return _inventory.production_capability(context, true, [])
 	if operation in ["cancel_tool_extract"]: return _inventory.production_capability(context, true, [])
 	if operation == "resume_tool_extract":
+		# Reading a prior result still requires a currently authorized actor. Only
+		# exact principal/operation/payload receipts bypass mutable job/reach checks.
+		var actor: ServiceResult = _inventory.production_capability(context, true, []) if _inventory != null else _failure("Production services are unavailable.")
+		if not actor.is_success: return actor
+		var fingerprint: String = JSON.stringify([String(context.principal_id), operation, payload], "", true).sha256_text()
+		for receipt in _state["receipts"]:
+			if receipt["request_id"] == request_id:
+				return actor if receipt["fingerprint"] == fingerprint else _failure("Retained request ID identifies different intent.")
 		if not _state["job"].has("extraction"): return _failure("No sustained extraction is reserved.")
 		return _inventory.production_capability(context, true, SOURCE_POSITIONS[_state["job"]["deposit_id"]])
 	if operation not in ["extract", "tool_extract", "start_tool_extract"]:
@@ -236,7 +244,7 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 
 ## Called by fixed-tick command ingress; commits one whole candidate on success.
 func apply_local(context: AuthenticatedCommandContext, request_id: String, operation: String, payload: Dictionary, tick: int) -> ServiceResult:
-	var allowed: ServiceResult = authorize_operation(context, operation, payload)
+	var allowed: ServiceResult = authorize_operation(context, operation, payload, request_id)
 	if not allowed.is_success:
 		return allowed
 	if operation == "tool_extract" and not _inventory.active_tool(context, "tool.extractor").is_success:
