@@ -8,6 +8,7 @@ use React\Cache\CacheInterface;
 use React\Promise\Deferred;
 use React\Promise\PromiseInterface;
 use Throwable;
+
 use function React\Promise\resolve;
 
 /**
@@ -54,7 +55,16 @@ final class RememberingCache
         $promise = $deferred->promise();
         $this->inFlight[$key] = $promise;
 
-        $this->cache->get($key, $this->missSentinel)->then(
+        try {
+            $lookup = $this->cache->get($key, $this->missSentinel);
+        } catch (Throwable $exception) {
+            unset($this->inFlight[$key]);
+            $deferred->reject($exception);
+
+            return $promise;
+        }
+
+        $lookup->then(
             function (mixed $cachedValue) use ($key, $producer, $ttl, $deferred): void {
                 if ($cachedValue !== $this->missSentinel) {
                     ++$this->metrics['hits'];
@@ -78,7 +88,17 @@ final class RememberingCache
 
                 resolve($producedValue)->then(
                     function (mixed $value) use ($key, $ttl, $deferred): void {
-                        $this->cache->set($key, $value, $ttl)->then(
+                        try {
+                            $write = $this->cache->set($key, $value, $ttl);
+                        } catch (Throwable $exception) {
+                            ++$this->metrics['write_failures'];
+                            unset($this->inFlight[$key]);
+                            $deferred->resolve($value);
+
+                            return;
+                        }
+
+                        $write->then(
                             function (bool $stored) use ($key, $value, $deferred): void {
                                 if (!$stored) {
                                     ++$this->metrics['write_failures'];
