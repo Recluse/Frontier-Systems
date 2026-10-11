@@ -14,6 +14,7 @@
       "type": "object",
       "minProperties": 1,
       "properties": {
+        "terrain": { "$ref": "urn:frontier-systems:schema:terrain-system:v1" },
         "tools": { "$ref": "urn:frontier-systems:schema:tool-system:v1" },
         "pressure": { "$ref": "#/$defs/pressureSystem" },
         "production": { "oneOf": [

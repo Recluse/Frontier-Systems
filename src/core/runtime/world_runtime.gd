@@ -20,6 +20,7 @@ var _inventory_setup_result: ServiceResult
 var _health_setup_result: ServiceResult
 var _production_setup_result: ServiceResult
 var _tool_setup_result: ServiceResult
+var _terrain_setup_result: ServiceResult
 var event_outbox: WorldEventOutbox
 
 
@@ -58,6 +59,10 @@ func _ready() -> void:
 	production_system.name = "ProductionSimulationSystem"
 	_production_setup_result = production_system.configure(inventory_system, tool_system)
 	_simulation_runner.add_child(production_system)
+	var terrain_system := TerrainSimulationSystem.new()
+	terrain_system.name = "TerrainSimulationSystem"
+	_terrain_setup_result = terrain_system.configure(inventory_system, tool_system)
+	_simulation_runner.add_child(terrain_system)
 	_simulation_runner.external_command_completed.connect(_on_external_command_completed)
 	add_child(_simulation_runner)
 	event_outbox = WorldEventOutbox.new()
@@ -68,6 +73,8 @@ func _ready() -> void:
 
 
 func start_simulation() -> ServiceResult:
+	if _terrain_setup_result == null or not _terrain_setup_result.is_success:
+		return ServiceResult.failure(&"terrain_setup_failed", "Terrain owner and capability bindings must initialize before starting.")
 	if _tool_setup_result == null or not _tool_setup_result.is_success:
 		return ServiceResult.failure(&"tools_setup_failed", "Tool component bindings must initialize before starting.")
 	if _production_setup_result == null or not _production_setup_result.is_success:
@@ -169,6 +176,11 @@ func own_health_observation(context: AuthenticatedCommandContext) -> ServiceResu
 		"voluntary_actions_available": health.consciousness_allows_actions(authorized.value),
 		"injury_revision": injuries.value["state_revision"], "injury_changed_tick": injuries.value["last_changed_tick"],
 		"parts": injuries.value["parts"], "oxygen_damage_permille": injuries.value["oxygen_damage_permille"]})
+
+
+func terrain_observation(context: AuthenticatedCommandContext) -> ServiceResult:
+	var terrain := get_simulation_system(TerrainSimulationSystem.SYSTEM_ID) as TerrainSimulationSystem
+	return terrain.observation(context) if terrain != null else ServiceResult.failure(&"terrain_unavailable", "Terrain is unavailable.")
 
 
 func production_observation(context: AuthenticatedCommandContext) -> ServiceResult:
@@ -282,6 +294,10 @@ func restore_world_snapshot(snapshot: WorldSnapshot) -> ServiceResult:
 		var migration: ServiceResult = tools.migrate_inventory(system_records["inventory"]["owner"], normalized.tick_number)
 		if not migration.is_success: return migration
 		system_records["tools"] = migration.value
+	if not system_records.has("terrain"):
+		var terrain := get_simulation_system(TerrainSimulationSystem.SYSTEM_ID) as TerrainSimulationSystem
+		if terrain == null: return ServiceResult.failure(&"terrain_migration_failed", "Terrain migration requires its trusted catalog.")
+		system_records["terrain"] = terrain.initial_record(normalized.tick_number, false)
 	var link_validation: ServiceResult = _validate_cross_system_state(system_records, normalized.tick_number)
 	if not link_validation.is_success:
 		return link_validation
@@ -350,4 +366,10 @@ func _validate_cross_system_state(system_records: Dictionary, snapshot_tick_numb
 	if tools == null or typeof(system_records.get("tools")) != TYPE_DICTIONARY:
 		return ServiceResult.failure(&"invalid_tool_links", "World snapshots require tool condition ownership.")
 	var valid_tools: ServiceResult = tools.validate_snapshot_record(system_records["tools"], snapshot_tick_number)
-	return tools.validate_inventory_links(valid_tools.value, inventory_record["owner"], valid_production.value["structures"], valid_production.value["loose_parts"]) if valid_tools.is_success else valid_tools
+	if not valid_tools.is_success: return valid_tools
+	var tool_links: ServiceResult = tools.validate_inventory_links(valid_tools.value, inventory_record["owner"], valid_production.value["structures"], valid_production.value["loose_parts"])
+	if not tool_links.is_success: return tool_links
+	var terrain := get_simulation_system(TerrainSimulationSystem.SYSTEM_ID) as TerrainSimulationSystem
+	if terrain == null or typeof(system_records.get("terrain")) != TYPE_DICTIONARY: return ServiceResult.failure(&"invalid_terrain_links", "World snapshots require terrain ownership.")
+	var valid_terrain: ServiceResult = terrain.validate_snapshot_record(system_records["terrain"], snapshot_tick_number)
+	return terrain.validate_inventory_links(system_records["terrain"], inventory_record) if valid_terrain.is_success else valid_terrain

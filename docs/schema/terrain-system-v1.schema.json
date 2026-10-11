@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:terrain-system:v1",
+  "title": "Atomic finite terrain owner and authenticated bridge checkpoint",
+  "description": "Optional additive world system; absent legacy terrain migrates to zero commissioning budget. Runtime validates conservation, fixture budget, receipt allocation, high-water marks and claim rewind beyond shape validation.",
+  "type": "object",
+  "required": ["schema_version", "catalog_fingerprint", "last_tick", "owner", "positions", "principals", "requests", "claims"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "catalog_fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "last_tick": { "type": "integer", "minimum": 0, "maximum": 9007199254740990 },
+    "owner": { "$ref": "urn:frontier-systems:schema:terrain-material-owner:v1" },
+    "positions": {
+      "type": "object",
+      "required": ["terrain.dirt.source", "terrain.dirt.fill"],
+      "properties": {
+        "terrain.dirt.source": { "const": [0, 0, 1000] },
+        "terrain.dirt.fill": { "const": [500, 0, 1000] }
+      },
+      "additionalProperties": false
+    },
+    "principals": {
+      "type": "object", "maxProperties": 16,
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 9007199254740990 }
+    },
+    "requests": {
+      "type": "array", "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": ["principal_id", "request_number", "owner_sequence", "intent"],
+        "properties": {
+          "principal_id": { "$ref": "#/$defs/id" },
+          "request_number": { "type": "integer", "minimum": 1, "maximum": 9007199254740990 },
+          "owner_sequence": { "type": "integer", "minimum": 1, "maximum": 9007199254740990 },
+          "intent": {
+            "type": "object", "required": ["operation", "payload"],
+            "properties": {
+              "operation": { "enum": ["excavate", "fill"] },
+              "payload": { "$ref": "urn:frontier-systems:schema:terrain-command:v1#/$defs/payload" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "claims": {
+      "type": "object", "maxProperties": 256,
+      "propertyNames": { "pattern": "^terrain-transfer-[1-9][0-9]*$", "maxLength": 128 },
+      "additionalProperties": { "$ref": "#/$defs/id" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": { "id": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "\\S" } }
+}
