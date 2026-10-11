@@ -82,6 +82,9 @@ func run() -> void:
 		command("unload_cargo", {"carrier_id": "resource-canister-1", "material": "ore.iron", "amount_milligrams": 1000000})
 		command("process", {"recipe_id": "refine.iron"})
 		for _tick in range(120): step()
+	command("process", {"recipe_id": "craft.plate"})
+	for _tick in range(120): step()
+	command("materialize_plate", {})
 	command("fabricate_equipment", {"blueprint_id": "equipment.extractor"})
 	command("fabricate_tool_part", {"blueprint_id": "part.head.basic", "expected_tool_revision": frame()["tools"]["state_revision"]})
 	client = FixtureClient.new()
@@ -101,6 +104,9 @@ func run() -> void:
 	choose(panel._loose_parts, loose)
 	choose(panel._tool_mounts, "head")
 	panel._update_buttons()
+	var machinery: MachineryPanel = client._machinery_panel
+	var plate: String = frame()["production"]["components"][0]
+	choose(machinery._part, plate)
 	var before: String = world.capture_world_snapshot_json().value
 	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 720)]:
 		root.size = viewport_size
@@ -142,7 +148,50 @@ func run() -> void:
 		await key(KEY_DOWN)
 		check(inventory_scroll.scroll_vertical > scroll_before, "integrated focused pane scrolls")
 		await snap("%d-inventory" % viewport_size.x)
+		client._tabs.current_tab = 3
+		machinery._placement_kind.item_selected.emit(1)
+		await settle()
+		var machinery_scroll := machinery.get_parent() as ScrollContainer
+		bounded(machinery, machinery_scroll.size.x)
+		check(not machinery._kind.is_visible_in_tree() and not machinery._recipe.is_visible_in_tree() and machinery._wall.is_visible_in_tree(), "real shell wall mode hides unrelated controls")
+		check((client._tabs.get_parent() as HSplitContainer).get_child(0).size.x >= 300, "wall mode preserves world camera area")
+		machinery._new_wall.pressed.emit()
+		await settle()
+		check(visible(machinery._axes[0], machinery_scroll), "wall start reveals X through real scroll pane")
+		await key(KEY_TAB)
+		check(machinery._axes[1].get_line_edit().has_focus() and visible(machinery._axes[1], machinery_scroll), "real shell Tab reveals wall Y")
+		await key(KEY_TAB)
+		await key(KEY_TAB)
+		check(machinery._wall_turn.has_focus() and visible(machinery._wall_turn, machinery_scroll), "real shell Tab reveals wall orientation")
+		await key(KEY_TAB, true)
+		check(machinery._axes[2].get_line_edit().has_focus(), "real shell Shift Tab returns to Z")
+		machinery._wall_remove_button.grab_focus()
+		await settle()
+		check(visible(machinery._wall_remove_button, machinery_scroll), "real shell focus reveals lower wall removal")
+		await snap("%d-walls" % viewport_size.x)
 	check(world.capture_world_snapshot_json().value == before, "layout/navigation preserves canonical paid fixture")
+	machinery._send("wall_build")
+	var wall_pending: Dictionary = machinery._pending_wall.duplicate(true)
+	var wall_request: SimulationCommand = remote.sent[-1]
+	await settle()
+	check(visible(machinery._placement_status, machinery.get_parent()), "submitting wall reveals complete pinned feedback from lower build control")
+	var wall_receipt: String = machinery._placement_status.text
+	machinery._placement_kind.item_selected.emit(0)
+	observe_shell()
+	await settle()
+	check(machinery._pending_wall == wall_pending and machinery._placement_kind.selected == 1 and machinery._placement_status.text == wall_receipt, "real shell mode switch and observation retain exact pending plate/pose/revision")
+	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 720)]:
+		root.size = viewport_size
+		(machinery.get_parent() as ScrollContainer).ensure_control_visible(machinery._placement_status)
+		await settle()
+		check(visible(machinery._placement_status, machinery.get_parent()), "full wall pending identity/pose feedback fits real desktop/narrow pane")
+	remote.command_completed.emit(wall_request, ServiceResult.failure(&"fixture_rejection", "Host rejected this exact wall target; refresh owned plate observation before retrying."))
+	await settle()
+	check(machinery._feedback.text.contains("Host rejected this exact wall target"), "real wall host rejection remains visible in focused mode")
+
+	check(visible(machinery._feedback, machinery.get_parent()), "complete wall outcome accessible in narrow pane")
+	check(world.capture_world_snapshot_json().value == before, "real shell wall intent and rejection preserve canonical snapshot")
+	client._tabs.current_tab = 1
 	panel._part_action("fit_tool_part")
 	var pinned: Dictionary = panel._pending_component.duplicate(true)
 	var request: SimulationCommand = remote.sent[-1]

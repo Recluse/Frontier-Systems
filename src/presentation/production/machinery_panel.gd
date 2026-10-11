@@ -40,6 +40,9 @@ var _placement_status := Label.new()
 var _action_buttons: Array[Button] = []
 var _preview: MachineryPreview
 var _operation_feedback := MachineryOperationFeedback.new()
+var _machine_controls: Array[Control] = []
+var _wall_controls: Array[Control] = []
+var _part_title := Label.new()
 
 
 func configure(world: WorldRuntime) -> void:
@@ -52,13 +55,16 @@ func configure(world: WorldRuntime) -> void:
 	guide.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	guide.text = "Hand-build a frame, controller, power connector and work head from refined iron at the workbench. Fit sockets and canisters. Deploy a solar frame and wire machines directly or through a router. Equipment printing needs an expander; hand assembly needs only materials. Expanders also add sockets. Removing parts pauses work; restart requires Resume."
 	add_child(guide)
+	_machine_controls.append(guide)
+	_part.fit_to_longest_item = false
 	_kind.fit_to_longest_item = false
 	_populate_designs({})
 	add_child(_kind)
 	_button("Hand-build selected part / equipment", "machine_craft")
 	_label("Machine frame")
 	add_child(_machine)
-	_label("Physical module / canister / cable")
+	_part_title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_part_title)
 	add_child(_part)
 	_label("Socket (for canister insertion/removal)")
 	add_child(_socket)
@@ -103,13 +109,10 @@ func configure(world: WorldRuntime) -> void:
 	add_child(_mode)
 	_mode.item_selected.connect(func(_index: int) -> void: _refresh_placement())
 	_machine.item_selected.connect(func(_index: int) -> void: _refresh_placement())
-	_placement_kind.add_item("Machine placement preview", 0)
-	_placement_kind.add_item("Physical wall placement preview", 1)
+	_placement_kind.add_item("Machinery — assembly and operation", 0)
+	_placement_kind.add_item("Walls — build and remove", 1)
 	add_child(_placement_kind)
-	_placement_kind.item_selected.connect(func(index: int) -> void:
-		if index == 1: _begin_wall_placement()
-		else: _refresh_placement()
-	)
+	_placement_kind.item_selected.connect(_choose_mode)
 	_part.item_selected.connect(func(_index: int) -> void: _refresh_placement())
 	_wall.item_selected.connect(func(_index: int) -> void: select_wall(_selected(_wall)))
 	_wall_turn.item_selected.connect(func(_index: int) -> void: _refresh_placement())
@@ -124,7 +127,7 @@ func configure(world: WorldRuntime) -> void:
 	visibility_changed.connect(_refresh_placement)
 	_button("Use current player position (floor)", "position")
 	_button("Deploy assembled frame", "machine_deploy")
-	_label("Walls: select an owned physical plate above. Floor panels are 1 × 2 × 0.1 m and snap to the 0.1 m coordinate grid.")
+	_label("Walls: select an owned physical plate above. Floor panels are 1 × 2 × 0.1 m and snap to the 0.1 m coordinate grid.", true)
 	_new_wall.text = "Place a new wall\n(keep draft coordinates)"
 	_new_wall.pressed.connect(_begin_wall_placement)
 	add_child(_new_wall)
@@ -183,8 +186,14 @@ func configure(world: WorldRuntime) -> void:
 	_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_status)
 	add_child(_feedback)
-	move_child(_status, 1)
-	move_child(_feedback, 2)
+	_placement_kind.fit_to_longest_item = false
+	_placement_kind.tooltip_text = "Choose focused wall construction or machinery assembly and operation."
+	move_child(_placement_kind, 0)
+	move_child(_placement_status, 1)
+	_machine_controls.append_array([_machine, _socket, _other, _kind, _recipe, _eject_amount, _status])
+	_wall_controls.append_array([_wall, _wall_build_button, _wall_remove_button])
+	move_child(_status, 2)
+	move_child(_feedback, 1)
 	_world.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void:
 		if String(command.command_id) == _pending:
 			_pending = ""
@@ -197,6 +206,7 @@ func configure(world: WorldRuntime) -> void:
 			_pending_deploy.clear()
 			_pending_wall.clear()
 			_refresh_placement()
+			_reveal_wall_control(_feedback)
 	)
 
 	if world is RemoteWorldRuntime:
@@ -308,6 +318,7 @@ func _send(action: String) -> void:
 		if action == "wall_remove":
 			_pending_wall.merge(_record["production"]["walls"].get(payload["wall_id"], {}).duplicate(true))
 	_refresh_placement()
+	if action in ["wall_build", "wall_remove"]: _reveal_wall_control(_placement_status)
 
 
 func select_machine(id: String) -> void:
@@ -317,6 +328,16 @@ func select_machine(id: String) -> void:
 			if _pending.is_empty(): _placement_kind.select(0)
 			_refresh_placement()
 			return
+
+
+## Mode navigation changes only presentation; pending requests retain their mode.
+func _choose_mode(index: int) -> void:
+	if not _pending.is_empty():
+		_placement_kind.select(1 if not _pending_wall.is_empty() else 0)
+	else:
+		_placement_kind.select(index)
+		_show_placement.set_pressed_no_signal(false)
+	_refresh_placement()
 
 
 ## Explicit presentation transition; retain the draft and any settled result.
@@ -380,15 +401,18 @@ func _button(title: String, action: String) -> Button:
 	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.pressed.connect(_send.bind(action))
 	_action_buttons.append(button)
+	if action not in ["wall_build", "wall_remove", "position"]: _machine_controls.append(button)
 	add_child(button)
 	return button
 
 
-func _label(title: String) -> void:
+func _label(title: String, wall_only: bool = false) -> void:
 	var label := Label.new()
 	label.text = title
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(label)
+	if wall_only: _wall_controls.append(label)
+	else: _machine_controls.append(label)
 
 
 static func _selected(picker: OptionButton) -> String:
@@ -450,6 +474,14 @@ func _refresh_placement() -> void:
 			if not content.is_empty(): _status.text += "\n%s: %s" % [id.right(8), ", ".join(content)]
 	var waiting: bool = not _pending.is_empty()
 	var wall_mode: bool = _placement_kind.selected == 1 or not _pending_wall.is_empty()
+	for control in _machine_controls: control.visible = not wall_mode
+	for control in _wall_controls: control.visible = wall_mode
+	_part_title.text = "Physical plate from your inventory" if wall_mode else "Physical module / canister / cable"
+	for index in range(_part.item_count):
+		var owned_plate: bool = false
+		for item in _record.get("inventory", {}).get("items", []):
+			if item["item_id"] == _part.get_item_metadata(index) and item["definition_id"] == "item.plate.prototype": owned_plate = true
+		_part.set_item_disabled(index, wall_mode and not owned_plate)
 	var inspecting: bool = wall_mode and not _selected(_wall).is_empty() and not _show_placement.button_pressed and _pending_wall.is_empty()
 	var unavailable: bool = _record.is_empty()
 	_coordinate_grid.columns = 2 if wall_mode else 6
@@ -474,7 +506,7 @@ func _refresh_placement() -> void:
 		_link_focus(_axes[2].get_line_edit(), _wall_turn)
 		_link_focus(_wall_turn, _wall_build_button)
 	_mode.visible = not wall_mode
-	_wall_turn.visible = not inspecting
+	_wall_turn.visible = wall_mode and not inspecting
 	_new_wall.disabled = waiting or unavailable
 	_cancel_wall.disabled = waiting or unavailable or inspecting or not _show_placement.button_pressed
 	_reset_wall.disabled = waiting or unavailable

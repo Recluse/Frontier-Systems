@@ -28,6 +28,11 @@ func finish() -> void:
 	panel.observe(record())
 	for index in range(panel._part.item_count):
 		if panel._part.get_item_metadata(index) == plate: panel._part.select(index)
+	panel._placement_kind.select(1)
+	panel._placement_kind.item_selected.emit(1)
+	check(panel._placement_kind.get_index() == 0 and panel._wall.visible and not panel._kind.visible and not panel._recipe.visible and not panel._machine.visible, "wall mode exposes wall selection and hides unrelated machinery controls")
+	for index in range(panel._part.item_count):
+		check(panel._part.is_item_disabled(index) == (panel._part.get_item_metadata(index) != plate), "wall picker enables only the owned physical plate")
 	panel._new_wall.pressed.emit()
 	await process_frame
 	check(panel._coordinate_grid.columns == 2 and panel._coordinate_labels[0].text == "X (m)", "wall target is a labelled vertical metre grid")
@@ -65,6 +70,10 @@ func finish() -> void:
 	check(panel._pending_wall.get("quarter_turn") == 1, "build freezes dropdown orientation")
 	before = JSON.stringify(world.capture_world_snapshot_json().value)
 	var held: Dictionary = panel._pending_wall.duplicate(true)
+	var pending_text: String = panel._placement_status.text
+	panel._placement_kind.select(0)
+	panel._placement_kind.item_selected.emit(0)
+	check(panel._placement_kind.selected == 1 and panel._wall.visible and panel._placement_status.text == pending_text and panel._feedback.visible, "mode transition cannot hide or retarget pending wall feedback")
 	panel._axes[0].value = 42
 	panel._wall_turn.select(0)
 	panel._new_wall.pressed.emit()
@@ -84,6 +93,10 @@ func finish() -> void:
 	check([panel._axes[0].value, panel._axes[1].value, panel._axes[2].value] == draft, "inspection-to-placement retains draft coordinates")
 	panel.observe(record())
 	check(panel._selected(panel._wall).is_empty(), "observation refresh does not undo intentional new-wall transition")
+	panel._placement_kind.item_selected.emit(0)
+	check(panel._kind.visible and panel._recipe.visible and not panel._wall.visible and not panel._wall_turn.visible, "machinery mode restores assembly and hides wall-only controls")
+	panel._placement_kind.item_selected.emit(1)
+	check([panel._axes[0].value, panel._axes[1].value, panel._axes[2].value] == draft, "mode roundtrip retains draft pose")
 	var saved_turn: int = panel._wall_turn.selected
 	var saved_part: String = panel._selected(panel._part)
 	var snapshot: String = JSON.stringify(world.capture_world_snapshot_json().value)
@@ -95,6 +108,9 @@ func finish() -> void:
 	check([panel._axes[0].value, panel._axes[1].value, panel._axes[2].value] == [0.0, 0.0, 0.0] and panel._wall_turn.selected == 0 and panel._show_placement.button_pressed, "reset explicitly starts origin / X draft")
 	check(JSON.stringify(world.capture_world_snapshot_json().value) == snapshot, "cancel, resume and reset leave canonical state untouched")
 	panel.select_wall(id)
+	panel._placement_kind.item_selected.emit(0)
+	panel._placement_kind.item_selected.emit(1)
+	check(panel._selected(panel._wall) == id and not panel._coordinate_grid.visible, "mode roundtrip retains exact settled inspection")
 	var lost: Dictionary = record()
 	lost["production"]["walls"].erase(id)
 	lost["production"]["walls"]["wall.other"] = {"position": [0, 0, 0], "quarter_turn": 0}
