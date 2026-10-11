@@ -12,3 +12,5 @@ The route builds its fixture from finite materials, authenticates a temporary lo
 Seven bounded Windows checks passed: import, startup, machinery authority, bounds, machine feedback, machine preview and wall feedback. Empty/broken/retained/removed-expander/extra-socket variants are covered by detached headless observation fixtures and mesh checks; these captures show an actual expanded printer only. Remote Windows/Linux checks are tracked separately in draft PR #11. No release/deployment or external public gallery hosting is authorized.
 
 Images are unedited full viewport captures, visually checked for readable UI/geometry, credentials, personal data and distracting debug overlays. They show generated machine IDs and simulated energy only. Original four images are retained in local ignored verification output after successful LFS upload. Gallery PNGs are Git LFS pointers in Git; metadata stays plain text.
+
+The gallery folder has .gdignore so documentation captures stay outside runtime import/export. CI deliberately keeps LFS pointers for documentation media; Godot must not interpret those pointers as PNG assets.
