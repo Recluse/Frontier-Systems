@@ -26,7 +26,7 @@ static func describe(record: Dictionary, plate_id: String, wall_id: String, coor
 	if InventorySpatialMath.is_position(advice_target) and InventorySpatialMath.is_position(record.get("position", [])):
 		distance = InventorySpatialMath.distance_millimetres(record["position"], advice_target) / 1000.0
 		reachable = distance <= float(InventorySimulationSystem.WORLD_REACH_MILLIMETRES) / 1000.0
-	var advisory: String = "Within estimated reach; host checks ownership, hands, revision and overlap."
+	var advisory: String = "Within estimated reach.\nHost checks plate, hands, revision and overlap."
 	if not reachable: advisory = "Outside estimated 1.5 m reach; approach the target."
 	if not grid_ok: advisory = "Wall coordinates require the 0.1 m grid within ±100 m."
 	if not floor_ok: advisory = "Floor placement requires Y=0; walls have no Freeform mode."
@@ -36,7 +36,7 @@ static func describe(record: Dictionary, plate_id: String, wall_id: String, coor
 	if valid_position:
 		text += "\n%s X %.2f / Y %.2f / Z %.2f m · distance %.2f m\n%s" % ["Selected" if selecting else "Target", float(displayed[0]) / 1000.0, float(displayed[1]) / 1000.0, float(displayed[2]) / 1000.0, distance, advisory]
 	if not selected.is_empty():
-		text += "\nSelected wall %s · along %s · remove to recover a physical plate." % [wall_id, "X" if int(selected["quarter_turn"]) == 0 else "Z"]
+		text += "\nSelected wall %s · along %s.\nRemove to recover a physical plate." % [wall_id.right(8), "X" if int(selected["quarter_turn"]) == 0 else "Z"]
 	return {
 		"selected_id": wall_id if not selected.is_empty() else "",
 		"selected_position": selected.get("position", []).duplicate(),
