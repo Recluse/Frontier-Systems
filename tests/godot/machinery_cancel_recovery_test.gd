@@ -121,7 +121,7 @@ func finish() -> void:
 	var cancelled: Dictionary = production.capture_snapshot().value
 	check(not cancelled["machinery"]["jobs"].has(machine) and int(cancelled["state_revision"]) == revision + 1, "accepted Cancel removes only existing job and advances command revision once")
 	check(cancelled["machinery"]["placements"] == expected_energy, "Cancel refunds no spent energy and charges exactly like genuine paused baseline")
-	check(cancelled["receipts"].size() == before["receipts"].size() + 1 and cancelled["receipts"][-1]["request_id"] == "net-1-" + cancel_id and int(cancelled["receipts"][-1]["revision"]) == revision + 1, "one host-slot-bound production receipt records accepted Cancel")
+	check(cancelled["receipts"].size() == mini(ProductionSimulationSystem.MAX_RECEIPTS, before["receipts"].size() + 1) and cancelled["receipts"][-1]["request_id"] == "net-1-" + cancel_id and int(cancelled["receipts"][-1]["state_revision"]) == revision + 1, "one host-slot-bound production receipt records accepted Cancel")
 	conserved(before, cancelled, "accepted Cancel")
 	var own_before: Dictionary = inventory.capture_snapshot().value["owner"].duplicate(true)
 	check(JSON.parse_string(JSON.stringify(own_before)) == saved["systems"]["inventory"]["owner"], "Cancel preserves complete physical provenance and inventory revisions")
