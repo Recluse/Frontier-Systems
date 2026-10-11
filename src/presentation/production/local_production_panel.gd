@@ -4,24 +4,26 @@ class_name LocalProductionPanel
 signal observation_changed(record: Dictionary)
 
 const RECIPE_LABELS: Dictionary = {
-	"refine.iron": "Refine 1 kg iron ore → 600 g iron + 400 g tailings",
-	"craft.plate": "Print a plate from 1 kg iron",
-	"salvage.plate": "Recycle a plate → 1 kg iron",
-	"refine.ice": "Melt 1 kg ice → 1 kg water",
-	"refine.regolith": "Separate regolith → salts, silicate and tailings",
-	"chemical.electrolysis": "Separate water → hydrogen and oxygen",
-	"chemical.nutrients": "Mix water and salts → nutrient solution"
+	"refine.iron": "Refine iron ore",
+	"craft.plate": "Print a plate",
+	"salvage.plate": "Recycle shared plate stock",
+	"refine.ice": "Melt ice",
+	"refine.regolith": "Separate regolith",
+	"chemical.electrolysis": "Electrolyze water",
+	"chemical.nutrients": "Mix nutrient solution"
 }
 
 ## Shared fixture workstation UI. Observations in, fixed-tick intents out.
 var _world: WorldRuntime
 var _configured: bool = false
+var _resource_view := WorkstationResourceView.new()
 var _status: Label
 var _feedback: Label
 var _deposit: OptionButton
 var _blueprint: OptionButton
 var _equipment: OptionButton
 var _recipe: OptionButton
+var _recipe_details: Label
 var _chemical: OptionButton
 var _station: OptionButton
 var _amount: SpinBox
@@ -79,6 +81,8 @@ func configure(world: WorldRuntime) -> ServiceResult:
 	_deposit.item_selected.connect(func(_index: int) -> void: refresh())
 	_extract_button = _button("Extract selected mass into canister (up to 1 kg)", _extract_action)
 	_recipe = _picker()
+	_recipe.item_selected.connect(func(_index: int) -> void: refresh())
+	_recipe_details = _label()
 	var production := _world.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem
 	production.batch_completed.connect(_on_batch_completed)
 	var observed: ServiceResult = production.observation(_context())
@@ -156,7 +160,8 @@ func refresh() -> void:
 		return
 	var observed: ServiceResult = _world.production_observation(_context())
 	_guide_label.text = _guide.text()
-	if observed.is_success and _equipment != null:
+	var valid_observation: bool = observed.is_success and typeof(observed.value) == TYPE_DICTIONARY and WorkstationResourceView.valid(observed.value)
+	if valid_observation and _equipment != null:
 		var selected: String = str(_equipment.get_item_metadata(_equipment.selected)) if _equipment.selected >= 0 else ""
 		_equipment.clear()
 		for id in observed.value.get("structures", {}):
@@ -165,7 +170,8 @@ func refresh() -> void:
 			_equipment.set_item_metadata(_equipment.item_count - 1, id)
 			if selected == id:
 				_equipment.select(_equipment.item_count - 1)
-	_record = observed.value if observed.is_success else {}
+	_record = observed.value if valid_observation else {}
+	_fill_recipes(_record.get("recipes", []))
 	if not _world is RemoteWorldRuntime:
 		var tools := _world.get_simulation_system(ToolSimulationSystem.SYSTEM_ID) as ToolSimulationSystem
 		var tool_view: ServiceResult = tools.observation(_context()) if tools != null else ServiceResult.failure(&"tools_unavailable", "Tools unavailable")
@@ -180,31 +186,9 @@ func refresh() -> void:
 	_guide_button.text = suggested["label"]
 	_guide_button.disabled = not _pending.is_empty() or suggested["operation"] == "" or _record.is_empty() or (not _record.get("can_operate", false) if suggested["operation"] != "extract" else not _record.get("extractable_sources", []).has("deposit.iron"))
 	_refresh_maintenance()
-	if _record.is_empty():
-		_status.text = "Production unavailable: move within reach of the logical workstation."
-		return
-	var lines: PackedStringArray = []
-	lines.append("Workstation: within reach" if _record["can_operate"] else "Workstation actions unavailable: approach it with a conscious body and an unreserved hand.")
-	lines.append("Extractable sources in reach: " + (", ".join(PackedStringArray(_record["extractable_sources"])) if not _record["extractable_sources"].is_empty() else "none"))
-	for id in _record["deposits"]:
-		lines.append("%s: %.2f kg remaining" % [{"deposit.iron": "Iron ore", "deposit.ice": "Ice", "deposit.regolith": "Regolith"}.get(id, id), float(_record["deposits"][id]) / 1000000.0])
-	lines.append("Storage: " + _stock_text(_record["store"]))
-	lines.append("Vessel (2 kg capacity): " + _stock_text(_record["vessel"]))
-	lines.append("Sealed vessel pressure: %.1f kPa / 1000 kPa limit" % _record["vessel_pressure_kpa"])
-	for id in _record["cargo"]:
-		lines.append("%s: %s" % [id, _stock_text(_record["cargo"][id])])
-	lines.append("Built wall segments: %d · energy: %d J" % [int(_record["wall_mass_milligrams"]) / 1000000, _record["energy_joules"]])
-	if _record["job"].is_empty():
-		lines.append("Workstation idle")
-	else:
-		var job: Dictionary = _record["job"]
-		lines.append("%s: %.1f seconds remaining%s" % [job["station"], float(job["remaining_ticks"]) / float(_record["timebase_hz"]), " (paused: no power)" if not _record["powered"][job["station"]] else ""])
-	var disabled: PackedStringArray = []
-	for id in _record["powered"]:
-		if not _record["powered"][id]:
-			disabled.append(id)
-	lines.append("Unpowered: " + (", ".join(disabled) if not disabled.is_empty() else "none"))
-	_status.text = "\n".join(lines)
+	var recipe_id: String = str(_recipe.get_item_metadata(_recipe.selected)) if _recipe.selected >= 0 else ""
+	_status.text = _resource_view.describe(_record, recipe_id, not _pending.is_empty(), false)
+	_recipe_details.text = WorkstationResourceView.recipe_text(_record, recipe_id) if valid_observation else "Recipe prerequisites unavailable: wait for a valid current observation."
 
 
 func _send(operation: String, payload: Dictionary) -> void:
@@ -364,8 +348,12 @@ func _on_closed() -> void:
 	observation_changed.emit({})
 	_pending = ""
 	_status.text = "Production unavailable: world closed"
+	_recipe_details.text = "Recipe prerequisites unavailable: world closed; command outcome requires a fresh observation."
 	_guide_label.text = "Collection guide closed; progress was session-only."
 	_fill_carriers([])
+	_fill_components([])
+	_fill_recipes([])
+	_resource_view.describe({}, "")
 	_feedback.text = ""
 	_refresh_maintenance()
 	_maintenance_feedback.text = "Unavailable: world or host connection closed; command outcome requires a fresh observation."
@@ -387,6 +375,8 @@ func _label() -> Label:
 
 func _picker() -> OptionButton:
 	var picker := OptionButton.new()
+	picker.clip_text = true
+	picker.fit_to_longest_item = false
 	add_child(picker)
 	return picker
 
@@ -455,3 +445,14 @@ func _maintain_component() -> void:
 		return
 	_send("repair_tool_component", {"part_id": _selected_part_id, "amount_ppm": 1000000, "expected_tool_revision": _tool_record["state_revision"]})
 	_maintenance_feedback.text = "Queued: maintenance awaits the authoritative tick result." if not _pending.is_empty() else "Rejected: " + _feedback.text
+
+
+func _fill_recipes(ids: Array) -> void:
+	var previous: String = str(_recipe.get_item_metadata(_recipe.selected)) if _recipe.selected >= 0 else ""
+	var current: Array = []
+	for index in range(_recipe.item_count): current.append(_recipe.get_item_metadata(index))
+	if current == ids: return
+	_recipe.clear()
+	for id in ids:
+		_add_recipe(id)
+		if id == previous: _recipe.select(_recipe.item_count - 1)
