@@ -4,7 +4,8 @@ param(
 $ErrorActionPreference = 'Stop'
 $taskProject = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $taskLauncher = Join-Path $taskProject 'tools/launch-first-playable.ps1'
-$taskCommon = @{ GodotPath = $Godot; CheckOnly = $true; Initialize = $true }
+$taskGodotExecutable = (Get-Command $Godot -CommandType Application | Select-Object -First 1).Source
+$taskCommon = @{ GodotPath = $taskGodotExecutable; CheckOnly = $true; Initialize = $true }
 $taskDefault = & $taskLauncher @taskCommon -Mode Host
 if ($taskDefault.BackupHistory -or $null -ne $taskDefault.BackupEntries -or $null -ne $taskDefault.BackupBytes) {
     throw 'Default launcher must disable history.'
@@ -46,7 +47,7 @@ try {
         @{ Args = @('recover', '--source', $taskTemporary, '--descriptor', $taskDescriptor, '--destination', ($taskTemporary + '-destination')); Exit = 4; Code = 'backup_selection' }
     )) {
         $taskInfo = [Diagnostics.ProcessStartInfo]::new()
-        $taskInfo.FileName = (Get-Command $Godot -CommandType Application | Select-Object -First 1).Source
+        $taskInfo.FileName = $taskGodotExecutable
         $taskInfo.WorkingDirectory = $taskProject
         $taskInfo.UseShellExecute = $false
         $taskInfo.CreateNoWindow = $true

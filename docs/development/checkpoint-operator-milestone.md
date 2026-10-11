@@ -21,7 +21,7 @@ The policy is passed to `WorldPersistenceAdapter.configure`, which already detac
 
 Stop the source host before recovery and keep it stopped until recovery finishes. One operator/writer owns a save directory; this helper does not acquire a cross-process filesystem lock or prove that another host has exited. Read-only listing may run while a host exists, but a descriptor is a point-in-time selection and is always revalidated.
 
-Use the pinned executable (or your full Godot 4.7.2 executable on Linux). All CLI paths must be absolute. The command has at most seven arguments, each limited to 4096 UTF-8 bytes. The engine may print its startup banner; the helper prints exactly one JSON report.
+Use the pinned executable (or your full Godot 4.7.2 executable on Linux). Import the source project once after checkout or rebase with `--headless --editor --path . --import --quit` before invoking scripts. All CLI paths must be absolute. The command has at most seven arguments, each limited to 4096 UTF-8 bytes. The engine may print its startup banner; the helper prints exactly one JSON report.
 
 ```powershell
 $engine = 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe'
@@ -63,12 +63,12 @@ Every JSON report includes `exit_status`; failures include an existing stable `e
 Reusable verification:
 
 ```powershell
-./tools/ci/test-checkpoint-operator.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe'
 ./tools/ci/run-godot-checks.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' -TestNames 'checkpoint_operator_test.gd','checkpoint_history_test.gd','checkpoint_recovery_test.gd','control_runtime_recovery_test.gd','sustained_extraction_test.gd' -OutputDirectory 'var/ci/checkpoint-operator-final'
+./tools/ci/test-checkpoint-operator.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe'
 # Reserve port 27849 through the Coordinator's live reservation file first:
 ./tools/ci/run-godot-checks.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' -TestNames 'first_playable_acceptance.gd' -OutputDirectory 'var/ci/checkpoint-operator-acceptance'
 ```
 
-Operator tests use disposable directories and injected seed I/O. They cover opt-out, min/max/invalid options, exact descriptor selection, metadata replacement between listing/recovery, rejected entries without raw data, descriptor size/parser bounds, source/destination preservation, running/previously started/configured/identity rejection, failed seed, nonzero-tick success, and distinct readable diagnostics. The native launcher/CLI checker uses check-only launch configuration and an empty temporary source, with 30-second child deadlines; it verifies real process exits and JSON for 0/2/3. Existing history tests retain deeper queued-world and domain/system/worker failure coverage.
+Operator tests use disposable directories and injected seed I/O. They cover opt-out, min/max/invalid options, exact descriptor selection, metadata replacement between listing/recovery, rejected entries without raw data, descriptor size/parser bounds, source/destination preservation, running/previously started/configured/identity rejection, failed seed, nonzero-tick success, and distinct readable diagnostics. The native launcher/CLI checker uses check-only launch configuration and an empty temporary source, with 30-second child deadlines; it verifies real process exits and JSON for 0/2/3/4. Existing history tests retain deeper queued-world and domain/system/worker failure coverage.
 
 CI discovers the native Godot test and runs the PowerShell CLI checker on Windows and Linux. Exact final SHA, rebase baseline, local JUnit results and remote CI are reported on draft PR #8. Graphical, VR/controller, hardware power-loss, real save manipulation, live services, packaged local verification, journal/SQL, upload, automatic rollback, merging and deployment are outside this milestone.
