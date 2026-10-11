@@ -10,7 +10,7 @@ signal wall_selected(wall_id: String)
 var _deposits: Dictionary = {}
 var _walls: Array[MeshInstance3D] = []
 var _spatial_walls: Dictionary = {}
-var _label: Label3D
+var _label: WorldContextLabel
 var _source_areas: Dictionary = {}
 var _source_labels: Dictionary = {}
 const SOURCE_NAMES: Dictionary = {"deposit.iron": "Iron ore", "deposit.ice": "Ice", "deposit.regolith": "Regolith"}
@@ -39,11 +39,9 @@ func _ready() -> void:
 		area.input_event.connect(_on_source_input.bind(ids[index]))
 		add_child(area)
 		_source_areas[ids[index]] = area
-		var source_label := Label3D.new()
-		source_label.position = origin + Vector3(0, 0.9, 0)
-		source_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		var source_label := WorldContextLabel.new()
+		source_label.position = origin + Vector3(0, 0.25, 0)
 		source_label.text = ["Iron ore", "Ice", "Regolith"][index] + "\nDouble-click to extract into a carried canister"
-		source_label.font_size = 24
 		add_child(source_label)
 		_source_labels[ids[index]] = source_label
 	_box(Vector3(3.5, 0.1, 1.0), Vector3(-6.0, 0.8, 3.0), Color("#667b91"))
@@ -60,10 +58,8 @@ func _ready() -> void:
 		var wall := _box(Vector3(0.5, 1.5, 0.08), Vector3(-12.0 + float(index) * 0.55, 0.75, 3.5), Color("#b7c2c8"))
 		wall.visible = false
 		_walls.append(wall)
-	_label = Label3D.new()
-	_label.position = Vector3(-6.0, 2.3, 3.0)
-	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.font_size = 28
+	_label = WorldContextLabel.new()
+	_label.position = Vector3(-6.0, 0.8, 3.0)
 	_label.text = "Production fixture — controls in inventory HUD"
 	add_child(_label)
 
@@ -88,7 +84,7 @@ func observe(record: Dictionary) -> void:
 		var mesh: MeshInstance3D = _deposits[id]
 		mesh.visible = mass > 0
 		_source_areas[id].input_ray_pickable = mass > 0
-		_source_labels[id].text = "%s · %.2f kg\n%s" % [SOURCE_NAMES[id], float(mass) / 1000000.0, "Double-click to extract into a carried canister" if mass > 0 else "Depleted"]
+		_source_labels[id].text = "%s\n%.2f kg\n%s" % [SOURCE_NAMES[id] + " [" + id + "]", float(mass) / 1000000.0, "Double-click to extract into a carried canister" if mass > 0 else "Depleted"]
 		var fraction: float = float(mass) / (5000000.0 if id == "deposit.ice" else 10000000.0)
 		mesh.scale = Vector3.ONE * maxf(0.05, pow(fraction, 1.0 / 3.0))
 	var count: int = int(record["wall_mass_milligrams"]) / 1000000

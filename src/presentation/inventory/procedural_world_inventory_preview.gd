@@ -19,7 +19,7 @@ var labels_visible: bool = true:
 		labels_visible = value
 		if _rendered != null:
 			for child in _rendered.get_children():
-				if child is Label3D: child.visible = value
+				if child is WorldContextLabel: child.visible = value
 		_highlight()
 
 
@@ -61,13 +61,11 @@ func _rebuild() -> void:
 		var coords: Array = container["position_millimetres"]
 		var origin: Vector3 = DISPLAY_ORIGIN + Vector3(float(coords[0]), float(coords[1]), float(coords[2])) / 1000.0
 		_box(_rendered, Vector3(1.0, 0.08, 0.6), origin + Vector3(0, 0.7, 0), Color("#788a96"))
-		var label := Label3D.new()
-		label.position = origin + Vector3(0, 1.35, 0)
-		label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		label.font_size = 28
+		var label := WorldContextLabel.new()
+		label.position = origin + Vector3(0, 0.7, 0)
 		label.text = "%s (logical fixture)\nClick to select; double-click to collect" % container["container_id"]
 		if player_facing_labels:
-			label.text = "Storage tray\nDouble-click an item to collect"
+			label.text = "Storage tray [%s]\nDouble-click an item to collect" % container["container_id"]
 		if container["items"].size() > MAX_VISIBLE_ITEMS_PER_CONTAINER:
 			label.text += "\n%d more items available in overlay" % (container["items"].size() - MAX_VISIBLE_ITEMS_PER_CONTAINER)
 		_rendered.add_child(label)

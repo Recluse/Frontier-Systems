@@ -39,3 +39,6 @@ Next: real body/world spatial records and physical access adapters, item transfo
 The selected identity uses one inventory-only CanvasLayer card instead of world-space text. It stays within its own viewport at the top right, with an opaque background and item/root/host-observed-distance lines. A camera-updated leader terminates at the actual selected proxy mesh; all card Controls ignore mouse events. This projection does not assert line of sight or authoritative geometry/reach. Native Area3D picking is unchanged.
 
 Selection survives valid rebuilds only while the same displayed IDs remain, rebinding to the replacement mesh. Removed selection, hidden labels, absent camera, offscreen/behind-camera target or a viewport under 180 by 150 logical pixels suppress the card. Long IDs ellipsize; the overlay retains full IDs. The card allocates three text lines once and updates projection per presentation frame; no persisted state or schema changes. See [label milestone evidence](../development/inventory-label-readability-milestone.md).
+
+## Tray context
+Tray identity/instructions now use the shared [world context layout](world-context-labels.md). This bounds camera-aware text independently of proxy allocation and reserves the existing selected card. Geometry, native pick areas and the selected-item card remain unchanged.
