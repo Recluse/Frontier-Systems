@@ -49,6 +49,11 @@ var _maintenance_button: Button
 var _selected_part_id: String = ""
 var _maintenance_choice_key: String = ""
 var _nonce: String = str(Time.get_ticks_usec())
+var _navigation: OptionButton
+var _section_scroll: ScrollContainer
+var _sections: Array[VBoxContainer] = []
+var _activity: Label
+var _gather_details: Label
 
 
 func configure(world: WorldRuntime) -> ServiceResult:
@@ -74,10 +79,12 @@ func configure(world: WorldRuntime) -> ServiceResult:
 	var title := _label()
 	title.text = "Extract, store, refine and recycle"
 	var instructions := _label()
-	instructions.text = "Choose First person or Third person and use your configured navigation controls. Hold the UI cursor key to interact with panels. Approach a resource source; select it or double-click to extract into your canister. Your position determines which equipment you can reach."
+	instructions.text = "Approach a resource source or workstation. Hold your configured UI cursor key to use panels. Select a source; double-click to extract into your canister."
 	_guide_label = _label()
 	_guide_button = _button("Next collection step", _guide_action)
 	_status = _label()
+	_activity = _label()
+	_gather_details = _label()
 	_deposit = _picker()
 	for id in ["deposit.iron", "deposit.ice", "deposit.regolith"]:
 		_deposit.add_item(id)
@@ -99,7 +106,7 @@ func configure(world: WorldRuntime) -> ServiceResult:
 		for id in recipes:
 			_add_recipe(id)
 	_button("Run selected recipe", _selected_action.bind("process", "recipe_id", _recipe))
-	_button("Cancel batch (recover feedstock; energy spent)", _send.bind("cancel", {}))
+	var cancel_button := _button("Cancel batch (recover feedstock; energy spent)", _send.bind("cancel", {}))
 	_chemical = _picker()
 	if observed.is_success:
 		for id in observed.value["dispensable"]:
@@ -113,7 +120,7 @@ func configure(world: WorldRuntime) -> ServiceResult:
 	_amount.tooltip_text = "Transfer mass. Extraction accepts up to 1000 g; use smaller gas batches to avoid overpressure."
 	add_child(_amount)
 	_button("Dispense selected mass into vessel", _chemical_action.bind("dispense"))
-	_button("Return selected mass to storage", _chemical_action.bind("return"))
+	var return_button := _button("Return selected mass to storage", _chemical_action.bind("return"))
 	var cargo_title := _label()
 	cargo_title.text = "Portable canisters (own inventory only; 2 kg payload limit)"
 	_carrier = _picker()
@@ -122,10 +129,10 @@ func configure(world: WorldRuntime) -> ServiceResult:
 		for id in observed.value["store"]:
 			_cargo_material.add_item(id)
 	_button("Load selected mass into carried canister", _cargo_action.bind("load_cargo"))
-	_button("Unload selected mass to workstation", _cargo_action.bind("unload_cargo"))
-	_button("Collect printed plate into inventory", _send.bind("materialize_plate", {}))
+	var unload_button := _button("Unload selected mass to workstation", _cargo_action.bind("unload_cargo"))
+	var collect_button := _button("Collect printed plate into inventory", _send.bind("materialize_plate", {}))
 	_components = _picker()
-	_button("Recycle selected carried plate", _selected_action.bind("recycle_component", "item_id", _components))
+	var recycle_button := _button("Recycle selected carried plate", _selected_action.bind("recycle_component", "item_id", _components))
 	var fabrication_title := _label()
 	fabrication_title.text = "Equipment fabrication · recoverable construction materials"
 	_blueprint = _picker()
@@ -135,13 +142,40 @@ func configure(world: WorldRuntime) -> ServiceResult:
 	_equipment = _picker()
 	_equipment.item_selected.connect(func(_index: int) -> void: refresh())
 	_salvage_button = _button("Salvage selected fabricated equipment and contents", _salvage_equipment)
-	_button("Build 1 kg wall segment", _send.bind("build", {}))
+	var build_button := _button("Build 1 kg wall segment", _send.bind("build", {}))
 	_button("Deconstruct one wall segment", _send.bind("deconstruct", {}))
 	_station = _picker()
 	for id in ProductionSimulationSystem.STATIONS:
 		_station.add_item(id)
-	_button("Toggle selected station power", _toggle_power)
+	var power_button := _button("Toggle selected station power", _toggle_power)
 	_feedback = _label()
+	var original: Array[Node] = get_children()
+	# Keep progress, mass and host receipts above the task chooser.
+	for control in [title, instructions, _guide_label, _guide_button, _activity, _feedback, _amount]:
+		move_child(control, get_child_count() - 1)
+	var mass_label := _label()
+	mass_label.text = "Transfer / extraction mass (g)"
+	move_child(mass_label, _amount.get_index())
+	_navigation = _picker()
+	_navigation.item_selected.connect(_show_section)
+	var hint := _label()
+	hint.text = "Choose a workstation task. Scroll for full prerequisites; Tab follows controls into view. Results above apply to every task."
+	_section_scroll = ScrollContainer.new()
+	_section_scroll.custom_minimum_size.y = 400
+	_section_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_section_scroll.follow_focus = true
+	add_child(_section_scroll)
+	var section_root := VBoxContainer.new()
+	section_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_section_scroll.add_child(section_root)
+	_add_section("Gather / carry", [[_gather_details, _extract_button], [cargo_title, unload_button]], original, section_root)
+	_add_section("Refine / collect / recycle", [[_recipe, cancel_button], [collect_button, recycle_button]], original, section_root)
+	_add_section("Equipment fabrication / salvage", [[fabrication_title, _salvage_button]], original, section_root)
+	_add_section("Tool maintenance", [[maintenance_title, _maintenance_feedback]], original, section_root)
+	_add_section("Fluids / chemicals", [[_chemical, return_button]], original, section_root)
+	_add_section("Observed resources / jobs", [[_status, _status]], original, section_root)
+	_add_section("Other workstation controls", [[build_button, power_button]], original, section_root)
+	_show_section(0)
 	refresh()
 	return ServiceResult.success()
 
@@ -181,6 +215,20 @@ func refresh() -> void:
 	var recipe_id: String = str(_recipe.get_item_metadata(_recipe.selected)) if _recipe.selected >= 0 else ""
 	_status.text = _resource_view.describe(_record, recipe_id, not _pending.is_empty(), false)
 	_recipe_details.text = WorkstationResourceView.recipe_text(_record, recipe_id) if valid_observation else "Recipe prerequisites unavailable: wait for a valid current observation."
+	_activity.text = "Observed resources and job status unavailable; wait for a fresh observation."
+	_gather_details.text = "Source and carried payload unavailable; wait for a fresh observation."
+	if valid_observation:
+		var job: Dictionary = _record["job"]
+		_activity.text = "No active job observed; this does not confirm past completion."
+		if not job.is_empty():
+			_activity.text = "Observed job at %s: %.1f s remaining. Acceptance is not completion; see Observed resources / jobs for power and pause details." % [job["station"], float(job["remaining_ticks"]) / float(_record["timebase_hz"])]
+		if not _pending.is_empty():
+			_activity.text += "\nCommand pending: awaiting host receipt; no output confirmed."
+		var source: String = _deposit.get_item_text(_deposit.selected) if _deposit.selected >= 0 else ""
+		var carrier: String = _carrier.get_item_text(_carrier.selected) if _carrier.selected >= 0 else ""
+		var mass: String = "%d mg remaining" % int(_record["deposits"][source]) if _record["deposits"].has(source) else "unavailable"
+		var payload: String = WorkstationResourceView.stock_text(_record["cargo"][carrier]) if _record["cargo"].has(carrier) else "unavailable"
+		_gather_details.text = "Source %s: %s; extraction reach: %s.\n%s payload: %s. Unload for shared-stock recipes. Host checks capacity and revision." % [source, mass, "yes" if _record["extractable_sources"].has(source) else "no", carrier, payload]
 
 
 func _send(operation: String, payload: Dictionary) -> void:
@@ -205,7 +253,29 @@ func _send(operation: String, payload: Dictionary) -> void:
 
 
 func refining_focus_control() -> Control:
+	_navigation.select(1)
+	_show_section(1)
 	return _recipe
+
+
+func _add_section(title: String, ranges: Array, original: Array[Node], section_root: VBoxContainer) -> void:
+	var section := VBoxContainer.new()
+	section.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	section_root.add_child(section)
+	_sections.append(section)
+	_navigation.add_item(title)
+	for bounds in ranges:
+		for index in range(original.find(bounds[0]), original.find(bounds[1]) + 1):
+			var control: Node = original[index]
+			# Mass is shared across gathering, cargo and fluid tasks.
+			if control != _amount:
+				control.reparent(section)
+
+
+func _show_section(index: int) -> void:
+	for current in range(_sections.size()):
+		_sections[current].visible = current == index
+	_section_scroll.scroll_vertical = 0
 
 
 func _guide_action() -> void:
@@ -373,6 +443,8 @@ func _on_closed() -> void:
 	_fill_recipes([])
 	_resource_view.describe({}, "")
 	_feedback.text = ""
+	_activity.text = "Unavailable: world closed; command outcome requires a fresh observation."
+	_gather_details.text = "Unavailable: source and payload require a fresh observation."
 	_refresh_maintenance()
 	_maintenance_feedback.text = "Unavailable: world or host connection closed; command outcome requires a fresh observation."
 	_refresh_equipment()
@@ -404,6 +476,7 @@ func _picker() -> OptionButton:
 func _button(title: String, callback: Callable) -> Button:
 	var button := Button.new()
 	button.text = title
+	button.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	button.pressed.connect(callback)
 	add_child(button)
 	_buttons.append(button)

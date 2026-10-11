@@ -32,7 +32,8 @@ func run() -> void:
 	for index in range(panel._recipe.item_count):
 		if panel._recipe.get_item_metadata(index) == "craft.plate": panel._recipe.select(index)
 	panel.refresh()
-	check(panel._recipe_details.text.contains("Selected: craft.plate") and panel.get_children().find(panel._recipe_details) == panel.get_children().find(panel._recipe) + 1, "current recipe details beside stable selector")
+	check(panel.refining_focus_control() == panel._recipe and panel._recipe.is_visible_in_tree() and panel._recipe_details.is_visible_in_tree(), "existing refine entry exposes selector and current quote")
+	check(panel._recipe_details.text.contains("Selected: craft.plate") and panel._recipe_details.get_parent() == panel._recipe.get_parent() and panel._recipe_details.get_index() == panel._recipe.get_index() + 1, "current recipe details beside stable selector in its task group")
 	panel.refresh()
 	check(panel._recipe.get_item_metadata(panel._recipe.selected) == "craft.plate", "poll retains recipe ID")
 	move([-3000, 0, -1000])

@@ -1,6 +1,6 @@
 param(
     [string]$Godot = 'godot',
-    [ValidateSet('basic', 'terrain', 'walls', 'machinery', 'equipment-fabrication', 'tool-parts')]
+    [ValidateSet('basic', 'terrain', 'walls', 'machinery', 'equipment-fabrication', 'tool-parts', 'production-navigation')]
     [string]$Route = 'terrain',
     [ValidateRange(1, 300)][int]$TimeoutSeconds = 120
 )
@@ -12,6 +12,10 @@ New-Item -ItemType Directory -Force -Path $output | Out-Null
 $stdout = Join-Path $output 'stdout.log'
 $stderr = Join-Path $output 'stderr.log'
 $arguments = @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility', '--path', '.', '--script', 'res://tests/godot/first_playable_client_render_check.gd', '--', "--$Route")
+if ($Route -eq 'production-navigation') {
+    # Detached panel fixture: no client connection or listening ports.
+    $arguments = @('--xr-mode', 'off', '--audio-driver', 'Dummy', '--rendering-method', 'gl_compatibility', '--path', '.', '--script', 'res://tests/godot/production_panel_navigation_test.gd', '--', '--capture-production-navigation')
+}
 $launch = @{
     FilePath = $executable
     ArgumentList = $arguments
