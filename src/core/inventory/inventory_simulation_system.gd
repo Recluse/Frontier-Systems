@@ -19,6 +19,7 @@ var _world_storage: Dictionary = {}
 var _grips: PhysicalGripOwner
 var _health: HealthSimulationSystem
 var _tool_capability_provider: Callable
+var _motion_validator: Callable
 ## Logical development targets; these are not inventory items or rigid bodies.
 const GRIP_TARGETS: Dictionary = {
 	"fixture.salvage-crate": {"position": [0, 0, 0], "movable": true, "required_force": 300000},
@@ -83,6 +84,13 @@ func authorize(context: AuthenticatedCommandContext, require_voluntary_action: b
 func own_position(context: AuthenticatedCommandContext) -> ServiceResult:
 	var allowed: ServiceResult = authorize(context)
 	return ServiceResult.success(_bodies[allowed.value]["position_millimetres"].duplicate()) if allowed.is_success else allowed
+
+
+## Bind one synchronous, read-only authority for constructed-world collision.
+func bind_motion_validator(validator: Callable) -> ServiceResult:
+	if _motion_validator.is_valid() or not validator.is_valid(): return _failure("Bind one valid motion authority.")
+	_motion_validator = validator
+	return ServiceResult.success()
 
 
 ## Resolve a usable active-hand tool from canonical equipment, never client tags.
@@ -314,14 +322,17 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 	if operation in ["move", "move_to"]:
 		if int(actor["action_epoch"]) >= MAX_EXACT_INTEGER:
 			return _failure("The body's action epoch is exhausted.")
+		var destination: Array = actor["position_millimetres"].duplicate()
 		if operation == "move":
 			if not ControlContractValidation.has_exact_fields(payload, PackedStringArray(["x_millimetres"])) or not ControlContractValidation.is_integer(payload.get("x_millimetres"), -10000000, 10000000):
 				return _failure("Legacy fixture movement requires a bounded integer x coordinate.")
-			actor["position_millimetres"][0] = int(payload["x_millimetres"])
+			destination[0] = int(payload["x_millimetres"])
 		else:
 			if not ControlContractValidation.has_exact_fields(payload, PackedStringArray(["position_millimetres"])) or not InventorySpatialMath.is_position(payload.get("position_millimetres")):
 				return _failure("Fixture movement requires a bounded integer 3D position.")
-			actor["position_millimetres"] = InventorySpatialMath.normalized(payload["position_millimetres"])
+			destination = InventorySpatialMath.normalized(payload["position_millimetres"])
+		if _motion_validator.is_valid() and not _motion_validator.call(actor["position_millimetres"], destination): return _failure("Movement intersects a constructed wall.")
+		actor["position_millimetres"] = destination
 		actor["action_epoch"] = int(actor["action_epoch"]) + 1
 		_views.revoke_principal(String(context.principal_id))
 		return ServiceResult.success()

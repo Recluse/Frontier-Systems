@@ -1,0 +1,554 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:production-system:v7",
+  "title": "Production and spatial construction system v7",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "catalog_revision",
+    "catalog_fingerprint",
+    "timebase_hz",
+    "last_tick",
+    "state_revision",
+    "deposits",
+    "store",
+    "vessel",
+    "wall_mass_milligrams",
+    "energy_joules",
+    "powered",
+    "job",
+    "receipts",
+    "cargo",
+    "structures",
+    "loose_parts",
+    "machinery",
+    "walls"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 7
+    },
+    "catalog_revision": {
+      "const": 1
+    },
+    "catalog_fingerprint": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "timebase_hz": {
+      "enum": [
+        60,
+        72,
+        90
+      ]
+    },
+    "last_tick": {
+      "$ref": "#/$defs/revision"
+    },
+    "state_revision": {
+      "$ref": "#/$defs/revision"
+    },
+    "deposits": {
+      "$ref": "#/$defs/stock"
+    },
+    "store": {
+      "$ref": "#/$defs/stock"
+    },
+    "vessel": {
+      "$ref": "#/$defs/stock"
+    },
+    "wall_mass_milligrams": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000000,
+      "multipleOf": 1000000
+    },
+    "energy_joules": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100000
+    },
+    "powered": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "drill",
+        "refinery",
+        "chemical",
+        "printer",
+        "recycler",
+        "dispenser",
+        "construction"
+      ],
+      "properties": {
+        "drill": {
+          "type": "boolean"
+        },
+        "refinery": {
+          "type": "boolean"
+        },
+        "chemical": {
+          "type": "boolean"
+        },
+        "printer": {
+          "type": "boolean"
+        },
+        "recycler": {
+          "type": "boolean"
+        },
+        "dispenser": {
+          "type": "boolean"
+        },
+        "construction": {
+          "type": "boolean"
+        }
+      }
+    },
+    "job": {
+      "oneOf": [
+        {
+          "type": "object",
+          "maxProperties": 0
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "recipe_id",
+            "deposit_id",
+            "station",
+            "inputs",
+            "outputs",
+            "remaining_ticks"
+          ],
+          "properties": {
+            "recipe_id": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "deposit_id": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "station": {
+              "enum": [
+                "drill",
+                "refinery",
+                "chemical",
+                "printer",
+                "recycler",
+                "dispenser",
+                "construction"
+              ]
+            },
+            "inputs": {
+              "$ref": "#/$defs/stock"
+            },
+            "outputs": {
+              "$ref": "#/$defs/stock"
+            },
+            "remaining_ticks": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 36000
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "recipe_id",
+            "deposit_id",
+            "station",
+            "inputs",
+            "outputs",
+            "remaining_ticks",
+            "extraction"
+          ],
+          "properties": {
+            "recipe_id": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "deposit_id": {
+              "type": "string",
+              "maxLength": 128
+            },
+            "station": {
+              "enum": [
+                "drill",
+                "refinery",
+                "chemical",
+                "printer",
+                "recycler",
+                "dispenser",
+                "construction"
+              ]
+            },
+            "inputs": {
+              "$ref": "#/$defs/stock"
+            },
+            "outputs": {
+              "$ref": "#/$defs/stock"
+            },
+            "remaining_ticks": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 60
+            },
+            "extraction": {
+              "$ref": "urn:frontier-systems:schema:tool-extraction-work:v1"
+            }
+          }
+        }
+      ]
+    },
+    "receipts": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "request_id",
+          "fingerprint",
+          "state_revision",
+          "tick_number"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "fingerprint": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "state_revision": {
+            "$ref": "#/$defs/revision"
+          },
+          "tick_number": {
+            "$ref": "#/$defs/revision"
+          }
+        }
+      }
+    },
+    "cargo": {
+      "maxProperties": 32,
+      "propertyNames": {
+        "minLength": 1,
+        "maxLength": 128,
+        "type": "string"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/stock"
+      },
+      "type": "object"
+    },
+    "structures": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "blueprint_id",
+          "fingerprint",
+          "materials"
+        ],
+        "properties": {
+          "materials": {
+            "type": "object",
+            "maxProperties": 32,
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100000000
+            },
+            "propertyNames": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "pattern": "\\S"
+            }
+          },
+          "fingerprint": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "blueprint_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "\\S"
+          }
+        },
+        "additionalProperties": false
+      },
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "\\S"
+      }
+    },
+    "loose_parts": {
+      "type": "object",
+      "additionalProperties": {
+        "minProperties": 1,
+        "maxProperties": 32,
+        "propertyNames": {
+          "$ref": "#/$defs/id"
+        },
+        "additionalProperties": {
+          "maximum": 100000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "type": "object"
+      },
+      "maxProperties": 128,
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      }
+    },
+    "machinery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_version",
+        "catalog_fingerprint",
+        "parts",
+        "mounts",
+        "placements",
+        "links",
+        "jobs"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "catalog_fingerprint": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "parts": {
+          "type": "object",
+          "maxProperties": 128,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "frame",
+                  "socket",
+                  "power",
+                  "controller",
+                  "printhead",
+                  "refinery",
+                  "extractor",
+                  "solar",
+                  "router",
+                  "expander",
+                  "cable",
+                  "autolathe"
+                ]
+              }
+            }
+          }
+        },
+        "mounts": {
+          "type": "object",
+          "maxProperties": 128,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
+        },
+        "placements": {
+          "type": "object",
+          "maxProperties": 20,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "position",
+              "mode",
+              "enabled",
+              "energy",
+              "generation_remainder"
+            ],
+            "properties": {
+              "position": {
+                "type": "array",
+                "minItems": 3,
+                "maxItems": 3,
+                "items": {
+                  "type": "integer",
+                  "minimum": -10000000,
+                  "maximum": 10000000
+                }
+              },
+              "mode": {
+                "enum": [
+                  "freeform",
+                  "surface"
+                ]
+              },
+              "enabled": {
+                "type": "boolean"
+              },
+              "energy": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 20000
+              },
+              "generation_remainder": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 89
+              }
+            }
+          }
+        },
+        "links": {
+          "type": "object",
+          "maxProperties": 24,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "a",
+              "b"
+            ],
+            "properties": {
+              "a": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "b": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          }
+        },
+        "jobs": {
+          "type": "object",
+          "maxProperties": 20,
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "recipe",
+              "progress",
+              "energy_spent",
+              "paused"
+            ],
+            "properties": {
+              "recipe": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "progress": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 36000
+              },
+              "energy_spent": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000
+              },
+              "paused": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    },
+    "walls": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "position",
+          "quarter_turn"
+        ],
+        "properties": {
+          "quarter_turn": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "position": {
+            "type": "array",
+            "minItems": 3,
+            "items": false,
+            "prefixItems": [
+              {
+                "type": "integer",
+                "multipleOf": 100,
+                "minimum": -100000,
+                "maximum": 100000
+              },
+              {
+                "const": 0
+              },
+              {
+                "type": "integer",
+                "multipleOf": 100,
+                "minimum": -100000,
+                "maximum": 100000
+              }
+            ],
+            "maxItems": 3
+          }
+        }
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      }
+    }
+  },
+  "$defs": {
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740000
+    },
+    "stock": {
+      "type": "object",
+      "maxProperties": 32,
+      "propertyNames": {
+        "minLength": 1,
+        "maxLength": 128
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100000000
+      }
+    },
+    "id": {
+      "pattern": "\\S",
+      "maxLength": 128,
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "description": "V7 adds spatial floor panels, each containing one kilogram of plate. Legacy wall_mass_milligrams stays separate. V1-v6 saves migrate to empty spatial walls without granting material. Panels do not seal atmosphere."
+}

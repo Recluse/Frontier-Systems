@@ -44,9 +44,14 @@ func _run() -> void:
 		quit(1)
 		return
 	var machinery_route: bool = OS.get_cmdline_user_args().has("--machinery")
+	var wall_route: bool = OS.get_cmdline_user_args().has("--walls")
 	var equipment_route: bool = OS.get_cmdline_user_args().has("--equipment-fabrication")
 	var tool_parts_route: bool = OS.get_cmdline_user_args().has("--tool-parts")
-	if machinery_route:
+	if wall_route:
+		if not await _wall_route(client):
+			quit(1)
+			return
+	elif machinery_route:
 		if not await _machinery_route(client):
 			quit(1)
 			return
@@ -66,11 +71,14 @@ func _run() -> void:
 	client._habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW)
 	client._habitat.camera._radius = 14.0
 	client._habitat.camera._update_overview()
+	if wall_route:
+		(client._machinery_panel.get_parent() as ScrollContainer).scroll_vertical = 650
 	await RenderingServer.frame_post_draw
 	var image: Image = root.get_texture().get_image()
 	var directory: String = "res://reports/equipment-fabrication" if equipment_route else "res://reports/first-playable"
 	if tool_parts_route: directory = "res://reports/tool-parts"
 	if machinery_route: directory = "res://reports/machinery"
+	if wall_route: directory = "res://reports/spatial-walls"
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
 	var error: Error = image.save_png(directory.path_join("client.png"))
 	print("First playable graphical client completed its seven-step loop using local physics and authenticated guide commands; screenshot result: %d" % error)
@@ -78,6 +86,51 @@ func _run() -> void:
 	host.free()
 	world.free()
 	quit(0 if error == OK else 1)
+
+
+func _wall_route(client: FirstPlayableBootstrap) -> bool:
+	client._production_panel._send("materialize_plate", {})
+	await create_timer(0.5).timeout
+	var plates: Array = client._latest["production"]["components"]
+	if plates.size() != 1: return false
+	client._tabs.current_tab = 3
+	var panel: MachineryPanel = client._machinery_panel
+	_select_wall_plate(panel, plates[0])
+	panel._axes[0].value = 0
+	panel._axes[1].value = 0
+	panel._axes[2].value = -1
+	panel._send("wall_build")
+	await create_timer(0.6).timeout
+	if panel._feedback.text != "Completed" or client._latest["production"]["walls"].size() != 1:
+		push_error("Graphical wall construction failed: " + panel._feedback.text)
+		return false
+	var id: String = client._latest["production"]["walls"].keys()[0]
+	var preview: ProceduralProductionPreview = client._habitat.production
+	if not preview._spatial_walls.has(id): return false
+	var query := PhysicsRayQueryParameters3D.create(Vector3(-6, 1, 2), Vector3(-6, 1, 0))
+	var hit: Dictionary = preview.get_world_3d().direct_space_state.intersect_ray(query)
+	if hit.get("collider") != preview._spatial_walls[id]:
+		push_error("Placed wall has no matching native physics collision.")
+		return false
+	panel.select_wall(id)
+	panel._send("wall_remove")
+	await create_timer(0.6).timeout
+	if panel._feedback.text != "Completed" or not client._latest["production"]["walls"].is_empty() or preview._spatial_walls.has(id): return false
+	plates = client._latest["production"]["components"]
+	if plates.size() != 1: return false
+	_select_wall_plate(panel, plates[0])
+	panel._send("wall_build")
+	await create_timer(0.6).timeout
+	if panel._feedback.text != "Completed": return false
+	print("Graphical walls: construct, native collision, select, remove, recover plate and rebuild through real authenticated UI passed.")
+	return true
+
+
+func _select_wall_plate(panel: MachineryPanel, id: String) -> void:
+	for index in range(panel._part.item_count):
+		if panel._part.get_item_metadata(index) == id:
+			panel._part.select(index)
+			return
 
 
 func _tool_parts_route(client: FirstPlayableBootstrap) -> bool:

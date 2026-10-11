@@ -9,9 +9,11 @@ const MATERIALS: Array[String] = ["ore.iron", "ice", "regolith", "iron", "tailin
 func accept_record(value: Dictionary) -> ServiceResult:
 	var fields := PackedStringArray(["schema_version", "catalog_revision", "catalog_fingerprint", "timebase_hz", "last_tick", "state_revision", "deposits", "store", "vessel", "wall_mass_milligrams", "energy_joules", "powered", "job", "cargo", "components", "recipes", "dispensable", "can_operate", "vessel_pressure_kpa", "extractable_sources"])
 	fields.append("machinery")
+	fields.append("walls")
 	fields.append_array(PackedStringArray(["structures", "blueprints", "loose_parts", "tool_extraction"]))
-	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 6, 6) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
+	if not ControlContractValidation.has_exact_fields(value, fields) or not ControlContractValidation.is_integer(value.get("schema_version"), 7, 7) or not ControlContractValidation.is_integer(value.get("timebase_hz"), 60, 90) or not [60, 72, 90].has(int(value.get("timebase_hz"))) or typeof(value.get("can_operate")) != TYPE_BOOL:
 		return _invalid()
+	if not SpatialWallConstruction.valid(value["walls"]): return _invalid()
 	for field in ["last_tick", "state_revision", "catalog_revision", "wall_mass_milligrams", "energy_joules"]:
 		if not ControlContractValidation.is_integer(value[field], 0, 9007199254740000):
 			return _invalid()
@@ -73,6 +75,7 @@ func accept_record(value: Dictionary) -> ServiceResult:
 	machinery.erase("inventory_items")
 	machinery.erase("cargo")
 	if not MachineryWorkshop.validate(machinery): return _invalid()
+	if not SpatialWallConstruction.scene_clear(value["walls"], machinery, {"bodies": []}): return _invalid()
 	record = value.duplicate(true)
 	return ServiceResult.success()
 

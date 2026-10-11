@@ -17,6 +17,8 @@ This is a bounded development prototype, not the full long-term game or a Steam 
 
 ## Latest construction slice
 
+[Physical floor walls](spatial-wall-milestone.md) add owned-plate placement/removal, conserved v7 records, shared crew dismantling, prototype keepouts, client static colliders and server swept-wall movement validation. Legacy aggregate walls remain separate. Room sealing, atmosphere topology and arbitrary surfaces remain pending. [Concurrent milestone assignments](milestone-coordination.md) cover placement feedback, checkpoint recovery and terrain domain ownership in separate chats/worktrees.
+
 [Construction coverage and next adapters](scratch-construction-milestone.md): every current inventory definition has a fabrication route or equivalent, including new backpacks, pouches, crowbars and shovels. All equipment can be hand-assembled near the workbench from its raw bills without printer energy. Trusted storage outputs create real child containers. Tool bindings v2 migrate old snapshot fingerprints. CI includes coverage checks to catch future spawn-only items. World fixtures still need spatial construction adapters.
 
 ## Latest crafting slice

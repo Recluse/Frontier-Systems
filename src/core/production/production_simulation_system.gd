@@ -45,6 +45,8 @@ func configure(inventory: InventorySimulationSystem, tools: ToolSimulationSystem
 	if not blueprints.is_success:
 		return blueprints
 	_state = initial_record(0)
+	var motion: ServiceResult = inventory.bind_motion_validator(func(from: Array, to: Array) -> bool: return SpatialWallConstruction.motion_clear(_state["walls"], from, to))
+	if not motion.is_success: return motion
 	return inventory.bind_payload_mass_provider(payload_mass)
 
 
@@ -52,7 +54,7 @@ func initial_record(tick: int) -> Dictionary:
 	var powered: Dictionary = {}
 	for station in STATIONS:
 		powered[station] = true
-	return {"schema_version": 6, "machinery": MachineryWorkshop.initial(), "loose_parts": {}, "structures": {}, "catalog_revision": 1, "catalog_fingerprint": _catalog_fingerprint, "timebase_hz": Engine.physics_ticks_per_second,
+	return {"schema_version": 7, "walls": {}, "machinery": MachineryWorkshop.initial(), "loose_parts": {}, "structures": {}, "catalog_revision": 1, "catalog_fingerprint": _catalog_fingerprint, "timebase_hz": Engine.physics_ticks_per_second,
 		"last_tick": tick, "state_revision": 0, "deposits": _initial_deposits(), "store": _empty_stock(),
 		"vessel": _empty_stock(), "wall_mass_milligrams": 0, "energy_joules": 100000,
 		"powered": powered, "job": {}, "receipts": [], "cargo": {}}
@@ -81,6 +83,7 @@ static func cargo_masses(cargo: Dictionary) -> Dictionary:
 ## Validate payload/item associations and prospective carried/equipment capacities.
 func validate_inventory_links(record: Dictionary, inventory_record: Dictionary) -> ServiceResult:
 	if not MachineryWorkshop.validate(record.get("machinery", MachineryWorkshop.initial()), inventory_record.get("owner", {})): return _failure("Invalid machinery physical associations.")
+	if not SpatialWallConstruction.valid(record.get("walls", {})) or not SpatialWallConstruction.scene_clear(record.get("walls", {}), record.get("machinery", MachineryWorkshop.initial()), inventory_record): return _failure("Constructed walls overlap authoritative world occupants or fixtures.")
 	for machine in record.get("machinery", MachineryWorkshop.initial())["placements"]:
 		var matched_location: bool = false
 		for location in inventory_record.get("world_storage", []):
@@ -168,6 +171,7 @@ func authorize(context: AuthenticatedCommandContext, voluntary: bool = true) -> 
 
 
 func authorize_operation(context: AuthenticatedCommandContext, operation: String, payload: Dictionary) -> ServiceResult:
+	if operation in ["wall_build", "wall_remove"]: return _inventory.production_capability(context, true, [])
 	if operation.begins_with("machine_"): return _inventory.production_capability(context, true, [])
 	if operation in ["cancel_tool_extract"]: return _inventory.production_capability(context, true, [])
 	if operation == "resume_tool_extract":
@@ -244,6 +248,10 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 	var prepared_graph: Dictionary = {}
 	var prepared_tools: ToolAssemblyLedger
 	var planned_work: bool = operation.begins_with("machine_") or operation in ["start_tool_extract", "resume_tool_extract", "cancel_tool_extract"]
+	if operation in ["wall_build", "wall_remove"]:
+		var wall_plan: ServiceResult = SpatialWallConstruction.plan(self, candidate, _inventory, context, request_id, operation, payload)
+		if not wall_plan.is_success: return wall_plan
+		prepared_inventory = wall_plan.value
 	if operation.begins_with("machine_"):
 		var machinery_plan: ServiceResult = MachineryConstruction.plan(self, candidate, _inventory, context, request_id, operation, payload)
 		if not machinery_plan.is_success: return machinery_plan
@@ -318,6 +326,7 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 	if not capacity.is_success:
 		return capacity
 	var previous: Dictionary = _state
+	if not candidate["walls"].is_empty() and not SpatialWallConstruction.scene_clear(candidate["walls"], candidate["machinery"], _inventory.capture_snapshot().value): return _failure("Construction overlaps a wall or world occupant.")
 	_state = candidate
 	if not prepared_graph.is_empty():
 		var graph_commit: ServiceResult = _inventory.commit_factory_graph(prepared_graph)
@@ -792,17 +801,18 @@ func restore_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
 
 func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	var fields: Array = ["schema_version", "catalog_revision", "catalog_fingerprint", "timebase_hz", "last_tick", "state_revision", "deposits", "store", "vessel", "wall_mass_milligrams", "energy_joules", "powered", "job", "receipts"]
-	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 6):
+	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 7):
 		fields.append("cargo")
-	if ControlContractValidation.is_integer(record.get("schema_version"), 3, 6):
+	if ControlContractValidation.is_integer(record.get("schema_version"), 3, 7):
 		fields.append("structures")
-	if ControlContractValidation.is_integer(record.get("schema_version"), 4, 6): fields.append("loose_parts")
-	if ControlContractValidation.is_integer(record.get("schema_version"), 6, 6): fields.append("machinery")
+	if ControlContractValidation.is_integer(record.get("schema_version"), 4, 7): fields.append("loose_parts")
+	if ControlContractValidation.is_integer(record.get("schema_version"), 6, 7): fields.append("machinery")
+	if ControlContractValidation.is_integer(record.get("schema_version"), 7, 7): fields.append("walls")
 	if _catalog.is_empty() or not _fields(record, fields):
 		return _failure("An exact configured production snapshot is required.")
 	if record["catalog_fingerprint"] != _catalog_fingerprint:
 		return _failure("The saved catalog differs; an explicit production migration is required.")
-	if not ControlContractValidation.is_integer(record["schema_version"], 1, 6) or not ControlContractValidation.is_integer(record["catalog_revision"], 1, 1):
+	if not ControlContractValidation.is_integer(record["schema_version"], 1, 7) or not ControlContractValidation.is_integer(record["catalog_revision"], 1, 1):
 		return _failure("Unsupported production/catalog version.")
 	if not ControlContractValidation.is_integer(record["last_tick"], tick, tick) or not ControlContractValidation.is_integer(record["timebase_hz"], Engine.physics_ticks_per_second, Engine.physics_ticks_per_second) or not [60, 72, 90].has(Engine.physics_ticks_per_second):
 		return _failure("Production tick and supported timebase must match the world.")
@@ -817,7 +827,12 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	normalized["loose_parts"] = record.get("loose_parts", {}).duplicate(true)
 	for field in ["schema_version", "catalog_revision", "timebase_hz", "last_tick", "state_revision", "wall_mass_milligrams", "energy_joules"]:
 		normalized[field] = int(record[field])
-	normalized["schema_version"] = 6
+	normalized["schema_version"] = 7
+	if not SpatialWallConstruction.valid(record.get("walls", {})): return _failure("Invalid spatial wall records.")
+	normalized["walls"] = record.get("walls", {}).duplicate(true)
+	for wall in normalized["walls"].values():
+		wall["position"] = InventorySpatialMath.normalized(wall["position"])
+		wall["quarter_turn"] = int(wall["quarter_turn"])
 	normalized["machinery"] = record.get("machinery", MachineryWorkshop.initial()).duplicate(true)
 	if not MachineryWorkshop.validate(normalized["machinery"]): return _failure("Malformed machinery record.")
 	normalized["machinery"]["catalog_fingerprint"] = MachineryWorkshop.initial()["catalog_fingerprint"]
@@ -828,7 +843,7 @@ func _decode(record: Dictionary, tick: int) -> ServiceResult:
 	if typeof(structures) != TYPE_DICTIONARY or structures.size() > 32:
 		return _failure("Structural equipment records must be bounded.")
 	normalized["structures"] = {}
-	var structural_mass: int = MachineryWorkshop.mass(normalized["machinery"])
+	var structural_mass: int = MachineryWorkshop.mass(normalized["machinery"]) + normalized["walls"].size() * SpatialWallConstruction.MASS
 	if typeof(record.get("loose_parts", {})) != TYPE_DICTIONARY or normalized["loose_parts"].size() > 128: return _failure("Loose parts must be a bounded material map.")
 	for id in normalized["loose_parts"]:
 		if not ControlContractValidation.is_id(id) or not _stock_valid(normalized["loose_parts"][id]): return _failure("Invalid loose part materials.")
@@ -1016,4 +1031,4 @@ func profiling_counters() -> Dictionary:
 	var hopper_mass: int = 0
 	for id in _state["cargo"]:
 		if _state["machinery"]["parts"].get(id, {}).get("kind") == "frame": hopper_mass += _mass(_state["cargo"][id])
-	return {"hopper_milligrams": hopper_mass, "deployed_machines": _state["machinery"]["placements"].size(), "machine_parts": _state["machinery"]["parts"].size(), "grid_cables": _state["machinery"]["links"].size(), "machine_batches": _state["machinery"]["jobs"].size(), "active_batches": 0 if _state["job"].is_empty() else 1, "fabricated_equipment": _state["structures"].size(), "physical_tool_parts": _state["loose_parts"].size(), "stored_milligrams": _mass(_state["store"]), "vessel_milligrams": _mass(_state["vessel"]), "energy_joules": _state["energy_joules"], "receipts": _state["receipts"].size()}
+	return {"spatial_walls": _state["walls"].size(), "hopper_milligrams": hopper_mass, "deployed_machines": _state["machinery"]["placements"].size(), "machine_parts": _state["machinery"]["parts"].size(), "grid_cables": _state["machinery"]["links"].size(), "machine_batches": _state["machinery"]["jobs"].size(), "active_batches": 0 if _state["job"].is_empty() else 1, "fabricated_equipment": _state["structures"].size(), "physical_tool_parts": _state["loose_parts"].size(), "stored_milligrams": _mass(_state["store"]), "vessel_milligrams": _mass(_state["vessel"]), "energy_joules": _state["energy_joules"], "receipts": _state["receipts"].size()}

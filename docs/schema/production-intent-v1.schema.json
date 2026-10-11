@@ -52,7 +52,9 @@
         "machine_print",
         "machine_autolathe_feed",
         "machine_autolathe_make",
-        "machine_autolathe_eject"
+        "machine_autolathe_eject",
+        "wall_build",
+        "wall_remove"
       ]
     },
     "payload": {
@@ -1333,9 +1335,114 @@
           }
         }
       }
+    },
+    {
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "expected_revision",
+              "item_id",
+              "position",
+              "quarter_turn"
+            ],
+            "properties": {
+              "item_id": {
+                "type": "string",
+                "pattern": "\\S",
+                "minLength": 1,
+                "maxLength": 128
+              },
+              "quarter_turn": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "position": {
+                "type": "array",
+                "minItems": 3,
+                "items": false,
+                "prefixItems": [
+                  {
+                    "type": "integer",
+                    "multipleOf": 100,
+                    "minimum": -100000,
+                    "maximum": 100000
+                  },
+                  {
+                    "const": 0
+                  },
+                  {
+                    "type": "integer",
+                    "multipleOf": 100,
+                    "minimum": -100000,
+                    "maximum": 100000
+                  }
+                ],
+                "maxItems": 3
+              },
+              "expected_revision": {
+                "$ref": "#/$defs/revision"
+              }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "wall_build"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      }
+    },
+    {
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "expected_revision",
+              "wall_id"
+            ],
+            "properties": {
+              "expected_revision": {
+                "$ref": "#/$defs/revision"
+              },
+              "wall_id": {
+                "type": "string",
+                "pattern": "\\S",
+                "minLength": 1,
+                "maxLength": 128
+              }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "wall_remove"
+          }
+        },
+        "required": [
+          "operation"
+        ]
+      }
     }
   ],
   "$defs": {
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740000
+    },
     "id": {
       "type": "string",
       "minLength": 1,

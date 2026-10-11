@@ -4,10 +4,12 @@ class_name ProceduralProductionPreview
 signal source_selected(deposit_id: String)
 signal extraction_requested(deposit_id: String)
 signal workstation_selected
+signal wall_selected(wall_id: String)
 
 ## First-party display geometry. Logical construction does not modify atmosphere.
 var _deposits: Dictionary = {}
 var _walls: Array[MeshInstance3D] = []
+var _spatial_walls: Dictionary = {}
 var _label: Label3D
 var _source_areas: Dictionary = {}
 var _source_labels: Dictionary = {}
@@ -79,6 +81,7 @@ func observe(record: Dictionary) -> void:
 			label.text = "Resource source unavailable"
 		for wall in _walls:
 			wall.visible = false
+		_update_spatial_walls({})
 		return
 	for id in _deposits:
 		var mass: int = int(record["deposits"][id])
@@ -91,7 +94,41 @@ func observe(record: Dictionary) -> void:
 	var count: int = int(record["wall_mass_milligrams"]) / 1000000
 	for index in range(_walls.size()):
 		_walls[index].visible = index < count
+	_update_spatial_walls(record.get("walls", {}))
 	_label.text = "Refinery and recycler\nClick the workbench for recipes\n%d J · %s" % [record["energy_joules"], "idle" if record["job"].is_empty() else "processing / power pause"]
+
+
+## Colliders are views of server records, never construction state owners.
+func _update_spatial_walls(walls: Dictionary) -> void:
+	for id in _spatial_walls.keys():
+		if walls.has(id): continue
+		remove_child(_spatial_walls[id])
+		_spatial_walls[id].queue_free()
+		_spatial_walls.erase(id)
+	for id in walls:
+		if _spatial_walls.has(id): continue
+		var pose: Dictionary = walls[id]
+		var body := StaticBody3D.new()
+		body.position = ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + SpatialWallConstruction.center(pose) / 1000.0
+		body.rotation.y = float(pose["quarter_turn"]) * PI / 2.0
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = SpatialWallConstruction.SIZE
+		mesh.mesh = box
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color("#b7c2c8")
+		mesh.material_override = material
+		body.add_child(mesh)
+		var collision := CollisionShape3D.new()
+		var shape := BoxShape3D.new()
+		shape.size = SpatialWallConstruction.SIZE
+		collision.shape = shape
+		body.add_child(collision)
+		body.input_event.connect(func(_camera: Node, event: InputEvent, _point: Vector3, _normal: Vector3, _shape: int) -> void:
+			if PlayerInputSettings.instance().accepts_gameplay_input() and event.is_action_pressed("world_select"): wall_selected.emit(id)
+		)
+		add_child(body)
+		_spatial_walls[id] = body
 
 
 func _on_workstation_input(_camera: Node, event: InputEvent, _position: Vector3, _normal: Vector3, _shape: int) -> void:

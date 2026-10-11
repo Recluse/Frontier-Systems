@@ -159,6 +159,10 @@ func _start_client() -> void:
 		_machinery_panel.select_machine(id)
 		_tabs.current_tab = 3
 	)
+	_habitat.production.wall_selected.connect(func(id: String) -> void:
+		_machinery_panel.select_wall(id)
+		_tabs.current_tab = 3
+	)
 	_habitat.world_inventory.skip_machine_roots = true
 	_tabs.tab_changed.connect(func(index: int) -> void:
 		_habitat.production.set_labels_visible(index != 3)

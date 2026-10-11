@@ -42,7 +42,7 @@ Empty constructed storage before salvage. Its empty shell is recycled through eq
 | --- | --- | --- |
 | Machines and power grid | Physical constructable frames, modules, sockets, solar, extractor, refinery, printer, autolathe, router and cables | Surface/ship attachment adapters and more generator designs |
 | Portable gear | Current item catalog covered | Add clothing/EVA/tanks as real item definitions with recipes and atmosphere ports |
-| Walls | Legacy conserved wall mass recipe | Spatial physical blueprint placement, removal and connection to room topology |
+| Walls | Legacy wall mass recipe plus physical floor panel placement/removal from owned plates | Room topology/sealing, staged work and general surface/ship attachment |
 | Airlocks, doors, controls | Functional simulation fixtures/contracts | Physical module bills, placeable host identity, construction/disassembly transactions |
 | Habitat atmosphere/gravity | Simulation owners/policies | Constructable pressure vessels, pipes, pumps, gravity equipment and owner adapters |
 | Terrain/dirt | Material/deconstruction contracts | Editable terrain owner, excavation/deposition and conservation adapters |

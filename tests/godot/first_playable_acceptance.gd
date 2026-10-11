@@ -103,7 +103,34 @@ func _run() -> void:
 	var restored_production := component_restore.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem
 	_check(restored_production.payload_mass(plate) == 1000000, "restored physical plate retains its loaded mass")
 	component_restore.free()
-	await _production(clients[winner], winner, "recycle_component", {"item_id": plate})
+	# The consumed plate becomes a shared placed panel; restart retains its identity.
+	await _reject(clients[1 - winner], 1 - winner, "production", "wall_build", {"item_id": plate, "position": [0, 0, -1000], "quarter_turn": 0})
+	await _production(clients[winner], winner, "wall_build", {"item_id": plate, "position": [0, 0, -1000], "quarter_turn": 0})
+	await create_timer(0.25).timeout
+	var wall_id: String = _observations[winner]["production"]["walls"].keys()[0]
+	_check(_observations[1 - winner]["production"]["walls"].has(wall_id) and _observations[winner]["production"]["components"].is_empty(), "both crews see shared wall without duplicate physical plate")
+	await _wait(func() -> bool: return not store.status()["busy"], 3.0)
+	await _send(clients[winner], "world", "checkpoint", {})
+	var wall_save: ServiceResult = LocalWorldSaveStore.read_latest(directory)
+	var wall_restore := WorldRuntime.new()
+	wall_restore.resource_carriers_enabled = true
+	root.add_child(wall_restore)
+	_check(wall_save.is_success and wall_restore.restore_world_snapshot_json(wall_save.value["snapshot_json"]).is_success, "disk checkpoint restores physical wall construction")
+	_check((wall_restore.get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem).capture_snapshot().value["walls"].has(wall_id), "checkpoint preserves wall identity")
+	wall_restore.free()
+	# Two simultaneous dismantles at one revision produce only one recovered plate.
+	await _walk_to(clients[1 - winner], 1 - winner, [1000, 0, 0])
+	await create_timer(0.25).timeout
+	var wall_revision: int = _observations[winner]["production"]["state_revision"]
+	var remove_one: String = _queue(clients[0], "production", "wall_remove", {"wall_id": wall_id, "expected_revision": wall_revision})
+	var remove_two: String = _queue(clients[1], "production", "wall_remove", {"wall_id": wall_id, "expected_revision": wall_revision})
+	await _wait(func() -> bool: return _acks.has(remove_one) and _acks.has(remove_two), 3.0)
+	_check(_acks.has(remove_one) and _acks.has(remove_two) and _acks[remove_one].is_success != _acks[remove_two].is_success, "competing wall removal has exactly one winner")
+	var wall_winner: int = 0 if _acks[remove_one].is_success else 1
+	await create_timer(0.25).timeout
+	_check(_observations[wall_winner]["production"]["components"].size() == 1 and _observations[1 - wall_winner]["production"]["components"].is_empty(), "only winning crew receives recovered wall plate")
+	plate = _observations[wall_winner]["production"]["components"][0]
+	await _production(clients[wall_winner], wall_winner, "recycle_component", {"item_id": plate})
 	await create_timer(0.25).timeout
 	_check(_observations[winner]["production"]["components"].is_empty() and _observations[winner]["production"]["store"]["iron"] == 1200000, "physical recycling returns conserved iron without duplicating the plate")
 	# Cooperative deployed machinery uses the same remote authority and durable store.

@@ -17,6 +17,8 @@ var _axes: Array[SpinBox] = []
 var _status := Label.new()
 var _feedback := Label.new()
 var _pending: String = ""
+var _wall := OptionButton.new()
+var _wall_turn := OptionButton.new()
 
 
 func configure(world: WorldRuntime) -> void:
@@ -57,6 +59,13 @@ func configure(world: WorldRuntime) -> void:
 	add_child(_mode)
 	_button("Use current player position (floor)", "position")
 	_button("Deploy assembled frame", "machine_deploy")
+	_label("Walls: select an owned physical plate above. Floor panels are 1 × 2 × 0.1 m and snap to the 0.1 m coordinate grid.")
+	_wall_turn.add_item("Wall along X", 0)
+	_wall_turn.add_item("Wall along Z", 1)
+	add_child(_wall_turn)
+	_button("Build wall from selected physical plate", "wall_build")
+	add_child(_wall)
+	_button("Remove selected wall and recover plate", "wall_remove")
 	_button("Pack machine with its nested contents", "machine_pack")
 	_label("Other cable endpoint")
 	add_child(_other)
@@ -114,6 +123,9 @@ func observe(record: Dictionary) -> void:
 	_fill(_other, frames)
 	_fill(_part, parts)
 	_fill(_socket, sockets)
+	var walls: Dictionary = {}
+	for id in record["production"]["walls"]: walls[id] = "Wall %s · %s" % [id.right(8), str(record["production"]["walls"][id]["position"])]
+	_fill(_wall, walls)
 	var lines: PackedStringArray = []
 	for id in machinery["placements"]:
 		var placement: Dictionary = machinery["placements"][id]
@@ -137,8 +149,10 @@ func _send(action: String) -> void:
 		return
 	var operation: String = action
 	var payload: Dictionary = {"expected_revision": _record["production"]["state_revision"]}
-	if action not in ["machine_craft", "machine_recycle"]: payload["machine_id"] = _selected(_machine)
+	if action not in ["machine_craft", "machine_recycle", "wall_build", "wall_remove"]: payload["machine_id"] = _selected(_machine)
 	match action:
+		"wall_build": payload.merge({"item_id": _selected(_part), "position": [roundi(_axes[0].value * 1000), roundi(_axes[1].value * 1000), roundi(_axes[2].value * 1000)], "quarter_turn": _wall_turn.selected})
+		"wall_remove": payload["wall_id"] = _selected(_wall)
 		"machine_craft", "machine_print", "machine_autolathe_make": payload["kind"] = _selected(_kind)
 		"machine_recycle", "machine_autolathe_feed": payload["item_id"] = _selected(_part)
 		"machine_fit", "machine_unfit", "machine_insert", "machine_remove":
@@ -168,6 +182,13 @@ func select_machine(id: String) -> void:
 	for index in range(_machine.item_count):
 		if _machine.get_item_metadata(index) == id:
 			_machine.select(index)
+			return
+
+
+func select_wall(id: String) -> void:
+	for index in range(_wall.item_count):
+		if _wall.get_item_metadata(index) == id:
+			_wall.select(index)
 			return
 
 
