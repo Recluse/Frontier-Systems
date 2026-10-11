@@ -18,6 +18,8 @@ The generated 1200×630 brand PNG returned 200 `image/png`, 21,096 bytes. Live/l
 
 DNS has one new DNS-only CNAME: `frontier-systems.discordphp.org` → `discord-php.github.io`. Public Cloudflare/Google DNS resolved it; GitHub's DNS check succeeded and requested its TLS certificate. Existing DiscordPHP apex, mail and verification records are preserved. HTTPS enforcement is the final hosting check once certificate issuance completes; Coordinator tracks that state and must not bypass certificate errors.
 
+The owner explicitly approved this remaining website follow-up in the existing ten-minute Coordinator automation. After HTTPS is verified, it will merge green homepage-link PRs [Valgorithms #6](https://github.com/valzargaming/valgorithms.com/pull/6) at `08d3f7e3474b8b3733a6e5db00d0de7c5a039ffe` and [DiscordPHP.org #9](https://github.com/discord-php/DiscordPHP.org/pull/9) at `6c60b44277c50e07826942ab6c357374e3f12ef4`, with matching-head guards, then verify publishing and update this record. Both PRs passed their applicable build checks; publication is deliberately waiting for HTTPS availability. Notify the delegated Discord setup chat when the HTTPS site link is usable.
+
 Local browser/crawler/CI proof is ignored under `var/ci/frontier-website/`. It is operational evidence, not public gameplay gallery content.
 
 ## Upkeep and sale boundary
