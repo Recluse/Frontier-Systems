@@ -1,0 +1,13 @@
+# Machinery operation feedback captures
+
+Captured and visually inspected on 2026-10-10 (America/New_York). Exact implementation and capture source: 8b8447836445dc8edcd1e96d43456f3c2ae71d54. Later gallery/documentation commits do not alter capture provenance. Windows Godot 4.7.2, D3D12 Forward+, NVIDIA RTX 3080 Ti, XR off, unedited 1920 x 1080 viewports.
+
+| File | Route and observed behavior | Acceptance limits | Author, rights and provenance |
+| --- | --- | --- | --- |
+| [running.png](running.png) | tools/godot/capture_machinery_operation_feedback.gd; real finite fixture and authenticated loopback scoped client on temporary port 27853. Observed progress earns Running; panel distinguishes visible grid totals from usable energy. Selected envelope remains visible. | Prototype camera and procedural geometry. Links and component conditions do not certify readiness. No damaged/paused/empty-buffer graphical claim. | Frontier Systems project, captured by Codex; MIT first-party procedural UI/scene, no imported creative assets. Existing engine renders built-in text; no font file added. |
+| [isolated.png](isolated.png) | Same route/source; actual host machine_enable(false) command leaves batch at nine ticks and retained buffer energy, displays isolation and not advancing. | Demonstrates isolation with stored charge, not absence of electricity or cable routing failure. No VR/controller/human acceptance. | Same first-party MIT provenance. |
+| [ended.png](ended.png) | Same route/source; host advances and completes finite ice extraction, canister increases to 2 kg, no active batch remains. UI reports ended with unconfirmed outcome because wire projection has no completion receipt. | Completion independently verified by capture script; screenshot/UI alone cannot distinguish completion from cancellation. No persistence/restart or live service claim. | Same first-party MIT provenance. |
+
+Route completed with zero failures and actual disconnect cleanup. Seven focused bounded Windows checks passed at this source; damaged, broken, paused, empty-buffer and stale projection variants remain detached/headless evidence. Final Windows/Linux CI is separate in draft PR #13. No release, deployment or external gallery publication.
+
+Images were inspected for readable selected feedback, geometry, credentials, private data and distracting debug overlays. Only generated machine IDs and simulated quantities appear. Distant machine labels are small; the selected panel is the detailed reading surface. Local originals remain under ignored reports/machinery-operation-feedback. PNGs use the repository's existing LFS attributes; .gdignore excludes this documentation gallery from runtime imports/exports.
