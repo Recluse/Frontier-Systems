@@ -1,5 +1,13 @@
 # Coordinated milestone work
 
+## Maintenance prerequisite integration (2026-10-11 UTC)
+
+Reviewed PR #31 immutable head `216b93e1da5ce24ef6c82c98d758f23a01fb0fc1`: owner-derived detached full-maintenance quotes from the existing paid part planner, exact owned-part/quote coverage, bounded integer validation, no invented materials, stable action order, legacy v2 unavailable handling and stale-success uncertainty. Tool observation v3 leaves tool-system v1 persistence, paid partial commands, wear/damage and stable provenance unchanged. Old v2-only clients require matching builds; no negotiation. Tests include rounded cost parity, private scope, malformed rejection, actual JSON receive/disconnect, restart and paid partial repair. All 26 exact-head checks succeeded; full PR `38111744991`, push `38111741587` plus ancillary workflows. Verified matching-head squash merge `b0576b1e47fb42582bfbc041cb52547131ef33f6`, no admin bypass. Clean primary fast-forwarded.
+
+Six combined Windows checks passed: import/startup, maintenance_requirements_test, repair_usability_test, recipe_requirements_test and terrain_parcel_usability_test; ignored evidence `var/ci/coordinator-maintenance-quotes`. No fixed ports or new media, no graphical/human/VR acceptance inferred. Exact-head CI supplies Windows/Linux evidence.
+
+Successor **Make equipment fabrication and component replacement discoverable**, chat `01a12941-e519-75e1-9c02-38bfb1509f32`, explicitly Sol/medium, isolated current-origin managed worktree, descriptive feature branch **without `codex/`**, open attached draft PR and own milestone doc. Scope existing equipment/component presentation only, preserve canonical paid actions and maintenance/recipe contracts. Targeting #29 and terrain preview #30 retain their assigned chats; three gameplay implementations remain assigned. Approval routing, no AI-generated art, no media/LFS uploads and port reservation requirements persist. No Ko-fi duplicate update is due from this individual merge.
+
 ## Review checkpoint (2026-10-11 04:29 UTC)
 
 Terrain preview draft #30 exact head `d2d65021e7bbc0bfe14a8dab3099215f8411ca4b` reviewed without blocking source findings: detached exact mass/capacity, independent depleted/full and host-work readiness, two known marker bound, preserved observed anchors/context labels and disconnect retirement. Tests exercise empty/partial/full/depleted/zero-capacity and unavailable states without mutating matter. No graphical capture supplied, so no gallery assessment/upload. Push CI `38111404025` and focused PR runs `38111415845` / `38111415864` succeeded, but full PR `38111415799` still has its required gate queued; merge is held until all exact-head gates complete. No successor duplicate created.
