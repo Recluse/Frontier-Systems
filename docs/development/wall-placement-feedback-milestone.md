@@ -37,7 +37,7 @@ The capture tool first completes the finite wall/material integration fixture, t
 
 Captured first-party MIT UI evidence: [X ghost](../../reports/wall-placement-feedback/ghost-x.png), [Z ghost](../../reports/wall-placement-feedback/ghost-z.png), [pending](../../reports/wall-placement-feedback/pending.png), [selected wall](../../reports/wall-placement-feedback/selected.png). The native ray and input-event checks do not establish manual mouse/controller usability.
 
-Final local evidence is recorded below after the serialized cooperative acceptance run. Native logs and JUnit remain in ignored var/ci/wall-placement-feedback. Port 27849 is used only during the Coordinator-granted final acceptance window; graphical capture stays on 27852.
+Final Windows verification passed against integration baseline bef1b39622a6b0fbbc19f1b10f02819f3314d82d: import/startup plus all four focused scripts (six checks, zero failures); serialized first_playable_acceptance.gd with actual authenticated two-client transport and temporary checkpoint storage (36.17 s, import/startup included, three checks and zero failures); and the native graphical route (zero failures and no Godot error diagnostics). All four regenerated captures were inspected for orientation, footprint, pending state and readable selected-wall advice. Final native logs/JUnit are under ignored var/ci/wall-placement-feedback and var/ci/wall-placement-cooperative; graphical.log is under the former. Port 27849 was inspected for unexpected listeners, used only during the Coordinator-granted acceptance window, and released promptly. The graphical host used its separate port 27852. CI must pass on the final pushed head before coordinator merge.
 
 ## Limits
 
