@@ -13,6 +13,10 @@ var _world_root := OptionButton.new()
 var _world_details := Label.new()
 var _world_status := Label.new()
 var _pending_world: Dictionary = {}
+var _pending_inventory: Dictionary = {}
+var _inventory_buttons: Dictionary = {}
+var _storage_status := Label.new()
+var _initialized_pickers: Dictionary = {}
 var _source := OptionButton.new()
 var _destination := OptionButton.new()
 var _slot := OptionButton.new()
@@ -47,9 +51,9 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_equipment)
 	_label("Browse container (double-click a backpack or pouch to open)")
 	add_child(_source)
-	_source.item_selected.connect(func(_index: int) -> void: _fill_items(); _inspect())
+	_source.item_selected.connect(func(_index: int) -> void: _fill_items(); _inspect(); _update_buttons())
 	_items.custom_minimum_size.y = 180
-	_items.item_selected.connect(func(_index: int) -> void: _inspect())
+	_items.item_selected.connect(func(_index: int) -> void: _inspect(); _update_buttons())
 	_items.item_activated.connect(_open_storage)
 	add_child(_items)
 	add_child(_details)
@@ -57,27 +61,31 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(_slot)
 	var equipment_actions := HBoxContainer.new()
 	add_child(equipment_actions)
-	_button(equipment_actions, "Equip", _self_action.bind("equip"))
-	_button(equipment_actions, "Unequip", _self_action.bind("unequip"))
-	_button(equipment_actions, "Switch hand", _self_action.bind("switch_hand"))
-	_button(self, "Make selected hand active", _self_action.bind("select_hand"))
+	_button(equipment_actions, "Equip", _self_action.bind("equip"), "equip")
+	_button(equipment_actions, "Unequip", _self_action.bind("unequip"), "unequip")
+	_button(equipment_actions, "Switch hand", _self_action.bind("switch_hand"), "switch_hand")
+	_button(self, "Make selected hand active", _self_action.bind("select_hand"), "select_hand")
 	_label("Destination storage")
 	add_child(_destination)
-	_button(self, "Move selected item into destination", _self_action.bind("move"))
-	_label("Nearby storage · approach the tray to collect or drop")
+	_storage_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_storage_status)
+	_destination.item_selected.connect(func(_index: int) -> void: _update_buttons())
+	_slot.item_selected.connect(func(_index: int) -> void: _update_buttons())
+	_button(self, "Move selected item into destination", _self_action.bind("move"), "move")
+	_label("Cooperative tray handoff · drop here for another crew member to collect")
 	_world_root.fit_to_longest_item = false
 	_world_root.clip_text = true
 	add_child(_world_root)
-	_world_root.item_selected.connect(func(_index: int) -> void: _inspect_world())
+	_world_root.item_selected.connect(func(_index: int) -> void: _fill_world_items(); _inspect_world(); _update_buttons())
 	_world_items.custom_minimum_size.y = 100
-	_world_items.item_selected.connect(func(_index: int) -> void: _inspect_world())
+	_world_items.item_selected.connect(func(_index: int) -> void: _inspect_world(); _update_buttons())
 	add_child(_world_items)
 	_world_details.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_world_details)
 	var world_actions := HBoxContainer.new()
 	add_child(world_actions)
-	_button(world_actions, "Collect selected", _world_action.bind("pickup"))
-	_button(world_actions, "Drop selected", _world_action.bind("drop"))
+	_button(world_actions, "Collect selected", _world_action.bind("pickup"), "pickup")
+	_button(world_actions, "Drop selected", _world_action.bind("drop"), "drop")
 	_world_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_world_status)
 	_label("Active tool · resource extractor")
@@ -138,11 +146,11 @@ func observe(frame: Dictionary) -> void:
 	var world_containers: Array = []
 	for container in _nearby.get("containers", []):
 		world_containers.append(container["container_id"])
-	var view_key: String = JSON.stringify([_record["inventory_revision"], _record["mass_milligrams"], _production["state_revision"], _tools.get("state_revision", -1), _nearby])
+	var view_key: String = JSON.stringify([_record, _production["state_revision"], _tools.get("state_revision", -1), _nearby])
 	if view_key == _view_key:
 		return
 	_view_key = view_key
-	_summary.text = "Carried: %.2f kg · %d items" % [float(_record["mass_milligrams"]) / 1000000.0, _record["items"].size()]
+	_summary.text = "Owned including nested storage: %.2f kg · %d items" % [float(_record["mass_milligrams"]) / 1000000.0, _record["items"].size()]
 	var equipped: PackedStringArray = []
 	for binding in _record["equipped"]:
 		equipped.append("%s: %s" % [_slot_name(binding["slot_id"]), _item_name(binding["item_id"])])
@@ -159,29 +167,36 @@ func observe(frame: Dictionary) -> void:
 		if id == previous_carrier:
 			_carrier.select(_carrier.item_count - 1)
 	_fill_items()
-	var selected: String = _selected_id(_world_items)
-	var selected_root: String = ""
-	if not _world_items.get_selected_items().is_empty():
-		selected_root = _world_items.get_item_metadata(_world_items.get_selected_items()[0])["container_id"]
 	_fill_picker(_world_root, world_containers)
-	_world_items.clear()
-	for container in _nearby.get("containers", []):
-		for item in container["items"]:
-			_world_items.add_item("%s · %s · %s" % [NAMES.get(item["definition_id"], "Equipment"), item["item_id"], container["container_id"]])
-			_world_items.set_item_metadata(_world_items.item_count - 1, {"item_id": item["item_id"], "container_id": container["container_id"]})
-			if item["item_id"] == selected and container["container_id"] == selected_root:
-				_world_items.select(_world_items.item_count - 1)
+	_fill_world_items()
 	_inspect()
 	_inspect_world()
 	_update_buttons()
 
 
+func _fill_world_items() -> void:
+	var selected: String = _selected_id(_world_items)
+	var selected_root: String = ""
+	if not _world_items.get_selected_items().is_empty():
+		selected_root = _world_items.get_item_metadata(_world_items.get_selected_items()[0])["container_id"]
+	_world_items.clear()
+	for container in _nearby.get("containers", []):
+		if container["container_id"] != _picker_id(_world_root): continue
+		for entry in container["items"]:
+			_world_items.add_item("%s · %s · direct tray contents" % [NAMES.get(entry["definition_id"], "Equipment"), entry["item_id"]])
+			_world_items.set_item_metadata(_world_items.item_count - 1, entry.duplicate(true))
+			if entry["item_id"] == selected and container["container_id"] == selected_root:
+				_world_items.select(_world_items.item_count - 1)
+
+
 func _fill_picker(picker: OptionButton, ids: Array, all_items: bool = false) -> void:
 	var previous: Variant = picker.get_item_metadata(picker.selected) if picker.selected >= 0 else null
 	picker.clear()
+	var restored: int = -1
 	if all_items:
-		picker.add_item("All carried items")
+		picker.add_item("All owned items (including nested)")
 		picker.set_item_metadata(0, "*")
+		if previous == "*": restored = 0
 	for id in ids:
 		picker.add_item(_item_name(id) if picker == _loose_parts else (_slot_name(id) if picker == _slot else _container_name(id)))
 		picker.set_item_metadata(picker.item_count - 1, id)
@@ -189,8 +204,16 @@ func _fill_picker(picker: OptionButton, ids: Array, all_items: bool = false) -> 
 			for container in _nearby.get("containers", []):
 				if container["container_id"] == id:
 					picker.set_item_text(picker.item_count - 1, "%s · observed %.2f m" % [id, float(container["distance_millimetres"]) / 1000.0])
-		if previous == id:
-			picker.select(picker.item_count - 1)
+		if previous == id: restored = picker.item_count - 1
+	var strict: bool = picker in [_source, _destination, _slot, _world_root]
+	# Initialize once; a vanished ID must never silently retarget to the first row.
+	var initialized: bool = _initialized_pickers.has(picker.get_instance_id())
+	picker.select(restored if strict and initialized else (restored if restored >= 0 else (0 if picker.item_count > 0 else -1)))
+	if picker.item_count > 0: _initialized_pickers[picker.get_instance_id()] = true
+
+
+static func _picker_id(picker: OptionButton) -> String:
+	return str(picker.get_item_metadata(picker.selected)) if picker.selected >= 0 else ""
 
 
 func _fill_items() -> void:
@@ -198,12 +221,12 @@ func _fill_items() -> void:
 	_items.clear()
 	if _record.is_empty():
 		return
-	var source: String = str(_source.get_item_metadata(_source.selected)) if _source.selected >= 0 else "*"
+	var source: String = _picker_id(_source)
 	for item in _record["items"]:
 		if source != "*" and item["container_id"] != source:
 			continue
 		var name: String = _item_name(item["item_id"])
-		_items.add_item("%s · %s" % [name, _container_name(item["container_id"])])
+		_items.add_item("%s · %s · %s" % [name, item["item_id"], _container_name(item["container_id"])])
 		_items.set_item_metadata(_items.item_count - 1, item)
 		if item["item_id"] == selected:
 			_items.select(_items.item_count - 1)
@@ -262,43 +285,46 @@ func _open_storage(index: int) -> void:
 					_source.select(entry)
 					_fill_items()
 					_inspect()
+					_update_buttons()
 					return
 
 
+func _inventory_prerequisite(operation: String) -> String:
+	var list: ItemList = _world_items if operation == "pickup" else _items
+	var root_id: String = _picker_id(_world_root)
+	return PlayerInventoryPresentation.prerequisite(operation, _record, _nearby, _selected_id(list), _picker_id(_destination), _picker_id(_slot), root_id)
+
+
 func _self_action(operation: String) -> void:
-	if _record.is_empty():
+	if not _pending.is_empty(): return
+	var reason: String = _inventory_prerequisite(operation)
+	if not reason.is_empty():
+		_result.text = reason
 		return
 	var payload: Dictionary = {"operation": operation, "item_id": "", "source_container_id": "", "destination_container_id": "", "slot_id": "", "expected_revision": _record["inventory_revision"]}
 	if operation in ["equip", "move"]:
-		var selected: PackedInt32Array = _items.get_selected_items()
-		if selected.is_empty():
-			_result.text = "Select an item first."
-			return
-		var item: Dictionary = _items.get_item_metadata(selected[0])
+		var item: Dictionary = PlayerInventoryPresentation.item(_record, _selected_id(_items))
 		payload["item_id"] = item["item_id"]
 		payload["source_container_id"] = item["container_id"]
 	if operation in ["equip", "unequip", "select_hand"]:
-		payload["slot_id"] = _slot.get_item_metadata(_slot.selected)
+		payload["slot_id"] = _picker_id(_slot)
 	if operation in ["move", "unequip"]:
-		payload["destination_container_id"] = _destination.get_item_metadata(_destination.selected)
+		payload["destination_container_id"] = _picker_id(_destination)
 	_submit("self", payload)
-
+	if not _pending.is_empty():
+		_pending_inventory = payload.duplicate(true)
+		_result.text = PlayerInventoryPresentation.pending_text(_pending_inventory)
 
 func _world_action(operation: String) -> void:
 	if _record.is_empty() or not _pending.is_empty():
 		return
+	var reason: String = _inventory_prerequisite(operation)
+	if not reason.is_empty():
+		_result.text = reason
+		_world_status.text = reason
+		return
 	var list: ItemList = _world_items if operation == "pickup" else _items
-	var selected: PackedInt32Array = list.get_selected_items()
-	if selected.is_empty() or _nearby.get("containers", []).is_empty():
-		_result.text = "Select an item and approach accessible world storage."
-		_world_status.text = _result.text
-		return
-	var item: Dictionary = list.get_item_metadata(selected[0])
-	if operation == "pickup" and _destination.selected < 0:
-		_result.text = "Choose owned destination storage."
-		_world_status.text = _result.text
-		return
-	if _world_root.selected < 0: return
+	var item: Dictionary = list.get_item_metadata(list.get_selected_items()[0])
 	var payload: Dictionary = {"operation": operation, "item_id": item["item_id"], "world_container_id": item["container_id"] if operation == "pickup" else _world_root.get_item_metadata(_world_root.selected), "destination_container_id": _destination.get_item_metadata(_destination.selected) if operation == "pickup" else "", "slot_id": "", "expected_revision": _record["inventory_revision"]}
 	_submit("world", payload)
 	if not _pending.is_empty():
@@ -318,7 +344,7 @@ func _inspect_world() -> void:
 	var item: Dictionary = _world_items.get_item_metadata(selected[0])
 	for container in _nearby.get("containers", []):
 		if container["container_id"] != item["container_id"]: continue
-		_world_details.text = "%s · world storage %s\nObserved distance %.2f m · accessible/in reach in latest host view. Not carried by you; collect into owned storage. Host rechecks reach, capacity and ownership." % [item["item_id"], container["container_id"], float(container["distance_millimetres"]) / 1000.0]
+		_world_details.text = "%s · world storage %s\nObserved distance %.2f m · accessible/in reach in latest host view. Not carried by you; collect into owned storage. Only direct contents are visible; nested contents and tray capacity are unavailable. Host rechecks reach, capacity and ownership." % [item["item_id"], container["container_id"], float(container["distance_millimetres"]) / 1000.0]
 
 
 func _disconnected(message: String) -> void:
@@ -328,16 +354,19 @@ func _disconnected(message: String) -> void:
 	_tools = {}
 	_pending = ""
 	_pending_world.clear()
+	_pending_inventory.clear()
 	_view_key = ""
+	_initialized_pickers.clear()
 	for list in [_items, _world_items]: list.clear()
 	for picker in [_source, _destination, _slot, _world_root, _carrier, _tool_parts, _tool_mounts, _loose_parts, _part_blueprints]: picker.clear()
-	for label in [_summary, _equipment, _details, _world_details, _work_status]: label.text = ""
-	_result.text = message + "; pending target cleared. Reconnect and refresh before retrying."
+	for label in [_summary, _equipment, _details, _world_details, _work_status, _storage_status]: label.text = ""
+	_result.text = message + "; pending target cleared; its outcome is unknown. Reconnect and refresh before retrying."
 	_world_status.text = _result.text
 	_update_buttons()
 
 
 func _use_tool() -> void:
+	if not _pending.is_empty(): return
 	if _record.is_empty():
 		return
 	if _carrier.selected < 0:
@@ -351,6 +380,7 @@ func switch_active_hand() -> void:
 
 
 func _repair_component() -> void:
+	if not _pending.is_empty(): return
 	if _tool_parts.selected < 0 or _tools.is_empty():
 		_result.text = "Select a tool and component first."
 		return
@@ -358,6 +388,7 @@ func _repair_component() -> void:
 
 
 func _sustained_action(operation: String) -> void:
+	if not _pending.is_empty(): return
 	if _production.is_empty(): return
 	var payload: Dictionary = {"expected_revision": _production["state_revision"]}
 	if operation == "start_tool_extract":
@@ -367,6 +398,7 @@ func _sustained_action(operation: String) -> void:
 
 
 func _part_action(operation: String) -> void:
+	if not _pending.is_empty(): return
 	if _tools.is_empty() or _production.is_empty(): return
 	var payload: Dictionary = {"expected_revision": _production["state_revision"], "expected_tool_revision": _tools["state_revision"]}
 	if operation == "fabricate_tool_part":
@@ -411,6 +443,7 @@ func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 		var was_world: bool = not _pending_world.is_empty()
 		_pending = ""
 		_pending_world.clear()
+		_pending_inventory.clear()
 		_result.text = "Host accepted action. Inventory follows the latest host view." if result.is_success else "Host rejected action: " + result.message
 		if was_world: _world_status.text = _result.text
 		_update_buttons()
@@ -419,12 +452,18 @@ func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 func _update_buttons() -> void:
 	for button in _buttons:
 		button.disabled = _record.is_empty() or not _pending.is_empty()
+	for operation in _inventory_buttons:
+		var button: Button = _inventory_buttons[operation]
+		var reason: String = _inventory_prerequisite(operation)
+		button.disabled = button.disabled or not reason.is_empty()
+		button.tooltip_text = reason if not reason.is_empty() else "Host rechecks current ownership, reach, capacity, compatibility and revision."
 	for picker in [_source, _destination, _slot, _world_root]:
 		picker.disabled = _record.is_empty() or not _pending.is_empty()
 	_items.mouse_filter = Control.MOUSE_FILTER_IGNORE if not _pending.is_empty() else Control.MOUSE_FILTER_STOP
 	_world_items.mouse_filter = _items.mouse_filter
 	_items.set_process_input(_pending.is_empty())
 	_world_items.set_process_input(_pending.is_empty())
+	_storage_status.text = PlayerInventoryPresentation.storage_hint(_record, _picker_id(_destination)) if not _record.is_empty() else ""
 
 
 func _label(text: String) -> void:
@@ -434,13 +473,14 @@ func _label(text: String) -> void:
 	add_child(label)
 
 
-func _button(parent: Node, text: String, callback: Callable) -> void:
+func _button(parent: Node, text: String, callback: Callable, inventory_operation: String = "") -> void:
 	var button := Button.new()
 	button.text = text
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(callback)
 	parent.add_child(button)
 	_buttons.append(button)
+	if not inventory_operation.is_empty(): _inventory_buttons[inventory_operation] = button
 
 
 static func _selected_id(list: ItemList) -> String:
@@ -459,11 +499,11 @@ func _item_name(id: String) -> String:
 
 func _container_name(id: String) -> String:
 	if id == _record.get("body_container_id"):
-		return "Carried loose"
+		return "Carried loose · " + id
 	for container in _record.get("container_records", []):
 		if container["container_id"] == id:
-			return _item_name(container["owner_item_id"])
-	return "Storage"
+			return "%s · %s" % [_item_name(container["owner_item_id"]), id]
+	return "Storage · " + id
 
 
 static func _slot_name(id: String) -> String:
