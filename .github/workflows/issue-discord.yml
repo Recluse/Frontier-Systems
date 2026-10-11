@@ -1,0 +1,35 @@
+name: Issue Discord notifications
+on:
+  issues:
+    types: [labeled, closed]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: Issue number to synchronize (safe retry using saved mapping)
+        required: true
+        type: string
+concurrency:
+  group: discord-issue-${{ github.event.issue.number || inputs.issue_number }}
+  cancel-in-progress: false
+permissions:
+  contents: write
+  issues: read
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Route issue to its Discord forum
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DISCORD_BUG_REPORTS_WEBHOOK_URL: ${{ secrets.DISCORD_BUG_REPORTS_WEBHOOK_URL }}
+          DISCORD_SUGGESTIONS_WEBHOOK_URL: ${{ secrets.DISCORD_SUGGESTIONS_WEBHOOK_URL }}
+        run: |
+          & (Get-Command node -CommandType Application).Source tools/github/issue-discord.mjs
+
+

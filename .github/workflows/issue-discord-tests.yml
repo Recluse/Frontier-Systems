@@ -1,0 +1,25 @@
+name: Issue Discord routing contracts
+on:
+  pull_request:
+    branches: [dev-master]
+    paths: ['tools/github/**', '.github/workflows/issue-discord*.yml']
+  push:
+    branches: [dev-master]
+    paths: ['tools/github/**', '.github/workflows/issue-discord*.yml']
+permissions:
+  contents: read
+jobs:
+  contracts:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - shell: pwsh
+        run: |
+          & (Get-Command node -CommandType Application).Source --test tools/github/issue-discord.test.mjs
+
