@@ -30,3 +30,7 @@ First-party game code, schemas, and created assets are licensed under MIT. This 
 The optional `packages/twitch` adapter is first-party MIT code and reuses ReactPHP/PSR software dependencies. It bundles no Twitch SDK, Extension Helper script, logos or other creative assets. Access to Twitch APIs/services and any later Extension deployment is governed separately by Twitch's platform terms.
 
 Before adding an external art, audio, font, model, texture, or code asset, record its title, author, source URL, exact license/version, required attribution, modifications, and redistribution terms here. Prefer first-party material that the project can license under MIT and external creative assets under CC0. External software dependencies require an individually approved permissive license and retained notices. Do not assume that "free" means commercially redistributable, and do not add differently licensed creative assets without an explicit project-policy change.
+
+## Procedural habitat visual details
+
+The resource clusters/prism, workbench supports/surfaces, tray rims/pedestals and terrain outlines in src/presentation/habitat/habitat_visual_details.gd are independently authored first-party MIT GDScript/Godot primitive geometry and materials. Creation tools: text editing and ordinary Godot 4.7.2 engine rendering. No imported source artwork, new fonts, third-party creative assets, AI image generation or generative intermediate assets are used. Internal graphical captures are ignored local diagnostics and are not shipped or uploaded.

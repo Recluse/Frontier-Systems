@@ -43,3 +43,11 @@ See [target feedback milestone](../development/habitat-target-feedback-milestone
 ```
 
 Use that normal client launch for visual inspection. Tick profiling does not measure GPU/rendering cost; the extra viewport remains outside simulation execution timings. Mesh batching, render scaling and a real player controller are later work. The inspection/geometry helpers may eventually be packaged as reusable MIT Godot tools once their editor interfaces and asset documentation are stable.
+
+## Visual readability
+
+The cutaway uses a darker neutral floor, bounded native directional shadows and matte independently authored primitive details. Iron has clustered blocks, ice has a prism silhouette and regolith has a lower profile. Workbench legs, work surfaces and a small instrument block establish scale; rimmed tray pedestals visually separate inventory fixtures from the floor. Decoration is mesh-only and leaves original proxy centres, collision shapes and label anchors intact.
+
+HabitatVisualDetails owns at most 32 tray decorations and two terrain outlines. Tray details rebuild with the existing inventory presentation revision and follow its visibility. Terrain outlines live separately from TerrainCellPreview, follow its observed marker positions and retire with missing observations. They add no pick surfaces, readiness advice or canonical state. Existing occlusion still applies: a workstation can hide a marker beneath it. This is an illustrative fixture, not terrain occupancy authority.
+
+The capture helper renders real in-memory observations with no sockets or ports and retains renderer-prefixed PNGs only under ignored var/captures/habitat-visual-readability. See the visual readability milestone for native coverage and limits.

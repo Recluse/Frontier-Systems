@@ -23,11 +23,12 @@ func set_labels_visible(enabled: bool) -> void:
 
 func _ready() -> void:
 	var ids: Array[String] = ["deposit.iron", "deposit.ice", "deposit.regolith"]
-	var colors: Array[Color] = [Color("#b36643"), Color("#9bd9ef"), Color("#967951")]
+	var colors: Array[Color] = [Color("#ad7357"), Color("#a6d2de"), Color("#a89778")]
 	for index in range(ids.size()):
 		var coords: Array = ProductionSimulationSystem.SOURCE_POSITIONS[ids[index]]
 		var origin: Vector3 = ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(float(coords[0]), float(coords[1]), float(coords[2])) / 1000.0
 		var ore := _box(Vector3(0.5, 0.5, 0.5), origin + Vector3(0, 0.25, 0), colors[index])
+		HabitatVisualDetails.resource(ore, index, colors[index])
 		_deposits[ids[index]] = ore
 		var area := Area3D.new()
 		area.position = ore.position
@@ -45,6 +46,7 @@ func _ready() -> void:
 		add_child(source_label)
 		_source_labels[ids[index]] = source_label
 	_box(Vector3(3.5, 0.1, 1.0), Vector3(-6.0, 0.8, 3.0), Color("#667b91"))
+	HabitatVisualDetails.workstation(self)
 	var workstation := Area3D.new()
 	workstation.position = Vector3(-6.0, 0.8, 3.0)
 	var workstation_collision := CollisionShape3D.new()

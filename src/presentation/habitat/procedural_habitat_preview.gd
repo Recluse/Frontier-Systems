@@ -19,16 +19,17 @@ func _ready() -> void:
 	environment.background_color = Color("#141e2a")
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color("#b9cbdc")
-	environment.ambient_light_energy = 0.6
+	environment.ambient_light_energy = 0.7
 	var sky := WorldEnvironment.new()
 	sky.environment = environment
 	add_child(sky)
 	var light := DirectionalLight3D.new()
 	light.rotation = Vector3(-0.9, -0.5, 0.0)
-	light.light_energy = 1.2
+	light.light_energy = 1.1
+	light.shadow_enabled = true
 	add_child(light)
 	_box("Surface", Vector3(60.0, 0.1, 40.0), Vector3(-6.0, -0.3, 0.0), Color("#594840"))
-	_box("HabitatFloor", Vector3(20.0, 0.2, 10.0), Vector3(-11.0, -0.1, 0.0), Color("#7e929f"))
+	_box("HabitatFloor", Vector3(20.0, 0.2, 10.0), Vector3(-11.0, -0.1, 0.0), Color("#465b66"))
 	_box("ChamberFloor", Vector3(2.0, 0.2, 2.0), Vector3(0.0, -0.1, 0.0), Color("#c0a56b"))
 	var wall_color := Color("#8095a7")
 	_box("BackWall", Vector3(0.2, 2.5, 10.0), Vector3(-21.0, 1.25, 0.0), wall_color)
@@ -57,6 +58,9 @@ func _ready() -> void:
 	character.rotation.y = -PI / 2.0
 	add_child(character)
 	camera.make_current()
+	var details := HabitatVisualDetails.new()
+	details.habitat = self
+	add_child(details)
 	var feedback_layer := CanvasLayer.new()
 	add_child(feedback_layer)
 	var feedback := HabitatTargetFeedback.new()
