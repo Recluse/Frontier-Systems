@@ -7,7 +7,7 @@ class_name InventoryRuntimeCommandQueue
 const MAX_PENDING: int = 64
 const MAX_INTENT_NODES: int = 128
 const MAX_TEXT: int = 256
-const OPERATIONS := ["self", "world", "start", "cancel", "resume", "resist", "close_search", "grip_join", "grip_release", "grip_resume"]
+const OPERATIONS := ["open_container", "close_container", "self", "world", "start", "cancel", "resume", "resist", "close_search", "grip_join", "grip_release", "grip_resume"]
 var _inventory: InventorySimulationSystem
 var _gate := InventoryRuntimeCommandGate.new()
 var _pending: Array[Dictionary] = []

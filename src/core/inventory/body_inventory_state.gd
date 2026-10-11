@@ -79,6 +79,9 @@ func _transfer(candidate: Dictionary, item_id: String, source: String, destinati
 	if not parsed.is_success:
 		return parsed
 	var ledger: InventoryLedger = parsed.value
+	for container_id in [source, destination]:
+		var access: ServiceResult = ledger.contents_access(container_id)
+		if not access.is_success: return access
 	if source == destination:
 		var observed: ServiceResult = ledger.item_observation(item_id)
 		if not observed.is_success or observed.value["item"]["container_id"] != source:
@@ -106,7 +109,7 @@ func _commit(candidate: Dictionary, expected_revision: int) -> ServiceResult:
 
 static func from_record(record: Dictionary, profile: InventoryEquipmentProfile, catalog: InventoryItemCatalog) -> ServiceResult:
 	var fields := PackedStringArray(["schema_version", "body_id", "state_revision", "profile_id", "profile_revision", "body_container_id", "active_hand_slot_id", "equipped", "ledger"])
-	if profile == null or catalog == null or not ControlContractValidation.has_exact_fields(record, fields) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 1):
+	if profile == null or catalog == null or not ControlContractValidation.has_exact_fields(record, fields) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 2):
 		return _failure("A complete record and trusted body/item definitions are required.")
 	for field in ["body_id", "profile_id", "body_container_id"]:
 		if not ControlContractValidation.is_id(record[field]):
@@ -124,6 +127,7 @@ static func from_record(record: Dictionary, profile: InventoryEquipmentProfile, 
 	if not parsed.is_success:
 		return parsed
 	var ledger: InventoryLedger = parsed.value
+	if int(record["schema_version"]) != int(record["ledger"]["schema_version"]): return _failure("Body and ledger versions must agree.")
 	var root_found: bool = false
 	for container in record["ledger"]["containers"]:
 		if container["container_id"] == record["body_container_id"]:

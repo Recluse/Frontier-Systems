@@ -1,0 +1,23 @@
+# Physical inventory closure
+
+The shared inventory owner owns closure in the existing physical ledger, not a UI cache or separate ownership graph. Item-hosted containers (trusted catalog storage definitions) support `is_open`; body and world roots remain open. This first slice admits closure changes only for storage physically owned by the acting body. Reachable world-hosted closure and manipulating another body's closures are deferred. Closure is not a permission lock: it grants no ownership, security or search authority.
+
+## Commands and tick ownership
+
+The authenticated controller queue/gate admit `open_container` and `close_container` with exact `{container_id, expected_revision}` payloads. The authenticated context determines the body, current opaque token determines controller capability, and the shared owner checks body ancestry, available hand, open ancestors and shared revision at fixed-tick application. The selected container may itself be closed when opening; every outer ancestor must be open. Commands retain bounded shared receipts with exact-intent fingerprints; retries return the retained receipt, conflicting request reuse fails. Existing development dispatch remains internal and has the same physical checks.
+
+A successful change increments ledger and shared revisions atomically without moving, deleting or rewriting item records, capacities or payload provenance. Closing synchronously cancels all unfinished jobs whose target/source/destination path is now closed, including paused jobs, before queued reopening or job progression can complete them. Cancellation uses existing bounded outcomes and removes the job. Unaffected jobs keep their records. Searches recheck closure at admission, completion and read; existing view owner-revision checks invalidate retained search views after a closure change. No callback or asynchronous service mutates closure.
+
+All ledger transfers check both source and destination ancestors. This includes self, world and other-body transactions, and same-location equipment operations. Moving an accessible closed container shell is allowed because its contents are not accessed. Open/close operates only on exterior access and does not reveal contents. Resource-carrier capability selection excludes closed paths. Trusted recycler and graph-factory boundaries check removed/moved source and inserted destination paths; factories preserve existing closure state and initialize new storage open.
+
+## Exact observation and privacy contract
+
+Owned inventory observation retains its existing full knowledge of owned descendants and aggregate carried mass, even when physical access is closed. It is an ownership-scoped knowledge projection, never authorization to manipulate contents. Basic v2 observations retain their shape; detailed v4 observations add `is_open` to every container record after closure state is introduced. Detailed v3 remains used for legacy v1 ledgers. This preserves existing owned inventory semantics and stable exterior item identities.
+
+Other actors cannot use owned observation to inspect another body. Timed search projects only direct contents of an open target with all open ancestors; closed searches fail without contents. Existing reachable-world observation exposes only direct root items, so accessible container shell identity remains visible and descendant contents remain absent. No new world or general search endpoint is added.
+
+## Persistence and migration
+
+Legacy ledger/shared v1 records imply all containers open and remain valid without spawning or rewriting matter. The first successful closure command upgrades the complete candidate ledger and owner to v2 and writes an explicit boolean for every container. Roots must be true; booleans, exact fields, bounds, graph/capacity/definition agreement, receipts and body equipment all validate before commit. Subsequent storage factories initialize new v2 containers open.
+
+Inventory snapshots with v2 owners use system v5; legacy system v1-v4 retain matching v1 owners. Restore rejects mismatched versions, malformed closure fields, closed roots, bad graph and jobs that access closed paths before any mutation. v5 retains the existing grip contract and restored jobs pause; views/outcomes stay volatile and restore generation fences old tokens. Owned detailed observation v4 and ledger/shared/system schemas are versioned separately. Standalone combined body inventory state v2 embeds ledger v2; shared body metadata stays v1 and is composed internally with the matching ledger version. Bounded profiling remains the existing queue application/rejection and inventory job/outcome/view counters; closure introduces no tick loop or unbounded cache.

@@ -63,11 +63,49 @@ func root_for_container(container_id: String) -> ServiceResult:
 	return _failure("Container ancestry exceeds the supported depth.")
 
 
+## Physical contents access, including every ancestor. Knowledge is separate.
+func contents_access(container_id: String, exterior_only: bool = false) -> ServiceResult:
+	var containers: Dictionary = {}
+	var items: Dictionary = {}
+	for container in _record["containers"]: containers[container["container_id"]] = container
+	for item in _record["items"]: items[item["item_id"]] = item
+	if not containers.has(container_id): return _failure("Unknown physical container.")
+	var cursor: String = container_id
+	for depth in range(MAX_DEPTH):
+		var container: Dictionary = containers[cursor]
+		if not (exterior_only and depth == 0) and not container.get("is_open", true):
+			return ServiceResult.failure(&"inventory_container_closed", "A physical container in the access path is closed.")
+		if container["owner_item_id"] == "": return ServiceResult.success()
+		cursor = items[container["owner_item_id"]]["container_id"]
+	return _failure("Container ancestry exceeds the supported depth.")
+
+
+## Candidate only; the shared owner commits revision and retained receipt atomically.
+func closure_candidate(container_id: String, is_open: bool) -> ServiceResult:
+	var accessible: ServiceResult = contents_access(container_id, true)
+	if not accessible.is_success: return accessible
+	var candidate: Dictionary = to_record()
+	if int(candidate["state_revision"]) >= MAX_EXACT_INTEGER: return _failure("Ledger revision exhausted.")
+	candidate["schema_version"] = 2
+	for container in candidate["containers"]:
+		container["is_open"] = container.get("is_open", true)
+		if container["container_id"] == container_id:
+			if container["owner_item_id"] == "": return _failure("Root inventories are not closable storage.")
+			if container["is_open"] == is_open: return _failure("Container already has the requested closure state.")
+			container["is_open"] = is_open
+	candidate["state_revision"] = int(candidate["state_revision"]) + 1
+	var parsed: ServiceResult = from_record(candidate, _catalog)
+	return ServiceResult.success(parsed.value.to_record()) if parsed.is_success else parsed
+
+
 ## Compare-and-swap of the whole graph; rejected moves preserve all ownership.
 ## Reach, ACLs, equipment, request receipts and reservations are separate gates.
 func move_item(item_id: String, source_container_id: String, destination_container_id: String, expected_revision: int) -> ServiceResult:
 	if expected_revision != int(_record["state_revision"]) or expected_revision >= MAX_EXACT_INTEGER:
 		return ServiceResult.failure(&"inventory_revision_conflict", "The inventory revision is stale or exhausted.")
+	for container_id in [source_container_id, destination_container_id]:
+		var access: ServiceResult = contents_access(container_id)
+		if not access.is_success: return access
 	if source_container_id == destination_container_id:
 		return ServiceResult.failure(&"inventory_same_location", "The item is already in that location.")
 	var candidate: Dictionary = to_record()
@@ -94,7 +132,7 @@ func move_item(item_id: String, source_container_id: String, destination_contain
 
 
 static func from_record(record: Dictionary, catalog: InventoryItemCatalog) -> ServiceResult:
-	if catalog == null or not ControlContractValidation.has_exact_fields(record, PackedStringArray(["schema_version", "ledger_id", "state_revision", "containers", "items"])) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 1):
+	if catalog == null or not ControlContractValidation.has_exact_fields(record, PackedStringArray(["schema_version", "ledger_id", "state_revision", "containers", "items"])) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 2):
 		return _failure("A complete inventory record and trusted item catalog are required.")
 	if not ControlContractValidation.is_id(record["ledger_id"]) or not ControlContractValidation.is_integer(record["state_revision"], 0, MAX_EXACT_INTEGER):
 		return _failure("The ledger identity or revision is invalid.")
@@ -109,7 +147,11 @@ static func from_record(record: Dictionary, catalog: InventoryItemCatalog) -> Se
 		if typeof(raw_container) != TYPE_DICTIONARY:
 			return _failure("Every container must be a record.")
 		var container: Dictionary = raw_container
-		if not ControlContractValidation.has_exact_fields(container, PackedStringArray(["container_id", "owner_item_id", "capacity"])) or not ControlContractValidation.is_id(container.get("container_id")) or containers.has(container["container_id"]):
+		var container_fields := PackedStringArray(["container_id", "owner_item_id", "capacity"])
+		if int(record["schema_version"]) == 2:
+			container_fields.append("is_open")
+			if typeof(container.get("is_open")) != TYPE_BOOL or (container.get("owner_item_id") == "" and not container["is_open"]): return _failure("Closure must be boolean and roots must stay open.")
+		if not ControlContractValidation.has_exact_fields(container, container_fields) or not ControlContractValidation.is_id(container.get("container_id")) or containers.has(container["container_id"]):
 			return _failure("Container IDs must be valid and unique.")
 		if typeof(container["owner_item_id"]) != TYPE_STRING or (container["owner_item_id"] != "" and not ControlContractValidation.is_id(container["owner_item_id"])):
 			return _failure("A container owner must be an item ID or an empty root owner.")

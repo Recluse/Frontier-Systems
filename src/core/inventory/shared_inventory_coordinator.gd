@@ -52,6 +52,7 @@ func apply_self(request: Dictionary) -> ServiceResult:
 				return _failure("Self-inventory actions cannot reach another body's containers or world storage.")
 	var combined: Dictionary = body.duplicate(true)
 	combined["ledger"] = candidate["ledger"]
+	combined["schema_version"] = candidate["ledger"]["schema_version"]
 	var key: String = JSON.stringify([body["profile_id"], int(body["profile_revision"])])
 	var state: BodyInventoryState = BodyInventoryState.from_record(combined, _profiles[key], _catalog).value
 	var revision: int = int(body["state_revision"])
@@ -67,6 +68,7 @@ func apply_self(request: Dictionary) -> ServiceResult:
 	var updated: Dictionary = state.to_record()
 	candidate["ledger"] = updated["ledger"]
 	updated.erase("ledger")
+	updated["schema_version"] = 1
 	candidate["bodies"][body_index] = updated
 	return _commit_candidate(candidate, request["request_id"], fingerprint)
 
@@ -153,8 +155,35 @@ func to_record() -> Dictionary:
 	return _record.duplicate(true)
 
 
+## Runtime resolves authenticated actor/reach. Owner restricts closure to own storage.
+func set_container_open(body_id: String, request_id: String, container_id: String, is_open: bool, expected_revision: int) -> ServiceResult:
+	if not ControlContractValidation.is_id(request_id): return _failure("Valid closure request ID required.")
+	var fingerprint: String = JSON.stringify(["closure", _record["owner_id"], body_id, request_id, container_id, is_open, expected_revision]).sha256_text()
+	for receipt in _record["receipts"]:
+		if receipt["request_id"] == request_id:
+			return ServiceResult.success(receipt.duplicate(true)) if receipt["fingerprint"] == fingerprint else _failure("Retained request ID conflicts.")
+	if expected_revision != int(_record["state_revision"]) or expected_revision >= MAX_EXACT_INTEGER: return _failure("Closure revision stale or exhausted.")
+	var root: ServiceResult = _ledger.root_for_container(container_id)
+	var owned: bool = false
+	for body in _record["bodies"]:
+		if body["body_id"] == body_id and root.is_success and root.value == body["body_container_id"]: owned = true
+	if not owned: return _failure("Closure requires storage owned by the acting body.")
+	var closed: ServiceResult = _ledger.closure_candidate(container_id, is_open)
+	if not closed.is_success: return closed
+	var candidate: Dictionary = to_record()
+	candidate["schema_version"] = 2
+	candidate["ledger"] = closed.value
+	return _commit_candidate(candidate, request_id, fingerprint)
+
+
+func contents_access(container_id: String) -> ServiceResult:
+	return _ledger.contents_access(container_id)
+
+
 ## Internal projection for the scoped-view owner, never a public search endpoint.
 func direct_container_observation(actor_body_id: String, target_body_id: String, container_id: String) -> ServiceResult:
+	var access: ServiceResult = _ledger.contents_access(container_id)
+	if not access.is_success: return access
 	var bodies: Dictionary = {}
 	for body in _record["bodies"]:
 		bodies[body["body_id"]] = body
@@ -280,13 +309,14 @@ func _commit_candidate(candidate: Dictionary, request_id: String, fingerprint: S
 
 
 static func from_record(record: Dictionary, profiles: Dictionary, catalog: InventoryItemCatalog) -> ServiceResult:
-	if catalog == null or not ControlContractValidation.has_exact_fields(record, PackedStringArray(["schema_version", "owner_id", "state_revision", "ledger", "bodies", "receipts"])) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 1) or not ControlContractValidation.is_id(record.get("owner_id")) or not ControlContractValidation.is_integer(record.get("state_revision"), 0, MAX_EXACT_INTEGER):
+	if catalog == null or not ControlContractValidation.has_exact_fields(record, PackedStringArray(["schema_version", "owner_id", "state_revision", "ledger", "bodies", "receipts"])) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 2) or not ControlContractValidation.is_id(record.get("owner_id")) or not ControlContractValidation.is_integer(record.get("state_revision"), 0, MAX_EXACT_INTEGER):
 		return _failure("A complete versioned shared inventory owner is required.")
 	if typeof(record["ledger"]) != TYPE_DICTIONARY or typeof(record["bodies"]) != TYPE_ARRAY or record["bodies"].size() > MAX_BODIES or typeof(record["receipts"]) != TYPE_ARRAY or record["receipts"].size() > MAX_RECEIPTS:
 		return _failure("Shared ledger, bodies and receipts must be bounded records.")
 	var parsed: ServiceResult = InventoryLedger.from_record(record["ledger"], catalog)
 	if not parsed.is_success:
 		return parsed
+	if int(record["schema_version"]) != int(record["ledger"].get("schema_version", 0)): return _failure("Owner and ledger versions must agree.")
 	var seen_bodies: Dictionary = {}
 	var seen_roots: Dictionary = {}
 	var used_profiles: Dictionary = {}
@@ -304,6 +334,7 @@ static func from_record(record: Dictionary, profiles: Dictionary, catalog: Inven
 			return _failure("A body references an untrusted profile revision.")
 		var combined: Dictionary = body.duplicate(true)
 		combined["ledger"] = record["ledger"]
+		combined["schema_version"] = record["ledger"]["schema_version"]
 		var body_check: ServiceResult = BodyInventoryState.from_record(combined, profiles[key], catalog)
 		if not body_check.is_success:
 			return body_check

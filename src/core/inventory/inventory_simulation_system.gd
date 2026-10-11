@@ -196,7 +196,7 @@ func owned_resource_carriers(context: AuthenticatedCommandContext) -> ServiceRes
 	var ids: Array = []
 	for item in own.value["items"]:
 		var definition: ServiceResult = _catalog.get_definition(item["definition_id"], int(item["definition_revision"]))
-		if definition.is_success and definition.value["tags"].has("resource.carrier"):
+		if definition.is_success and definition.value["tags"].has("resource.carrier") and _owner.contents_access(item["container_id"]).is_success:
 			ids.append(item["item_id"])
 	return ServiceResult.success(ids)
 
@@ -248,7 +248,9 @@ func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: 
 			return _failure("The factory requires a registered inventory definition.")
 		candidate["ledger"]["items"].append({"item_id": item_id, "definition_id": definition_id, "definition_revision": 1, "condition_permille": 1000, "container_id": body["body_container_id"]})
 		if definition.value["storage"] != null:
-			candidate["ledger"]["containers"].append({"container_id": factory_storage_id(item_id), "owner_item_id": item_id, "capacity": definition.value["storage"].duplicate(true)})
+			var storage_record := {"container_id": factory_storage_id(item_id), "owner_item_id": item_id, "capacity": definition.value["storage"].duplicate(true)}
+			if int(candidate["ledger"]["schema_version"]) == 2: storage_record["is_open"] = true
+			candidate["ledger"]["containers"].append(storage_record)
 	else:
 		if found < 0:
 			return _failure("The recyclable component no longer exists.")
@@ -256,6 +258,8 @@ func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: 
 		var ledger: InventoryLedger = InventoryLedger.from_record(candidate["ledger"], _catalog).value
 		if item["definition_id"] != definition_id or int(item["definition_revision"]) != 1 or ledger.root_for_container(item["container_id"]).value != body["body_container_id"]:
 			return _failure("Only owned equipment with the matching trusted definition can be salvaged.")
+		var access: ServiceResult = ledger.contents_access(item["container_id"])
+		if not access.is_success: return access
 		for container in candidate["ledger"]["containers"].duplicate(true):
 			if container["owner_item_id"] != item_id: continue
 			for child in candidate["ledger"]["items"]:
@@ -296,6 +300,31 @@ func prepare_factory_graph(context: AuthenticatedCommandContext, owner: Dictiona
 	var authorized: ServiceResult = authorize(context, true)
 	if not authorized.is_success or not ControlContractValidation.is_id(request_id) or owner.get("state_revision") != _owner.to_record()["state_revision"]: return _failure("A capable actor and current factory graph are required.")
 	var candidate: Dictionary = owner.duplicate(true)
+	# Factories may change the physical graph, never existing closure authority.
+	var existing: Dictionary = _owner.to_record()["ledger"]
+	var old_containers: Dictionary = {}
+	for container in existing["containers"]: old_containers[container["container_id"]] = container
+	for container in candidate["ledger"]["containers"]:
+		if int(existing["schema_version"]) == 2:
+			if old_containers.has(container["container_id"]):
+				if container.get("is_open") != old_containers[container["container_id"]]["is_open"]: return _failure("Factories cannot change existing closure state.")
+			else:
+				if container.has("is_open") and container["is_open"] != true: return _failure("New factory storage starts open.")
+				container["is_open"] = true
+	var parsed: ServiceResult = InventoryLedger.from_record(candidate["ledger"], _catalog.with_payload_masses(combined_payload_masses(masses)))
+	if not parsed.is_success: return parsed
+	var destinations: Dictionary = {}
+	for item in candidate["ledger"]["items"]: destinations[item["item_id"]] = item
+	var previous: Dictionary = {}
+	for item in existing["items"]:
+		previous[item["item_id"]] = item
+		if not destinations.has(item["item_id"]) or destinations[item["item_id"]]["container_id"] != item["container_id"]:
+			var access: ServiceResult = _owner.contents_access(item["container_id"])
+			if not access.is_success: return access
+	for item in candidate["ledger"]["items"]:
+		if not previous.has(item["item_id"]) or previous[item["item_id"]]["container_id"] != item["container_id"]:
+			var access: ServiceResult = parsed.value.contents_access(item["container_id"])
+			if not access.is_success: return access
 	if int(candidate["state_revision"]) >= MAX_EXACT_INTEGER or int(candidate["ledger"]["state_revision"]) >= MAX_EXACT_INTEGER: return _failure("Factory graph revisions are exhausted.")
 	for body in candidate["bodies"]:
 		var equipped: Array = []
@@ -331,6 +360,14 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 		return _failure("Apply authorized inventory commands at the next fixed-tick boundary.")
 	var actor_id: String = authorized.value
 	var actor: Dictionary = _bodies[actor_id]
+	if operation in ["open_container", "close_container"]:
+		if not ControlContractValidation.has_exact_fields(payload, PackedStringArray(["container_id", "expected_revision"])) or not ControlContractValidation.is_id(payload.get("container_id")) or not ControlContractValidation.is_integer(payload.get("expected_revision"), 0, MAX_EXACT_INTEGER) or not _has_unreserved_hand(actor_id):
+			return _failure("Closure requires exact container/revision intent and an available hand.")
+		var result: ServiceResult = _owner.set_container_open(actor_id, request_id, payload["container_id"], operation == "open_container", int(payload["expected_revision"]))
+		if result.is_success:
+			for id in _jobs.keys():
+				if not _job_access(_jobs[id]).is_success: _finish(id, ServiceResult.failure(&"inventory_container_closed", "Closure interrupted physical inventory work."))
+		return result
 	if operation in ["grip_join", "grip_release", "grip_resume"]:
 		return _apply_grip(actor_id, request_id, operation, payload)
 	if operation == "world":
@@ -444,7 +481,10 @@ func apply_local(context: AuthenticatedCommandContext, request_id: String, opera
 		var checked: ServiceResult = SharedInventoryCoordinator._validate_request(request)
 		if not checked.is_success:
 			return checked
-	_jobs[request_id] = {"job": started.value, "principal_id": String(context.principal_id), "request": request}
+	var entry := {"job": started.value, "principal_id": String(context.principal_id), "request": request}
+	var access: ServiceResult = _job_access(entry)
+	if not access.is_success: return access
+	_jobs[request_id] = entry
 	return ServiceResult.success({"job_id": request_id})
 
 
@@ -461,6 +501,10 @@ func simulate_tick(tick: int, _fixed_delta: float) -> void:
 		var state: Dictionary = job.to_record()
 		if not _body_can_act(state["actor_body_id"]):
 			_finish(id, _failure("The initiating body became incapable of voluntary action."))
+			continue
+		var access: ServiceResult = _job_access(entry)
+		if not access.is_success:
+			_finish(id, access)
 			continue
 		if state["state"] == "paused" or int(state["last_tick"]) == tick:
 			continue
@@ -544,7 +588,7 @@ func own_inventory_observation(context: AuthenticatedCommandContext, include_det
 			"items": items, "container_ids": containers, "body_container_id": body["body_container_id"], "hand_slot_ids": rules["hand_slot_ids"].duplicate(), "slot_ids": slot_ids,
 			"mass_milligrams": ledger.container_load(body["body_container_id"]).value["mass_milligrams"]}
 		if include_details:
-			observed.merge({"schema_version": 3, "inventory_revision": record["state_revision"], "container_records": container_records, "item_details": item_details}, true)
+			observed.merge({"schema_version": 4 if int(record["ledger"]["schema_version"]) == 2 else 3, "inventory_revision": record["state_revision"], "container_records": container_records, "item_details": item_details}, true)
 		return ServiceResult.success(observed)
 	return _failure("No owned fixture inventory is available.")
 
@@ -618,7 +662,7 @@ func capture_snapshot() -> ServiceResult:
 	var jobs: Array = []
 	for entry in _jobs.values():
 		jobs.append({"job": entry["job"].to_record(), "principal_id": entry["principal_id"], "request": entry["request"].duplicate(true) if entry["request"] != null else null})
-	return ServiceResult.success({"schema_version": 4, "last_tick": _last_tick, "owner": _owner.to_record(), "bodies": _bodies.values().duplicate(true), "jobs": jobs, "world_storage": _world_storage.values().duplicate(true), "grips": _grips.to_record()})
+	return ServiceResult.success({"schema_version": 5 if int(_owner.to_record()["schema_version"]) == 2 else 4, "last_tick": _last_tick, "owner": _owner.to_record(), "bodies": _bodies.values().duplicate(true), "jobs": jobs, "world_storage": _world_storage.values().duplicate(true), "grips": _grips.to_record()})
 
 
 func validate_snapshot_record(record: Dictionary, snapshot_tick_number: int) -> ServiceResult:
@@ -658,15 +702,16 @@ func legacy_empty_snapshot(tick: int) -> Dictionary:
 
 func _decode(record: Dictionary, tick: int, catalog_override: InventoryItemCatalog = null) -> ServiceResult:
 	var fields := PackedStringArray(["schema_version", "last_tick", "owner", "bodies", "jobs"])
-	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 4):
+	if ControlContractValidation.is_integer(record.get("schema_version"), 2, 5):
 		fields.append("world_storage")
-	if ControlContractValidation.is_integer(record.get("schema_version"), 4, 4):
+	if ControlContractValidation.is_integer(record.get("schema_version"), 4, 5):
 		fields.append("grips")
-	if not ControlContractValidation.has_exact_fields(record, fields) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 4) or not ControlContractValidation.is_integer(record.get("last_tick"), tick, tick) or typeof(record.get("owner")) != TYPE_DICTIONARY or typeof(record.get("bodies")) != TYPE_ARRAY or record["bodies"].size() > 32 or typeof(record.get("jobs")) != TYPE_ARRAY or record["jobs"].size() > MAX_JOBS:
+	if not ControlContractValidation.has_exact_fields(record, fields) or not ControlContractValidation.is_integer(record.get("schema_version"), 1, 5) or not ControlContractValidation.is_integer(record.get("last_tick"), tick, tick) or typeof(record.get("owner")) != TYPE_DICTIONARY or typeof(record.get("bodies")) != TYPE_ARRAY or record["bodies"].size() > 32 or typeof(record.get("jobs")) != TYPE_ARRAY or record["jobs"].size() > MAX_JOBS:
 		return _failure("An exact bounded inventory-system snapshot at this tick is required.")
 	var parsed_owner: ServiceResult = SharedInventoryCoordinator.from_record(record["owner"], _profiles, _catalog if catalog_override == null else catalog_override)
 	if not parsed_owner.is_success:
 		return parsed_owner
+	if (int(record["schema_version"]) == 5) != (int(record["owner"].get("schema_version", 0)) == 2): return _failure("Closure snapshots require matching v5 system and v2 owner.")
 	var body_ids: Dictionary = {}
 	for body in record["owner"]["bodies"]:
 		body_ids[body["body_id"]] = true
@@ -744,9 +789,11 @@ func _decode(record: Dictionary, tick: int, catalog_override: InventoryItemCatal
 			if int(raw["request"]["expected_revision"]) > int(record["owner"]["state_revision"]):
 				return _failure("Saved transfer revision cannot be ahead of its owner.")
 		jobs[state["job_id"]] = {"job": parsed_job.value, "principal_id": raw["principal_id"], "request": raw["request"].duplicate(true) if raw["request"] != null else null}
+		var access: ServiceResult = _job_access(jobs[state["job_id"]], parsed_owner.value)
+		if not access.is_success: return access
 		actors[state["actor_body_id"]] = true
 	var parsed_grips: ServiceResult = PhysicalGripOwner.create("inventory.grips.prototype")
-	if int(record["schema_version"]) == 4:
+	if int(record["schema_version"]) >= 4:
 		if typeof(record["grips"]) != TYPE_DICTIONARY:
 			return _failure("Saved grips must be a record.")
 		parsed_grips = PhysicalGripOwner.from_record(record["grips"])
@@ -894,6 +941,18 @@ func _release_lost_grip_contacts(tick: int) -> void:
 			var body_id: String = participant["body_id"]
 			if not _body_can_act(body_id) or (not session["paused"] and InventorySpatialMath.distance_millimetres(_bodies[body_id]["position_millimetres"], GRIP_TARGETS[session["target_id"]]["position"]) > WORLD_REACH_MILLIMETRES):
 				_grips.release({"request_id": "contact-loss-" + JSON.stringify([tick, session["session_id"], body_id]).sha256_text(), "session_id": session["session_id"], "body_id": body_id, "expected_revision": _grips.to_record()["state_revision"]})
+
+
+func _job_access(entry: Dictionary, owner: SharedInventoryCoordinator = null) -> ServiceResult:
+	var state: Dictionary = entry["job"].to_record()
+	var access_owner: SharedInventoryCoordinator = _owner if owner == null else owner
+	var access: ServiceResult = access_owner.contents_access(state["target_container_id"])
+	if not access.is_success: return access
+	if state["action"] != "search":
+		for field in ["source_container_id", "destination_container_id"]:
+			access = access_owner.contents_access(entry["request"][field])
+			if not access.is_success: return access
+	return ServiceResult.success()
 
 
 func _context(state: Dictionary) -> Dictionary:

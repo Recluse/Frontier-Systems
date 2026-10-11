@@ -1,0 +1,269 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:inventory-own-observation:v4",
+  "title": "Owned inventory knowledge with canonical closure state v4",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "body_id",
+    "active_hand_slot_id",
+    "equipped",
+    "items",
+    "mass_milligrams",
+    "container_ids",
+    "body_container_id",
+    "hand_slot_ids",
+    "slot_ids",
+    "inventory_revision",
+    "container_records",
+    "item_details"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 4
+    },
+    "body_id": {
+      "$ref": "#/$defs/id"
+    },
+    "active_hand_slot_id": {
+      "oneOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/id"
+        }
+      ]
+    },
+    "mass_milligrams": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740990
+    },
+    "equipped": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "slot_id",
+          "item_id"
+        ],
+        "properties": {
+          "slot_id": {
+            "$ref": "#/$defs/id"
+          },
+          "item_id": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "maxItems": 512,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "definition_id",
+          "definition_revision",
+          "condition_permille",
+          "container_id"
+        ],
+        "properties": {
+          "item_id": {
+            "$ref": "#/$defs/id"
+          },
+          "definition_id": {
+            "$ref": "#/$defs/id"
+          },
+          "container_id": {
+            "$ref": "#/$defs/id"
+          },
+          "definition_revision": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740990
+          },
+          "condition_permille": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          }
+        }
+      }
+    },
+    "body_container_id": {
+      "$ref": "#/$defs/id"
+    },
+    "container_ids": {
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      },
+      "type": "array",
+      "maxItems": 256
+    },
+    "hand_slot_ids": {
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      },
+      "type": "array",
+      "maxItems": 16
+    },
+    "slot_ids": {
+      "uniqueItems": true,
+      "items": {
+        "$ref": "#/$defs/id"
+      },
+      "type": "array",
+      "maxItems": 64
+    },
+    "inventory_revision": {
+      "maximum": 9007199254740990,
+      "type": "integer",
+      "minimum": 0
+    },
+    "container_records": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "container_id",
+          "owner_item_id",
+          "capacity",
+          "load",
+          "is_open"
+        ],
+        "properties": {
+          "container_id": {
+            "$ref": "#/$defs/id"
+          },
+          "owner_item_id": {
+            "oneOf": [
+              {
+                "const": ""
+              },
+              {
+                "$ref": "#/$defs/id"
+              }
+            ]
+          },
+          "capacity": {
+            "$ref": "urn:frontier-systems:schema:inventory-item-definition:v1#/$defs/capacity"
+          },
+          "load": {
+            "type": "object",
+            "required": [
+              "mass_milligrams",
+              "volume_millilitres",
+              "direct_items"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "volume_millilitres": {
+                "maximum": 9007199254740990,
+                "type": "integer",
+                "minimum": 0
+              },
+              "mass_milligrams": {
+                "maximum": 9007199254740990,
+                "type": "integer",
+                "minimum": 0
+              },
+              "direct_items": {
+                "maximum": 512,
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "is_open": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "item_details": {
+      "items": {
+        "type": "object",
+        "required": [
+          "item",
+          "tags",
+          "mass_milligrams",
+          "volume_millilitres"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "item": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "item_id",
+              "definition_id",
+              "definition_revision",
+              "condition_permille",
+              "container_id"
+            ],
+            "properties": {
+              "item_id": {
+                "$ref": "#/$defs/id"
+              },
+              "definition_id": {
+                "$ref": "#/$defs/id"
+              },
+              "container_id": {
+                "$ref": "#/$defs/id"
+              },
+              "definition_revision": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 9007199254740990
+              },
+              "condition_permille": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              }
+            }
+          },
+          "volume_millilitres": {
+            "maximum": 9007199254740990,
+            "type": "integer",
+            "minimum": 0
+          },
+          "mass_milligrams": {
+            "maximum": 9007199254740990,
+            "type": "integer",
+            "minimum": 0
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/$defs/id"
+            },
+            "type": "array",
+            "maxItems": 64
+          }
+        }
+      },
+      "type": "array",
+      "maxItems": 512
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "\\S"
+    }
+  },
+  "description": "Only containers and items rooted in the authenticated body are included. Loaded item mass includes nested contents and production payload exactly once. Clients submit commands using inventory_revision; no snapshot or authority is conveyed by this projection."
+}

@@ -50,7 +50,7 @@ func apply(token: InventoryControllerToken, context: AuthenticatedCommandContext
 		return _reject(&"invalid_candidate")
 	if not admitted.is_success:
 		return _reject(admitted.error_code)
-	if operation not in ["self", "world", "start", "cancel", "resume", "resist", "close_search", "grip_join", "grip_release", "grip_resume"]:
+	if operation not in ["open_container", "close_container", "self", "world", "start", "cancel", "resume", "resist", "close_search", "grip_join", "grip_release", "grip_resume"]:
 		return _reject(&"unsupported_operation")
 	# Synchronous canonical dispatch; no callbacks/await or fallback after admission.
 	var result: ServiceResult = _inventory.apply_local(context, request_id, operation, payload.duplicate(true), tick)

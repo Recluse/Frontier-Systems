@@ -1,5 +1,7 @@
 # Inventory fixed-tick runtime
 
+Current closure extension: [physical closed containers](closed-inventory-containers.md) adds owned item-hosted open/close commands and access checks with v5 closure snapshots.
+
 Current extension: [inventory/grip arbitration](inventory-grip-runtime.md) adds queued grip intents, exclusive hand checks and paused grip recovery in inventory snapshot v4. Spatial records use 3D integer positions; see [inventory spatial state](inventory-spatial-state.md).
 
 Current payload extension: [portable terrain material](../development/terrain-portable-milestone.md) composes disjoint Production and Terrain payloads through one catalog provider, including prospective factory checks and candidate-world recovery. Physical ledger records and inventory snapshot v4 are unchanged.
@@ -16,7 +18,7 @@ The queue now exposes [controller composition reads](../development/inventory-co
 
 `InventorySimulationSystem` is now registered in `WorldRuntime` at tick priority 200, after machine controls. It owns the shared inventory coordinator, logical body/action records, bounded interaction jobs, volatile search views and limited command-outcome metadata. Startup loads trusted catalogs and the existing two-human shared fixture outside simulation ticks.
 
-New prototype worlds initialize that fixture. `body.human-2` belongs to local principal `local-inventory-actor` at `[0,0,0]` mm; `body.human-1` belongs to `local-inventory-target` at `[1000,0,0]` mm. These are logical test bodies, independent of the local preview capsule unless the opt-in development pose bridge is enabled. This slice uses 3D distance and checks grip reservations on profile hands, while assuming open accessible paths. It has no authoritative collision, occlusion, closures, restraints, anatomy or network-session provider.
+New prototype worlds initialize that fixture. `body.human-2` belongs to local principal `local-inventory-actor` at `[0,0,0]` mm; `body.human-1` belongs to `local-inventory-target` at `[1000,0,0]` mm. These are logical test bodies, independent of the local preview capsule unless the opt-in development pose bridge is enabled. This slice uses 3D distance and checks grip reservations on profile hands, while assuming open accessible paths. It has no authoritative collision, occlusion, restraints, anatomy or network-session provider.
 
 Fixture command authorization accepts either a debug-build `DEVELOPMENT_LOCAL` context with `inventory.development`, or a server-created `AUTHENTICATED_SESSION` context with `inventory.operate`, and a matching registered principal/body binding. This internal fixture surface does not itself validate controller tokens or session scope. It must not be exposed as production player inventory admission; composed controller-gated calls use the separate runtime gate.
 
@@ -31,6 +33,7 @@ Fixture command authorization accepts either a debug-build `DEVELOPMENT_LOCAL` c
 | `move` | `x_millimetres` | Move the logical fixture body and increment its action epoch |
 | `resume` | `job_id` | Initiating principal explicitly revalidates paused work |
 | `cancel` | `job_id` | Initiating principal removes its unfinished work |
+| `open_container` / `close_container` | `container_id`, `expected_revision` | Change owned item-hosted closure with open ancestors and an available hand; cancel blocked unfinished work before progress |
 | `close_search` | `view_id` | Close this principal's live search view |
 | `self` | Self operation, item/source/destination/slot IDs and expected revision | Derive the body from context and apply shared-owner hand/equipment/storage changes |
 
@@ -62,7 +65,7 @@ Runtime recovery exposed JSON integer normalization versus fixture float represe
 
 Windows Godot 4.7.2 import, `inventory_runtime_test.gd`, existing shared-transfer/search tests and control-runtime recovery checks passed. Runtime checks exercise real command queue/system order, exact search timing, scoped principal reads, same-final-tick resistance, successful transfer/receipt checkpoint, production-origin rejection, paused JSON recovery/resume, atomic future-epoch rejection and legacy empty migration. Windows/Ubuntu CI includes the runtime script; Linux execution remains unverified locally.
 
-The [local client panel](local-inventory-panel.md) now exercises this slice through queued commands and scoped observations. Next: self-inventory actions, real body/physical access adapters, production authenticated command/observer contracts, control-session epochs and durable persistence. Networking, survival equipment consequences, closed-container mechanics, cyborg module jobs and material reservations are not implemented by this slice.
+The [local client panel](local-inventory-panel.md) now exercises this slice through queued commands and scoped observations. Next: self-inventory actions, real body/physical access adapters, production authenticated command/observer contracts, control-session epochs and durable persistence. Networking, survival equipment consequences, world/other-body closure manipulation, locks, cyborg module jobs and material reservations are not implemented by this slice.
 
 ## Queued lifecycle acceptance
 
