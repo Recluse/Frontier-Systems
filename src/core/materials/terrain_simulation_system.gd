@@ -1,7 +1,7 @@
 extends SimulationSystem
 class_name TerrainSimulationSystem
 
-## Fixed-tick bridge. Matter stays in the domain owner; claims are permissions only.
+## Fixed-tick bridge. Terrain owns matter; inventory owns portable physical parentage.
 const SYSTEM_ID: StringName = &"terrain"
 const OWNER_ID: String = "terrain.fixture.dirt"
 const CELLS: Dictionary = {"terrain.dirt.source": [0, 0, 1000], "terrain.dirt.fill": [500, 0, 1000]}
@@ -19,6 +19,12 @@ var _positions: Dictionary = {}
 var _principals: Dictionary = {}
 var _requests: Array = []
 var _claims: Dictionary = {}
+## Immutable claims; the existing owner transfer remains the only mass record.
+var _portable: Dictionary = {}
+## Derived mass projection; never serialized or used as an independent matter owner.
+var _portable_masses: Dictionary = {}
+const MAX_PORTABLE: int = 128
+const PORTABLE_DEFINITION: String = "item.terrain-parcel.prototype"
 var _last_tick: int = 0
 var _command_tick: int = -1
 var _commands: int = 0
@@ -40,7 +46,8 @@ func configure(inventory: InventorySimulationSystem, tools: ToolSimulationSystem
 	_catalog_fingerprint = JSON.stringify(material, "", true, true).sha256_text()
 	_inventory = inventory
 	_tools = tools
-	return restore_snapshot_record(initial_record(0, true), 0)
+	var restored: ServiceResult = restore_snapshot_record(initial_record(0, true), 0)
+	return inventory.bind_external_payload_masses(portable_payload_masses) if restored.is_success else restored
 
 
 ## New-world commissioning only. Legacy recovery explicitly commissions zero budget.
@@ -51,8 +58,8 @@ func initial_record(tick: int, new_world: bool = false) -> Dictionary:
 		seeds.append({"state": {"schema_version": 1, "cell_id": id, "state_revision": 0, "material_id": "material.dirt", "material_revision": 1, "mass_milligrams": mass},
 			"capacity_milligrams": FIXTURE_MASS if new_world else 0, "origin_id": id + ".generation", "generation_revision": 1})
 	var commissioned: ServiceResult = TerrainMaterialOwner.create(OWNER_ID, _catalog, seeds)
-	return {"schema_version": 1, "catalog_fingerprint": _catalog_fingerprint, "last_tick": tick, "owner": commissioned.value.to_record(),
-		"positions": CELLS.duplicate(true), "principals": {}, "requests": [], "claims": {}}
+	return {"schema_version": 2, "catalog_fingerprint": _catalog_fingerprint, "last_tick": tick, "owner": commissioned.value.to_record(),
+		"positions": CELLS.duplicate(true), "principals": {}, "requests": [], "claims": {}, "portable": {}}
 
 
 func authorize(context: AuthenticatedCommandContext) -> ServiceResult:
@@ -108,6 +115,76 @@ func apply_intent(context: AuthenticatedCommandContext, command_id: String, numb
 	return committed
 
 
+## Convert a complete own escrow transfer into one physical parcel, synchronously.
+## Independent monotonic claim ordinals are retained for the bounded lifetime map.
+func materialize(context: AuthenticatedCommandContext, command_id: String, number: int, payload: Dictionary, tick: int) -> ServiceResult:
+	var allowed: ServiceResult = authorize(context)
+	if not allowed.is_success: return _reject(allowed)
+	if tick != _last_tick + 1: return _reject(_failure("Materialize on the next fixed tick."))
+	if _command_tick != tick:
+		_command_tick = tick
+		_commands = 0
+	if _commands >= MAX_COMMANDS_PER_TICK: return _reject(_failure("Terrain tick ingress budget exhausted."))
+	_commands += 1
+	if not ControlContractValidation.is_integer(number, 1, MAX_PORTABLE) or command_id != "terrain-materialize-%d" % number or not ToolComponentCatalog.exact(payload, ["transfer_id", "expected_inventory_revision"]) or not ControlContractValidation.is_id(payload["transfer_id"]) or not ControlContractValidation.is_integer(payload["expected_inventory_revision"], 0, MAX_INTEGER - 1): return _reject(_failure("Use an exact portable claim with a stable ordinal and revision."))
+	var principal: String = String(context.principal_id)
+	var transfer: String = payload["transfer_id"]
+	var next: int = 1
+	for id in _portable:
+		var entry: Dictionary = _portable[id]
+		if entry["principal_id"] != principal: continue
+		next += 1
+		if entry["request_number"] == number:
+			if id != transfer or entry["expected_inventory_revision"] != int(payload["expected_inventory_revision"]): return _reject(_failure("Retained portable ordinal identifies different intent."))
+			_retried = mini(_retried + 1, MAX_INTEGER)
+			return ServiceResult.success(_portable_receipt(id))
+	if number != next or _portable.size() >= MAX_PORTABLE: return _reject(_failure("Skipped ordinals or full lifetime portable budget reject."))
+	if _claims.get(transfer, "") != principal: return _reject(_failure("Materialize only your own live terrain escrow."))
+	var capable: ServiceResult = _inventory.production_capability(context, true, [])
+	if not capable.is_success: return _reject(capable)
+	var own: ServiceResult = _inventory.own_inventory_observation(context, true)
+	if not own.is_success or payload["expected_inventory_revision"] != own.value["inventory_revision"]: return _reject(_failure("Portable claim inventory revision is stale."))
+	var candidate: Dictionary = _portable.duplicate(true)
+	candidate[transfer] = {"item_id": portable_item_id(transfer), "principal_id": principal, "request_number": number, "expected_inventory_revision": int(payload["expected_inventory_revision"])}
+	var prepared: ServiceResult = _inventory.prepare_equipment_change(context, "terrain-factory-%s" % transfer, portable_item_id(transfer), true, _inventory.primary_payload_masses(), PORTABLE_DEFINITION, {}, payload_masses(_owner.to_record(), candidate))
+	if not prepared.is_success: return _reject(prepared)
+	# Install the prospective payload view only for synchronous inventory adoption.
+	# Failure restores it before returning; success has no fallible state changes.
+	var previous: Dictionary = _portable
+	var previous_masses: Dictionary = _portable_masses
+	_portable = candidate
+	_portable_masses = payload_masses(_owner.to_record(), candidate)
+	var adopted: ServiceResult = _inventory.commit_prepared_owner(prepared.value)
+	if not adopted.is_success:
+		_portable = previous
+		_portable_masses = previous_masses
+		return _reject(adopted)
+	_claims.erase(transfer)
+	_committed = mini(_committed + 1, MAX_INTEGER)
+	return ServiceResult.success(_portable_receipt(transfer))
+
+
+static func portable_item_id(transfer_id: String) -> String:
+	return transfer_id.replace("terrain-transfer-", "terrain-item-")
+
+
+static func payload_masses(owner: Dictionary, portable: Dictionary) -> Dictionary:
+	var masses: Dictionary = {}
+	for id in portable:
+		masses[portable[id]["item_id"]] = int(owner["transfers"][id]["mass_milligrams"])
+	return masses
+
+
+func portable_payload_masses() -> Dictionary:
+	return _portable_masses.duplicate()
+
+
+func _portable_receipt(transfer: String) -> Dictionary:
+	var record: Dictionary = _owner.to_record()["transfers"][transfer].duplicate(true)
+	record.merge({"schema_version": 1, "owner_id": OWNER_ID, "transfer_id": transfer, "item_id": _portable[transfer]["item_id"]})
+	return record
+
+
 func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 	var allowed: ServiceResult = authorize(context)
 	if not allowed.is_success: return allowed
@@ -150,18 +227,23 @@ func profiling_counters() -> Dictionary:
 	signals["runtime_retries"] = _retried
 	signals["runtime_rejections"] = _rejected
 	signals["principals"] = _principals.size()
+	signals["portable_items"] = _portable.size()
 	return signals
 
 
 func capture_snapshot() -> ServiceResult:
-	return ServiceResult.success({"schema_version": 1, "catalog_fingerprint": _catalog_fingerprint, "last_tick": _last_tick, "owner": _owner.to_record(),
-		"positions": _positions.duplicate(true), "principals": _principals.duplicate(true), "requests": _requests.duplicate(true), "claims": _claims.duplicate(true)})
+	return ServiceResult.success({"schema_version": 2, "catalog_fingerprint": _catalog_fingerprint, "last_tick": _last_tick, "owner": _owner.to_record(),
+		"positions": _positions.duplicate(true), "principals": _principals.duplicate(true), "requests": _requests.duplicate(true), "claims": _claims.duplicate(true), "portable": _portable.duplicate(true)})
 
 
 func validate_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
-	if not ToolComponentCatalog.exact(record, ["schema_version", "catalog_fingerprint", "last_tick", "owner", "positions", "principals", "requests", "claims"]) or not ControlContractValidation.is_integer(record["schema_version"], 1, 1) or not ControlContractValidation.is_integer(record["last_tick"], tick, tick) or record["catalog_fingerprint"] != _catalog_fingerprint:
+	record = record.duplicate(true)
+	if ControlContractValidation.is_integer(record.get("schema_version"), 1, 1) and not record.has("portable"):
+		record["schema_version"] = 2
+		record["portable"] = {}
+	if not ToolComponentCatalog.exact(record, ["schema_version", "catalog_fingerprint", "last_tick", "owner", "positions", "principals", "requests", "claims", "portable"]) or not ControlContractValidation.is_integer(record["schema_version"], 2, 2) or not ControlContractValidation.is_integer(record["last_tick"], tick, tick) or record["catalog_fingerprint"] != _catalog_fingerprint:
 		return _failure("Invalid terrain system envelope, catalog or tick.")
-	for field in ["owner", "positions", "principals", "claims"]:
+	for field in ["owner", "positions", "principals", "claims", "portable"]:
 		if typeof(record[field]) != TYPE_DICTIONARY: return _failure("Terrain collections require objects.")
 	var decoded: ServiceResult = TerrainMaterialOwner.from_record(record["owner"], _catalog)
 	if not decoded.is_success: return decoded
@@ -198,11 +280,34 @@ func validate_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
 		if not ControlContractValidation.is_integer(mapping["owner_sequence"], command["sequence"], command["sequence"]) or command != _owner_intent(int(mapping["owner_sequence"]), mapping["intent"]): return _failure("Allocation and domain receipt disagree.")
 	for principal in seen:
 		if seen[principal] != record["principals"][principal]: return _failure("Latest retained ordinal must match high-water mark.")
-	if record["claims"].size() != owner["transfers"].size(): return _failure("Each live escrow transfer requires one claimant.")
+	if record["claims"].size() + record["portable"].size() != owner["transfers"].size(): return _failure("Each live escrow transfer requires one claimant.")
 	for id in record["claims"]:
 		if not owner["transfers"].has(id) or not ControlContractValidation.is_id(record["claims"][id]) or not record["principals"].has(record["claims"][id]): return _failure("Unknown transfer claimant.")
 	# Rewind claimant permissions through the complete retained domain tail.
 	var claims: Dictionary = record["claims"].duplicate(true)
+	if record["portable"].size() > MAX_PORTABLE: return _failure("Portable lifetime claim budget exceeded.")
+	var ordinals: Dictionary = {}
+	var revisions: Dictionary = {}
+	var ordinal_revisions: Dictionary = {}
+	for id in record["portable"]:
+		var entry: Variant = record["portable"][id]
+		if not owner["transfers"].has(id) or claims.has(id) or typeof(entry) != TYPE_DICTIONARY or not ToolComponentCatalog.exact(entry, ["item_id", "principal_id", "request_number", "expected_inventory_revision"]): return _failure("Each portable claim requires one exclusive owner transfer.")
+		if entry["item_id"] != portable_item_id(id) or not ControlContractValidation.is_id(entry["principal_id"]) or not record["principals"].has(entry["principal_id"]) or not ControlContractValidation.is_integer(entry["request_number"], 1, MAX_PORTABLE) or not ControlContractValidation.is_integer(entry["expected_inventory_revision"], 0, MAX_INTEGER - 1): return _failure("Invalid portable identity, claimant or revision.")
+		var principal: String = entry["principal_id"]
+		if not ordinals.has(principal): ordinals[principal] = []
+		if ordinals[principal].has(entry["request_number"]) or revisions.has(entry["expected_inventory_revision"]): return _failure("Portable ordinals and commit revisions must be unique.")
+		ordinals[principal].append(int(entry["request_number"]))
+		ordinal_revisions[JSON.stringify([principal, int(entry["request_number"])])] = int(entry["expected_inventory_revision"])
+		revisions[entry["expected_inventory_revision"]] = true
+		claims[id] = principal
+	for principal in ordinals:
+		var numbers: Array = ordinals[principal]
+		numbers.sort()
+		var prior_revision: int = -1
+		for index in range(numbers.size()):
+			var revision: int = ordinal_revisions[JSON.stringify([principal, numbers[index]])]
+			if numbers[index] != index + 1 or revision <= prior_revision: return _failure("Portable claimant ordinals must be complete, contiguous and ordered by inventory commits.")
+			prior_revision = revision
 	for index in range(record["requests"].size() - 1, -1, -1):
 		var mapping: Dictionary = record["requests"][index]
 		var receipt: Dictionary = owner["receipts"][index]
@@ -220,9 +325,26 @@ func validate_inventory_links(record: Dictionary, inventory_record: Dictionary) 
 	var known: Dictionary = {}
 	for body in inventory_record["bodies"]:
 		if typeof(body) != TYPE_DICTIONARY or not ControlContractValidation.is_id(body.get("principal_id")): return _failure("Inventory principals must have stable identities.")
-		known[body["principal_id"]] = true
+		known[body["principal_id"]] = body["body_id"]
 	for principal in record["principals"]:
 		if not known.has(principal): return _failure("Terrain claimant has no registered inventory body.")
+	var matched: Dictionary = {}
+	var portable: Dictionary = record.get("portable", {})
+	for item in inventory_record["owner"]["ledger"]["items"]:
+		if item["definition_id"] != PORTABLE_DEFINITION: continue
+		var transfer: String = ""
+		for id in portable:
+			if portable[id]["item_id"] == item["item_id"]: transfer = id
+		if transfer == "" or int(item["definition_revision"]) != 1: return _failure("A physical terrain parcel requires exactly one conserved payload.")
+		matched[transfer] = true
+	for id in portable:
+		if not matched.has(id) or not known.has(portable[id]["principal_id"]) or int(portable[id]["expected_inventory_revision"]) >= int(inventory_record["owner"]["state_revision"]): return _failure("Portable receipt lacks a physical item, registered claimant or committed revision.")
+	for id in portable:
+		var entry: Dictionary = portable[id]
+		for receipt in inventory_record["owner"]["receipts"]:
+			if receipt["request_id"] != "terrain-factory-%s" % id: continue
+			var fingerprint: String = JSON.stringify(["equipment", PORTABLE_DEFINITION, entry["item_id"], true, known[entry["principal_id"]]]).sha256_text()
+			if receipt["state_revision"] != int(entry["expected_inventory_revision"]) + 1 or receipt["fingerprint"] != fingerprint: return _failure("Retained physical factory receipt contradicts the portable claim.")
 	return ServiceResult.success()
 
 func restore_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
@@ -232,7 +354,9 @@ func restore_snapshot_record(record: Dictionary, tick: int) -> ServiceResult:
 	_positions = record["positions"].duplicate(true)
 	_principals = record["principals"].duplicate(true)
 	_requests = record["requests"].duplicate(true)
-	_claims = record["claims"].duplicate(true)
+	_claims = decoded.value["record"]["claims"].duplicate(true)
+	_portable = decoded.value["record"]["portable"].duplicate(true)
+	_portable_masses = payload_masses(_owner.to_record(), _portable)
 	_last_tick = tick
 	_command_tick = -1
 	_commands = 0

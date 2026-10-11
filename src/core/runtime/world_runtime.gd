@@ -298,10 +298,26 @@ func restore_world_snapshot(snapshot: WorldSnapshot) -> ServiceResult:
 		var terrain := get_simulation_system(TerrainSimulationSystem.SYSTEM_ID) as TerrainSimulationSystem
 		if terrain == null: return ServiceResult.failure(&"terrain_migration_failed", "Terrain migration requires its trusted catalog.")
 		system_records["terrain"] = terrain.initial_record(normalized.tick_number, false)
-	var link_validation: ServiceResult = _validate_cross_system_state(system_records, normalized.tick_number)
-	if not link_validation.is_success:
-		return link_validation
-	return _simulation_runner.restore_snapshot(normalized.tick_number, system_records)
+	# Validate both mass owners before building the complete synchronous restore view.
+	# Never validate a candidate inventory against payloads from the old world.
+	var terrain := get_simulation_system(TerrainSimulationSystem.SYSTEM_ID) as TerrainSimulationSystem
+	var production := get_simulation_system(ProductionSimulationSystem.SYSTEM_ID) as ProductionSimulationSystem
+	var inventory := get_simulation_system(InventorySimulationSystem.SYSTEM_ID) as InventorySimulationSystem
+	if typeof(system_records.get("terrain")) != TYPE_DICTIONARY or typeof(system_records.get("production")) != TYPE_DICTIONARY: return ServiceResult.failure(&"invalid_payload_owners", "Both payload owner records are required.")
+	var terrain_valid: ServiceResult = terrain.validate_snapshot_record(system_records["terrain"], normalized.tick_number)
+	if not terrain_valid.is_success: return terrain_valid
+	var production_valid: ServiceResult = production.validate_snapshot_record(system_records["production"], normalized.tick_number)
+	if not production_valid.is_success: return production_valid
+	var terrain_record: Dictionary = terrain_valid.value["record"]
+	var masses: Dictionary = ProductionSimulationSystem.payload_masses(production_valid.value)
+	var extra: Dictionary = TerrainSimulationSystem.payload_masses(terrain_record["owner"], terrain_record["portable"])
+	for id in extra:
+		if masses.has(id): return ServiceResult.failure(&"payload_owner_conflict", "A physical item cannot belong to two mass owners.")
+		masses[id] = extra[id]
+	return inventory.with_checkpoint_payload_masses(masses, func() -> ServiceResult:
+		var link_validation: ServiceResult = _validate_cross_system_state(system_records, normalized.tick_number)
+		if not link_validation.is_success: return link_validation
+		return _simulation_runner.restore_snapshot(normalized.tick_number, system_records))
 
 
 ## Decodes and restores a snapshot before the runner starts.

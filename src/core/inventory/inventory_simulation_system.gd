@@ -20,6 +20,9 @@ var _grips: PhysicalGripOwner
 var _health: HealthSimulationSystem
 var _tool_capability_provider: Callable
 var _motion_validator: Callable
+var _primary_payload_mass: Callable
+var _external_payload_masses: Callable
+var _checkpoint_payload_masses: Variant = null
 ## Logical development targets; these are not inventory items or rigid bodies.
 const GRIP_TARGETS: Dictionary = {
 	"fixture.salvage-crate": {"position": [0, 0, 0], "movable": true, "required_force": 300000},
@@ -125,15 +128,63 @@ func bind_tool_capability_provider(provider: Callable) -> ServiceResult:
 
 ## Shared workstation gate: server-owned logical reach and manipulator availability.
 func bind_payload_mass_provider(provider: Callable) -> ServiceResult:
-	return _catalog.bind_payload_mass_provider(provider)
+	if _primary_payload_mass.is_valid() or not provider.is_valid(): return _failure("Bind one primary payload owner.")
+	_primary_payload_mass = provider
+	return _catalog.bind_payload_mass_provider(_payload_mass)
+
+
+## One additional conserved domain, disjoint from production item identities.
+func bind_external_payload_masses(provider: Callable) -> ServiceResult:
+	if not _primary_payload_mass.is_valid() or _external_payload_masses.is_valid() or not provider.is_valid(): return _failure("Bind one external payload domain.")
+	_external_payload_masses = provider
+	return ServiceResult.success()
+
+
+func primary_payload_masses() -> Dictionary:
+	var masses: Dictionary = {}
+	for item in _owner.to_record()["ledger"]["items"]:
+		masses[item["item_id"]] = _primary_payload_mass.call(item["item_id"]) if _primary_payload_mass.is_valid() else 0
+	return masses
+
+
+func combined_payload_masses(primary: Dictionary, external: Variant = null) -> Dictionary:
+	if _checkpoint_payload_masses != null: return _checkpoint_payload_masses.duplicate(true)
+	var masses: Dictionary = primary.duplicate(true)
+	var extra: Dictionary = external if external != null else (_external_payload_masses.call() if _external_payload_masses.is_valid() else {})
+	for id in extra:
+		# A physical record cannot carry matter owned by two domains.
+		masses[id] = -1 if int(masses.get(id, 0)) != 0 else extra[id]
+	return masses
+
+
+func _payload_mass(item_id: String) -> int:
+	if _checkpoint_payload_masses != null: return int(_checkpoint_payload_masses.get(item_id, 0))
+	var value: Variant = _primary_payload_mass.call(item_id) if _primary_payload_mass.is_valid() else 0
+	if not ControlContractValidation.is_integer(value, 0, MAX_EXACT_INTEGER): return -1
+	var primary: int = int(value)
+	var extra: Dictionary = _external_payload_masses.call() if _external_payload_masses.is_valid() else {}
+	if not ControlContractValidation.is_integer(extra.get(item_id, 0), 0, MAX_EXACT_INTEGER): return -1
+	return -1 if primary != 0 and extra.has(item_id) else primary + int(extra.get(item_id, 0))
+
+
+## Synchronous whole-world recovery view. Never retained by an owner or callback.
+func with_checkpoint_payload_masses(masses: Dictionary, action: Callable) -> ServiceResult:
+	if _checkpoint_payload_masses != null: return _failure("Nested checkpoint payload views reject.")
+	_checkpoint_payload_masses = masses.duplicate(true)
+	var result: ServiceResult = action.call()
+	_checkpoint_payload_masses = null
+	if result.is_success:
+		var refreshed: ServiceResult = refresh_payload_loads()
+		return result if refreshed.is_success else refreshed
+	return result
 
 
 func refresh_payload_loads() -> ServiceResult:
 	return _owner.refresh_payload_loads()
 
 
-func validate_payload_masses(masses: Dictionary, owner_record: Dictionary = {}) -> ServiceResult:
-	return SharedInventoryCoordinator.from_record(_owner.to_record() if owner_record.is_empty() else owner_record, _profiles, _catalog.with_payload_masses(masses))
+func validate_payload_masses(masses: Dictionary, owner_record: Dictionary = {}, external: Variant = null) -> ServiceResult:
+	return SharedInventoryCoordinator.from_record(_owner.to_record() if owner_record.is_empty() else owner_record, _profiles, _catalog.with_payload_masses(combined_payload_masses(masses, external)))
 
 
 ## Identity-scoped physical carriers. Other bodies' payloads are not observable.
@@ -170,7 +221,7 @@ func factory_definition(id: String) -> ServiceResult:
 
 
 ## Trusted owner chooses the catalog definition; client output records are never accepted.
-func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: String, item_id: String, create: bool, masses: Dictionary, definition_id: String, owner_record: Dictionary = {}) -> ServiceResult:
+func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: String, item_id: String, create: bool, masses: Dictionary, definition_id: String, owner_record: Dictionary = {}, external: Variant = null) -> ServiceResult:
 	var authorized: ServiceResult = authorize(context, true)
 	if not authorized.is_success or not ControlContractValidation.is_id(item_id):
 		return _failure("A capable bound actor and stable component identity are required.")
@@ -224,7 +275,7 @@ func prepare_equipment_change(context: AuthenticatedCommandContext, request_id: 
 	candidate["receipts"].append({"request_id": request_id, "fingerprint": fingerprint, "state_revision": candidate["state_revision"]})
 	if candidate["receipts"].size() > SharedInventoryCoordinator.MAX_RECEIPTS:
 		candidate["receipts"].pop_front()
-	var validated: ServiceResult = validate_payload_masses(masses, candidate)
+	var validated: ServiceResult = validate_payload_masses(masses, candidate, external)
 	return ServiceResult.success(candidate) if validated.is_success else validated
 
 
@@ -261,7 +312,7 @@ func prepare_factory_graph(context: AuthenticatedCommandContext, owner: Dictiona
 	var record: Dictionary = capture_snapshot().value
 	record["owner"] = candidate
 	record["world_storage"] = locations.duplicate(true)
-	var valid: ServiceResult = _decode(record, _last_tick, _catalog.with_payload_masses(masses))
+	var valid: ServiceResult = _decode(record, _last_tick, _catalog.with_payload_masses(combined_payload_masses(masses)))
 	return ServiceResult.success(record) if valid.is_success else valid
 
 

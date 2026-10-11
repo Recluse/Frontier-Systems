@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:construction-coverage:v2",
+  "title": "Current physical catalog construction coverage v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "fixture_equivalents",
+    "special_factories"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "fixture_equivalents": {
+      "type": "object",
+      "maxProperties": 32,
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128
+      }
+    },
+    "special_factories": {
+      "const": {
+        "item.plate.prototype": "materialize_plate",
+        "item.tool-part.fabricated": "fabricate_tool_part",
+        "item.terrain-parcel.prototype": "terrain.materialize"
+      }
+    }
+  },
+  "description": "Equipment/machinery outputs, fixture equivalents and three actual special factories, including TerrainSimulationSystem.materialize for conserved terrain payloads. This metadata does not authorize Production consumption of terrain."
+}

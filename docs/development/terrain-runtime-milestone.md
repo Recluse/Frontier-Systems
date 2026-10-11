@@ -1,10 +1,12 @@
 # Terrain runtime milestone
 
+Current extension: [portable terrain material](terrain-portable-milestone.md) adds whole escrow materialization, composed inventory payload capacity and terrain checkpoint v2. The original v1 bridge described below remains the source-operation contract.
+
 ## Owner and finite commissioning
 
 `TerrainSimulationSystem` registers as `terrain` in `WorldRuntime`, composing the existing canonical `TerrainMaterialOwner`. The bridge owns request allocation and permission metadata; it never duplicates matter into inventory or production. Its pinned dirt catalog fingerprint and fixture identities are validated on recovery.
 
-New worlds commission **2,000,000 mg (2 kg)** of `material.dirt` revision 1, generation revision 1, in `terrain.dirt.source`. `terrain.dirt.fill` starts empty. Both cells have a 2 kg ceiling; their stable millimetre positions are `[0,0,1000]` and `[500,0,1000]`. Origins are the cell IDs plus `.generation`. This is an independent explicit generation budget, outside Production's closed 25 kg fixture. Excavation creates terrain-owned transfer escrow, never a physical inventory item. Filling consumes only this owner's escrow and retains provenance.
+New worlds commission **2,000,000 mg (2 kg)** of `material.dirt` revision 1, generation revision 1, in `terrain.dirt.source`. `terrain.dirt.fill` starts empty. Both cells have a 2 kg ceiling; their stable millimetre positions are `[0,0,1000]` and `[500,0,1000]`. Origins are the cell IDs plus `.generation`. This is an independent explicit generation budget, outside Production's closed 25 kg fixture. Excavation creates terrain-owned transfer escrow. The portable extension can associate a whole claimed transfer with one physical inventory item without copying its matter. Filling consumes only this owner's escrow and retains provenance.
 
 A legacy v1 world envelope without `systems.terrain` migrates to the same identities/positions with **zero initial mass and zero capacity**. Present terrain records must validate; corruption does not reset or recommission cells. Depleted cells and their original source budgets persist. Loading always restores the owner record, and never consults a seed for replacement matter.
 

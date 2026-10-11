@@ -4,13 +4,13 @@ extends SceneTree
 func _initialize() -> void:
 	var items: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/inventory/items.default.v1.json"))
 	var equipment: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/production/equipment-blueprints.v1.json"))["blueprints"]
-	var coverage: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/production/construction-coverage.v1.json"))
+	var coverage: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/production/construction-coverage.v2.json"))
 	var components: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/tools/catalog.v1.json"))["components"]
 	var parts: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/tools/part-blueprints.v1.json"))["blueprints"]
 	var buildable: Dictionary = {}
 	var definitions: Dictionary = {}
 	var failures: int = 0
-	if coverage["schema_version"] != 1 or coverage["special_factories"] != {"item.plate.prototype": "materialize_plate", "item.tool-part.fabricated": "fabricate_tool_part"}:
+	if coverage["schema_version"] != 2 or coverage["special_factories"] != {"item.plate.prototype": "materialize_plate", "item.tool-part.fabricated": "fabricate_tool_part", TerrainSimulationSystem.PORTABLE_DEFINITION: "terrain.materialize"}:
 		push_error("Coverage must reference only the actual special factories.")
 		failures += 1
 	for design in equipment.values(): buildable[design["definition_id"]] = true

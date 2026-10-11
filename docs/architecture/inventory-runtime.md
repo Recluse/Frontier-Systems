@@ -2,6 +2,8 @@
 
 Current extension: [inventory/grip arbitration](inventory-grip-runtime.md) adds queued grip intents, exclusive hand checks and paused grip recovery in inventory snapshot v4. Spatial records use 3D integer positions; see [inventory spatial state](inventory-spatial-state.md).
 
+Current payload extension: [portable terrain material](../development/terrain-portable-milestone.md) composes disjoint Production and Terrain payloads through one catalog provider, including prospective factory checks and candidate-world recovery. Physical ledger records and inventory snapshot v4 are unchanged.
+
 ## Runnable development slice
 
 `InventorySimulationSystem` is now registered in `WorldRuntime` at tick priority 200, after machine controls. It owns the shared inventory coordinator, logical body/action records, bounded interaction jobs, volatile search views and limited command-outcome metadata. Startup loads trusted catalogs and the existing two-human shared fixture outside simulation ticks.

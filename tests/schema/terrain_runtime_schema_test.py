@@ -19,7 +19,7 @@ selected = {
     schema["$id"]: schema for schema in schemas
     if schema.get("$id") in (
         "urn:frontier-systems:schema:terrain-command:v1",
-        "urn:frontier-systems:schema:terrain-system:v1",
+        "urn:frontier-systems:schema:terrain-system:v2",
         "urn:frontier-systems:schema:world-snapshot:v1",
     )
 }
@@ -31,7 +31,7 @@ fixture = json.loads((ROOT / "var/terrain-runtime-fixture.json").read_text(encod
 world_validator = validators["urn:frontier-systems:schema:world-snapshot:v1"]
 world_validator.validate(fixture)
 terrain = fixture["systems"]["terrain"]
-terrain_validator = validators["urn:frontier-systems:schema:terrain-system:v1"]
+terrain_validator = validators["urn:frontier-systems:schema:terrain-system:v2"]
 terrain_validator.validate(terrain)
 command_validator = validators["urn:frontier-systems:schema:terrain-command:v1"]
 for mapping in terrain["requests"]:

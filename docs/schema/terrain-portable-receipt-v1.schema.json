@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:terrain-portable-receipt:v1",
+  "title": "Detached immutable terrain portable material receipt",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "owner_id",
+    "transfer_id",
+    "item_id",
+    "material_id",
+    "material_revision",
+    "mass_milligrams",
+    "parcels"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "owner_id": {
+      "const": "terrain.fixture.dirt"
+    },
+    "transfer_id": {
+      "type": "string",
+      "pattern": "^terrain-transfer-[1-9][0-9]*$",
+      "maxLength": 128
+    },
+    "item_id": {
+      "type": "string",
+      "pattern": "^terrain-item-[1-9][0-9]*$",
+      "maxLength": 128
+    },
+    "material_id": {
+      "const": "material.dirt"
+    },
+    "material_revision": {
+      "const": 1
+    },
+    "mass_milligrams": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1000000
+    },
+    "parcels": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 16,
+      "propertyNames": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "\\S"
+      },
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 9007199254740990
+      }
+    }
+  },
+  "additionalProperties": false
+}
