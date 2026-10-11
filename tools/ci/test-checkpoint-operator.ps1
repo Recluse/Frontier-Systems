@@ -43,6 +43,9 @@ try {
     foreach ($taskCase in @(
         @{ Args = @('list', '--source', $taskTemporary); Exit = 0; Code = '' },
         @{ Args = @('bad', '--secret', 'PRIVATE-SENTINEL'); Exit = 2; Code = 'operator_options' },
+        @{ Args = @('preflight', '--source', $taskTemporary, '--descriptor', (Join-Path $taskTemporary 'missing.json')); Exit = 3; Code = 'save_read' },
+        @{ Args = @('preflight', '--source', $taskTemporary, '--descriptor', $taskDescriptor); Exit = 4; Code = 'backup_selection' },
+        @{ Args = @('preflight', '--source', $taskTemporary, '--descriptor', $taskDescriptor, '--destination', ($taskTemporary + '-destination')); Exit = 2; Code = 'operator_options' },
         @{ Args = @('recover', '--source', $taskTemporary, '--descriptor', (Join-Path $taskTemporary 'missing.json'), '--destination', (Join-Path $taskTemporary 'new')); Exit = 3; Code = 'save_read' },
         @{ Args = @('recover', '--source', $taskTemporary, '--descriptor', $taskDescriptor, '--destination', ($taskTemporary + '-destination')); Exit = 4; Code = 'backup_selection' }
     )) {

@@ -66,17 +66,11 @@ func configure(world: WorldRuntime, directory: String, files: CheckpointFileIO =
 ## Destination must be absent; the selected original sequence remains in source history.
 ## On seeding failure discard this startup world/adapter; no save was acknowledged.
 func configure_from_backup(world: WorldRuntime, source: String, selection: Dictionary, destination: String, io: CheckpointFileIO = null, history: CheckpointHistoryPolicy = null) -> ServiceResult:
-	if not is_instance_valid(world) or source.is_empty() or destination.is_empty():
-		return ServiceResult.failure(&"backup_recovery", "Recovery requires a fresh adapter/world and explicit source, selection and destination.")
-	if _world != null or _closed or (history != null and not history.validate().is_success):
-		return ServiceResult.failure(&"backup_recovery", "Recovery requires an unconfigured adapter and a valid policy.")
-	# Operational preflight avoids storage calls from active tick callbacks. The owner
-	# still makes the authoritative has-started/domain checks during restore below.
-	var runtime_status: Dictionary = world.profiling_snapshot()
-	if runtime_status.is_empty():
-		return ServiceResult.failure(&"runtime_not_ready", "Initialize the startup world before selecting recovery.")
-	if runtime_status["simulation_running"] or runtime_status["tick_number"] != 0 or runtime_status["queued_external_commands"] != 0:
-		return ServiceResult.failure(&"simulation_already_started", "Recovery requires a fresh stopped startup world without commands.")
+	var ready: ServiceResult = _backup_startup_ready(world, source, history)
+	if not ready.is_success:
+		return ready
+	if destination.is_empty():
+		return ServiceResult.failure(&"backup_recovery", "Recovery requires an explicit fresh destination.")
 	var files: CheckpointFileIO = io if io != null else CheckpointFileIO.new()
 	var absolute: String = ProjectSettings.globalize_path(destination).simplify_path()
 	var source_absolute: String = ProjectSettings.globalize_path(source).simplify_path().replace("\\", "/").trim_suffix("/")
@@ -88,13 +82,9 @@ func configure_from_backup(world: WorldRuntime, source: String, selection: Dicti
 		return ServiceResult.failure(&"backup_destination", "Recovery destination must be absolute and outside the source directory.")
 	if files.exists(absolute):
 		return ServiceResult.failure(&"backup_destination", "Recovery destination must not exist; preserve the source and existing saves.")
-	var selected: ServiceResult = CheckpointBackupHistory.select_candidate(source, selection, files)
+	var selected: ServiceResult = _restore_backup_selection(world, source, selection, files)
 	if not selected.is_success:
 		return selected
-	# WorldRuntime validates identity, every system, cross-system links and pre-start state.
-	var restored: ServiceResult = world.restore_world_snapshot_json(selected.value["snapshot_json"])
-	if not restored.is_success:
-		return restored
 	var seeded: ServiceResult = LocalWorldSaveStore.write_checkpoint(absolute, 1, selected.value["snapshot_json"], files)
 	if not seeded.is_success:
 		_closed = true
@@ -109,6 +99,44 @@ func configure_from_backup(world: WorldRuntime, source: String, selection: Dicti
 	_saved_tick = world.current_tick_number()
 	_last_error = ""
 	return ServiceResult.success({"source_sequence": int(selected.value["sequence"]), "sequence": 1, "tick_number": world.current_tick_number()})
+
+
+## Read-only selection/domain validation. Caller must discard the disposable world
+## after success or failure; restore may populate it, but storage is never configured.
+func preflight_from_backup(world: WorldRuntime, source: String, selection: Dictionary, io: CheckpointFileIO = null) -> ServiceResult:
+	var ready: ServiceResult = _backup_startup_ready(world, source)
+	if not ready.is_success:
+		return ready
+	var selected: ServiceResult = _restore_backup_selection(world, source, selection, io)
+	if not selected.is_success:
+		return selected
+	return ServiceResult.success({"source_sequence": int(selected.value["sequence"]), "tick_number": world.current_tick_number()})
+
+
+func _backup_startup_ready(world: WorldRuntime, source: String, history: CheckpointHistoryPolicy = null) -> ServiceResult:
+	if not is_instance_valid(world) or source.is_empty():
+		return ServiceResult.failure(&"backup_recovery", "Backup validation requires a fresh adapter/world and explicit source and selection.")
+	if _world != null or _closed or (history != null and not history.validate().is_success):
+		return ServiceResult.failure(&"backup_recovery", "Recovery requires an unconfigured adapter and a valid policy.")
+	# Operational preflight avoids storage calls from active tick callbacks. The owner
+	# still makes the authoritative has-started/domain checks during restore below.
+	var runtime_status: Dictionary = world.profiling_snapshot()
+	if runtime_status.is_empty():
+		return ServiceResult.failure(&"runtime_not_ready", "Initialize the startup world before selecting recovery.")
+	if runtime_status["simulation_running"] or runtime_status["tick_number"] != 0 or runtime_status["queued_external_commands"] != 0:
+		return ServiceResult.failure(&"simulation_already_started", "Recovery requires a fresh stopped startup world without commands.")
+	return ServiceResult.success()
+
+
+func _restore_backup_selection(world: WorldRuntime, source: String, selection: Dictionary, files: CheckpointFileIO) -> ServiceResult:
+	var selected: ServiceResult = CheckpointBackupHistory.select_candidate(source, selection, files)
+	if not selected.is_success:
+		return selected
+	# WorldRuntime validates identity, every system, cross-system links and pre-start state.
+	var restored: ServiceResult = world.restore_world_snapshot_json(selected.value["snapshot_json"])
+	if not restored.is_success:
+		return restored
+	return selected
 
 
 func request_checkpoint() -> ServiceResult:
