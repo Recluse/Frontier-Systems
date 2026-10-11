@@ -14,6 +14,8 @@ var _world_details := Label.new()
 var _world_status := Label.new()
 var _pending_world: Dictionary = {}
 var _pending_inventory: Dictionary = {}
+# Display text only; never a retained command or replayable payload.
+var _move_recovery_text: String = ""
 var _pending_equipment_observation: String = ""
 var _inventory_buttons: Dictionary = {}
 var _storage_status := Label.new()
@@ -491,6 +493,8 @@ func _inspect_world() -> void:
 
 
 func _disconnected(message: String) -> void:
+	if _pending_inventory.get("operation") == "move":
+		_move_recovery_text = "Move outcome is unknown · request %s · item %s · source %s · destination %s · revision %d.\nReconnect and refresh before choosing a new action; no automatic retry. Fresh observations do not confirm the lost receipt." % [_pending, _pending_inventory["item_id"], _pending_inventory["source_container_id"], _pending_inventory["destination_container_id"], _pending_inventory["expected_revision"]]
 	if not _pending_closure.is_empty():
 		_closure_feedback.text = "Disconnected · outcome unknown · " + PlayerInventoryPresentation.closure_targets(_pending_closure) + "\nRefresh host observation; no automatic retry."
 	_pending_closure.clear()
@@ -513,7 +517,7 @@ func _disconnected(message: String) -> void:
 	for list in [_items, _world_items]: list.clear()
 	for picker in [_source, _destination, _slot, _world_root, _carrier, _tool_parts, _tool_mounts, _loose_parts, _part_blueprints]: picker.clear()
 	for label in [_summary, _equipment, _details, _world_details, _work_status, _storage_status, _transfer_preview, _world_transfer_preview]: label.text = ""
-	_result.text = message + "; pending target cleared; its outcome is unknown. Reconnect and refresh before retrying."
+	_result.text = _move_recovery_text if not _move_recovery_text.is_empty() else message + "; pending target cleared; its outcome is unknown. Reconnect and refresh before retrying."
 	_world_status.text = _result.text
 	_update_buttons()
 
@@ -638,6 +642,7 @@ func use_active_tool() -> void:
 func _submit(operation: String, payload: Dictionary, production: bool = false) -> void:
 	if not _pending.is_empty():
 		return
+	_move_recovery_text = ""
 	var command: SimulationCommand = ProductionDevelopmentCommand.new() if production else InventoryDevelopmentCommand.new()
 	command.command_id = _remote.next_local_request_id()
 	command.operation = operation
@@ -653,6 +658,9 @@ func _submit(operation: String, payload: Dictionary, production: bool = false) -
 
 func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 	if String(command.command_id) == _pending:
+		if _pending_inventory.get("operation") == "move" and not result.is_success and result.error_code == &"remote_disconnected":
+			_disconnected("Host connection closed")
+			return
 		if not _pending_closure.is_empty():
 			var expected: Dictionary = {"container_id": _pending_closure["container_id"], "expected_revision": _pending_closure["expected_revision"]}
 			if command.operation != _pending_closure["operation"] or command.payload != expected: return

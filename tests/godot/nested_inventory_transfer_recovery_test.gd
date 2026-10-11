@@ -139,6 +139,8 @@ func exercise() -> void:
 	check(observed_open("storage.backpack-1", false) and panel._record["mass_milligrams"] == mass, "restored closed ancestor and total carried mass observed")
 	check(not remote.frames.slice(frames).any(func(value: Dictionary) -> bool: return value.get("type") == "ack" and value.get("request_id") == String(abandoned.command_id)), "fresh session invents no abandoned transfer acknowledgement")
 	var feedback: String = panel._result.text
+	check(feedback.contains(String(abandoned.command_id)) and feedback.contains(paid_item) and feedback.contains("source storage.pouch-1") and feedback.contains("destination body.human-1") and feedback.contains("revision " + str(int(abandoned.payload["expected_revision"]))), "fresh replacement observation retains exact abandoned Move identity and targets")
+	check(panel._pending_inventory.is_empty() and not panel._move_recovery_text.is_empty(), "recovery retains display text only, no live pending payload")
 	check(feedback.contains("outcome is unknown") and feedback.contains("Reconnect and refresh"), "fresh observation preserves transfer uncertainty and explicit recovery guidance")
 	panel._completed(abandoned, ServiceResult.success())
 	check(panel._result.text == feedback and panel._pending.is_empty(), "late abandoned completion cannot settle unknown transfer")
@@ -153,6 +155,7 @@ func exercise() -> void:
 	check(not results[String(denied.command_id)].is_success and results[String(denied.command_id)].error_code == &"inventory_container_closed" and normalized(owner()) == normalized(closed), "closed ancestor rejects paid move atomically")
 	open_command = closure("storage.backpack-1", "open_container")
 	if not await settle(open_command, "storage.backpack-1", true): return
+	check(panel._move_recovery_text.is_empty() and not panel._result.text.contains(String(abandoned.command_id)), "explicit new closure submission replaces abandoned Move guidance")
 	var before: Dictionary = owner().duplicate(true)
 	var fresh: SimulationCommand = move_paid()
 	if fresh == null: return
