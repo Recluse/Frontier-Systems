@@ -57,13 +57,19 @@ static func scene_clear(walls: Dictionary, machinery: Dictionary, inventory: Dic
 	for wall in walls.values():
 		var origin: Vector3 = center(wall)
 		var half: Vector3 = half_size(wall)
-		if overlaps(origin, half, Vector3(0, 850, 1000), Vector3(1750, 1000, 500)): return false
-		for source in ProductionSimulationSystem.SOURCE_POSITIONS.values():
-			if overlaps(origin, half, point(source) + Vector3(0, 250, 0), Vector3(300, 250, 300)): return false
+		if not fixture_clear(origin, half): return false
 		for placement in machinery["placements"].values():
 			if overlaps(origin, half, point(placement["position"]) + Vector3(0, 750, 0), Vector3(650, 750, 650)): return false
 		for body in inventory["bodies"]:
 			if overlaps(origin, half, body_center(body["position_millimetres"]), BODY_HALF): return false
+	return true
+
+
+## Shared trusted fixture keepouts in millimetres; face contact is permitted.
+static func fixture_clear(origin: Vector3, half: Vector3) -> bool:
+	if overlaps(origin, half, Vector3(0, 850, 1000), Vector3(1750, 1000, 500)): return false
+	for source in ProductionSimulationSystem.SOURCE_POSITIONS.values():
+		if overlaps(origin, half, point(source) + Vector3(0, 250, 0), Vector3(300, 250, 300)): return false
 	return true
 
 
@@ -111,6 +117,7 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 	if create:
 		walls[wall_id] = {"position": InventorySpatialMath.normalized(pose["position"]), "quarter_turn": int(pose["quarter_turn"])}
 		if not valid(walls) or not scene_clear(walls, state["machinery"], inventory.capture_snapshot().value): return failure("The wall overlaps a panel, player, deployed machine or production fixture.")
+		if not MachineryPlacement.walls_clear({wall_id: walls[wall_id]}, state["machinery"]): return failure("The wall overlaps an expanded deployed machine.")
 		state["cargo"].erase(plate_id)
 	else:
 		walls.erase(wall_id)

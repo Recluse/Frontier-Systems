@@ -36,12 +36,13 @@ static func container(owner: Dictionary, id: String) -> String:
 	return ""
 
 
-static func modules(state: Dictionary, owner: Dictionary, id: String) -> Dictionary:
+## Physical fitting includes broken mounts; functional callers keep the default filter.
+static func modules(state: Dictionary, owner: Dictionary, id: String, include_broken: bool = false) -> Dictionary:
 	var result: Dictionary = {}
 	var storage: String = container(owner, id)
 	if storage.is_empty(): return result
 	for entry in owner["ledger"]["items"]:
-		if entry["container_id"] != storage or state["mounts"].get(entry["item_id"]) != id or not state["parts"].has(entry["item_id"]) or int(entry["condition_permille"]) == 0: continue
+		if entry["container_id"] != storage or state["mounts"].get(entry["item_id"]) != id or not state["parts"].has(entry["item_id"]) or (not include_broken and int(entry["condition_permille"]) == 0): continue
 		var kind: String = state["parts"][entry["item_id"]]["kind"]
 		if not result.has(kind): result[kind] = []
 		result[kind].append(entry["item_id"])

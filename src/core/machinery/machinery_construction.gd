@@ -101,13 +101,15 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 		var storage: String = MachineryWorkshop.container(owner, machine)
 		if operation == "machine_fit":
 			if (not own_ids.has(id) and physical["container_id"] != storage) or not workshop["parts"].has(id) or workshop["parts"][id]["kind"] in ["frame", "cable"]: return failure("Fit an owned machine module.")
-			var installed: Dictionary = MachineryWorkshop.modules(workshop, owner, machine)
+			var installed: Dictionary = MachineryWorkshop.modules(workshop, owner, machine, true)
 			var kind: String = workshop["parts"][id]["kind"]
 			if kind == "socket":
 				if installed.get("socket", []).size() >= (6 if installed.has("expander") else 3): return failure("Add an expander for more than three sockets.")
 			elif installed.has(kind): return failure("Remove the fitted module of this kind first.")
-			physical["container_id"] = storage
+			var previous_half: Vector3 = MachineryPlacement.half_size(workshop, machine)
 			workshop["mounts"][id] = machine
+			if workshop["placements"].has(machine) and MachineryPlacement.half_size(workshop, machine) != previous_half and not MachineryPlacement.clear(workshop, state["walls"], snapshot, machine, workshop["placements"][machine]["position"]): return failure("The expanded machine overlaps a machine, wall, body or production fixture.")
+			physical["container_id"] = storage
 		elif operation == "machine_unfit":
 			if physical["container_id"] != storage or workshop["links"].has(id): return failure("Select a fitted module, disconnecting cables first.")
 			physical["container_id"] = body_root
@@ -128,6 +130,7 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 		if payload["mode"] == "surface" and int(payload["position"][1]) != 0: return failure("The prototype surface adapter supports floor placement at Y=0.")
 		var reach: ServiceResult = inventory.production_capability(context, true, payload["position"])
 		if not reach.is_success: return reach
+		if not MachineryPlacement.clear(workshop, state["walls"], snapshot, machine, payload["position"]): return failure("The machine overlaps a machine, wall, body or production fixture.")
 		var root: String = MachineryWorkshop.root_id(machine)
 		owner["ledger"]["containers"].append({"container_id": root, "owner_item_id": "", "capacity": {"max_mass_milligrams": 100000000, "max_volume_millilitres": 200000, "max_items": 1, "accepted_tags": ["machine.frame"]}})
 		MachineryWorkshop.item(owner, machine)["container_id"] = root

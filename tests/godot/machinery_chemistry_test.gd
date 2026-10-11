@@ -36,8 +36,8 @@ func run() -> void:
 	command("process", {"recipe_id": "refine.ice"})
 	step(60)
 	command("load_cargo", {"carrier_id": "resource-canister-1", "material": "water", "amount_milligrams": 1000000})
-	var generator: String = assemble("solar", [-1000, 0, 1000])
-	var chemical: String = assemble("refinery", [1000, 0, 0])
+	var generator: String = assemble("solar", [-1100, 0, -1000])
+	var chemical: String = assemble("refinery", [900, 0, -1000])
 	for id in ["resource-canister-1", "resource-canister-2", third]:
 		var socket: String = craft("socket")
 		fit(chemical, socket)
