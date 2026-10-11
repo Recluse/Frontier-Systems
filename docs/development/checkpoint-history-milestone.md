@@ -43,7 +43,13 @@ Automatic `configure()` continues to consult only active slots. Two invalid slot
 
 ## Verification
 
-Focused fault-injected checks and persistence regressions passed locally on Windows with the pinned Godot 4.7.2 console executable. Final rebase, acceptance and exact commit/CI evidence are recorded below when complete.
+Local Windows verification followed a rebase onto `origin/dev-master` at `bef1b39622a6b0fbbc19f1b10f02819f3314d82d`. Godot 4.7.2 console at `D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe` passed import, startup, history, checkpoint recovery, control-runtime recovery, sustained extraction and first-playable two-client acceptance on runtime commit `8683bf9ec0cee0f106c83bfa59b6648462b8d87c`. Acceptance passed in 36.18 seconds and port 27849 was released immediately. The final additional operator preflight/source-tree guards on `b0202a5` passed all six non-network checks again. Logs/JUnit remain in this managed worktree at `var/ci/checkpoint-history-final/` and `var/ci/checkpoint-history-final-guards/`.
+
+```powershell
+./tools/ci/run-godot-checks.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' -TestNames 'checkpoint_history_test.gd','checkpoint_recovery_test.gd','first_playable_acceptance.gd','control_runtime_recovery_test.gd','sustained_extraction_test.gd' -TestTimeoutSeconds 120 -OutputDirectory 'var/ci/checkpoint-history-final'
+```
+
+Draft PR [#4](https://github.com/Valgorithms/Frontier-Systems/pull/4) targets `dev-master`. Exact final commit and remote CI are reported with the PR; earlier successful draft CI is not evidence for the implementation head. Coordinator/human review and authorization are required before merge; this chat does not merge, deploy or push the integration branch.
 
 The bounded versioned runner imports and starts the project, then runs the history/recovery/control-runtime-recovery/sustained-extraction tests. History scenarios use randomized temporary directories, injected I/O and a semaphore-gated archive worker: opt-out, copied policies, count/byte retention, exact envelope metadata, idempotent retry, uncommitted sources, identity conflicts, partial/unpromoted staging, interrupted write/flush/read/promotion/cleanup/pruning, full eight-entry retention plus spare, restart retry, unreadable/oversized/checksum-invalid backups, stale/tampered selections, active success despite backup failure, nonzero-tick startup recovery, source/destination preservation, running/stopped-world rejection, domain rejection, failed recovery seed and shutdown joins. No live player storage or external service is used.
 
