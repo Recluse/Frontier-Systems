@@ -60,9 +60,9 @@ func run() -> void:
 	client._remote.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void:
 		acks[String(command.command_id)] = result
 		if command is CheckpointRequest:
-			# A following observation in this same socket poll may replace the label.
+			# Dedicated checkpoint feedback survives the following observation.
 			checkpoint_receipt["success"] = result.is_success
-			checkpoint_receipt["visible"] = client._status.text == "Shared world checkpoint confirmed on disk."
+			checkpoint_receipt["visible"] = client._checkpoint_status.text == "Shared world checkpoint confirmed on disk."
 	)
 	check(await wait_for(func() -> bool: return client._remote._authenticated), "real session authenticates")
 	check(client._latest.is_empty() and client._reconnect.disabled and not client._remote.connection_ready(), "authentication waits for first observation")

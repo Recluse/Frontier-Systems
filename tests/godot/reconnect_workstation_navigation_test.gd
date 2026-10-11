@@ -37,18 +37,6 @@ func run() -> void:
 		client._habitat.production.workstation_selected.emit()
 		check(client._tabs.current_tab == 1, "signal while disconnected cannot dereference absent panel")
 	check(remote.sent.is_empty(), "presentation navigation emits no canonical commands")
-	# Deterministic CI race: completion and the next observation share one frame.
-	observe_shell()
-	var checkpoint: Dictionary = {}
-	remote.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void:
-		if command is CheckpointRequest:
-			checkpoint["success"] = result.is_success
-			checkpoint["visible"] = client._status.text == "Shared world checkpoint confirmed on disk."
-	)
-	remote.command_completed.emit(CheckpointRequest.new(), ServiceResult.success())
-	observe_shell()
-	check(checkpoint.get("success", false) and checkpoint.get("visible", false), "receipt latch captures successful checkpoint UI before same-frame observation")
-	check(client._status.text != "Shared world checkpoint confirmed on disk.", "polling transient label after same-frame observation misses receipt")
 	client.free()
 	world.free()
 	PlayerInputSettings.instance().release_all()

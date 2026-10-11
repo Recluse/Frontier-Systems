@@ -5,6 +5,9 @@ var _world: WorldRuntime
 var _store: WorldPersistenceAdapter
 var _remote: RemoteWorldRuntime
 var _status: Label
+var _checkpoint_status: Label
+var _checkpoint_request: CheckpointRequest
+var _checkpoint_outcome_unknown: bool = false
 var _content: VBoxContainer
 var _habitat: ProceduralHabitatPreview
 var _production_panel: LocalProductionPanel
@@ -234,17 +237,28 @@ func _start_client() -> void:
 	_content.add_child(drop_plate)
 	var save := Button.new()
 	save.text = "Save shared world now"
-	save.pressed.connect(func() -> void:
-		var command := CheckpointRequest.new()
-		command.command_id = StringName("save-%s" % _remote.next_local_request_id())
-		var queued: ServiceResult = _remote.enqueue_command(command)
-		_status.text = "Checkpoint requested; waiting for disk confirmation…" if queued.is_success else queued.message
-	)
+	save.pressed.connect(_request_checkpoint)
 	_content.add_child(save)
+	_checkpoint_status = Label.new()
+	_checkpoint_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_checkpoint_status.text = "No manual checkpoint requested this session."
+	_content.add_child(_checkpoint_status)
 	_host_actions.assign([pickup, drop, drop_plate, save])
 	for action in _host_actions: action.disabled = true
 	_connect_client()
 
+
+## One volatile request reference and one bounded result; observations never confirm I/O.
+func _request_checkpoint() -> void:
+	var command := CheckpointRequest.new()
+	command.command_id = StringName("save-%s" % _remote.next_local_request_id())
+	_checkpoint_outcome_unknown = false
+	_checkpoint_request = command
+	_checkpoint_status.text = "Checkpoint requested; waiting for disk confirmation…"
+	var queued: ServiceResult = _remote.enqueue_command(command)
+	if not queued.is_success:
+		_checkpoint_request = null
+		_checkpoint_status.text = "Checkpoint not submitted: " + queued.message.left(512)
 
 ## Reuse operator configuration in memory only; never display or journal credentials.
 func _connect_client() -> void:
@@ -260,6 +274,13 @@ func _connect_client() -> void:
 
 
 func _on_connection_closed(message: String) -> void:
+	if _checkpoint_request != null:
+		_checkpoint_outcome_unknown = true
+	if _checkpoint_outcome_unknown:
+		_checkpoint_status.text = "Checkpoint outcome unknown after disconnect; no request will be resubmitted."
+	else:
+		_checkpoint_status.text = "Checkpoint session ended; reconnect before requesting a new save."
+	_checkpoint_request = null
 	_status.text = message
 	_connection_status.text = message + ". Reconnect, then inspect fresh state; unacknowledged actions are not resubmitted."
 	_reconnect.disabled = false
@@ -387,8 +408,15 @@ func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
 			var position: Array = _latest["position"]
 			_habitat.character.position = ProceduralWorldInventoryPreview.DISPLAY_ORIGIN + Vector3(float(position[0]), float(position[1]), float(position[2])) / 1000.0
 	_status.text = result.message if not result.is_success else _status.text
-	if command is CheckpointRequest and result.is_success:
-		_status.text = "Shared world checkpoint confirmed on disk."
+	if command is CheckpointRequest and command == _checkpoint_request:
+		_checkpoint_request = null
+		if result.error_code == &"remote_disconnected":
+			_checkpoint_outcome_unknown = true
+			_checkpoint_status.text = "Checkpoint outcome unknown after disconnect; no request will be resubmitted."
+		elif result.is_success:
+			_checkpoint_status.text = "Shared world checkpoint confirmed on disk."
+		else:
+			_checkpoint_status.text = "Checkpoint failed: " + result.message.left(512)
 
 
 # A look gesture belongs to the preview, not to the root GUI mouse latch.

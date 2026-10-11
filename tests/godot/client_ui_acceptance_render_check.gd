@@ -40,7 +40,7 @@ func _run() -> void:
 		client._remote.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void:
 			if command is CheckpointRequest:
 				persisted["success"] = result.is_success
-				persisted["visible"] = client._status.text == "Shared world checkpoint confirmed on disk."
+				persisted["visible"] = client._checkpoint_status.text == "Shared world checkpoint confirmed on disk."
 		)
 		if not await _wait_until(func() -> bool: return not store.status()["busy"], 4.0): _failed = true
 		if not _failed and not await _press_named(client._content, "Save shared world now"): _failed = true
