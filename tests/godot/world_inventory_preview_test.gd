@@ -46,6 +46,8 @@ func _run() -> void:
 	click.pressed = true
 	preview._on_item_input(null, click, Vector3.ZERO, Vector3.UP, 0, "world.tray-1", "backpack-1")
 	_check(_selected == "backpack-1", "selection must emit stable container/item identities")
+	var identity: Label3D = preview._visible_items.values()[0]["identity"]
+	_check(identity.visible and identity.text.contains("backpack-1") and identity.text.contains("world.tray-1"), "selected proxy shows stable identity and root")
 	_check(world.capture_world_snapshot_json().value == before, "geometry and selection alone must not mutate world")
 	var panel := LocalInventoryPanel.new()
 	root.add_child(panel)

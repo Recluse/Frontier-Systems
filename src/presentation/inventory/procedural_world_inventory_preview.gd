@@ -88,7 +88,7 @@ func _rebuild() -> void:
 			identity.font_size = 22
 			identity.text = "%s\n%s · observed %.2f m" % [item["item_id"], container["container_id"], float(container["distance_millimetres"]) / 1000.0]
 			_rendered.add_child(identity)
-			_visible_items[key] = {"mesh": mesh, "color": color, "identity": identity}
+			_visible_items[key] = {"mesh": mesh, "color": color, "identity": identity, "text": identity.text}
 			var area := Area3D.new()
 			area.position = location
 			area.collision_layer = 4
@@ -123,6 +123,7 @@ func _highlight() -> void:
 		var material: StandardMaterial3D = entry["mesh"].material_override
 		material.albedo_color = Color("#ffe066") if key == _selected_key else entry["color"]
 		entry["identity"].visible = labels_visible and key == _selected_key
+		entry["identity"].text = entry["text"] if key == _selected_key else ""
 
 
 func _box(parent: Node3D, dimensions: Vector3, location: Vector3, color: Color) -> MeshInstance3D:

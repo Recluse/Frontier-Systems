@@ -11,6 +11,7 @@ var _items := ItemList.new()
 var _world_items := ItemList.new()
 var _world_root := OptionButton.new()
 var _world_details := Label.new()
+var _world_status := Label.new()
 var _pending_world: Dictionary = {}
 var _source := OptionButton.new()
 var _destination := OptionButton.new()
@@ -77,6 +78,8 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	add_child(world_actions)
 	_button(world_actions, "Collect selected", _world_action.bind("pickup"))
 	_button(world_actions, "Drop selected", _world_action.bind("drop"))
+	_world_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_world_status)
 	_label("Active tool · resource extractor")
 	for id in ["deposit.iron", "deposit.ice", "deposit.regolith"]:
 		_deposit.add_item({"deposit.iron": "Iron ore", "deposit.ice": "Ice", "deposit.regolith": "Regolith"}[id])
@@ -182,6 +185,10 @@ func _fill_picker(picker: OptionButton, ids: Array, all_items: bool = false) -> 
 	for id in ids:
 		picker.add_item(_item_name(id) if picker == _loose_parts else (_slot_name(id) if picker == _slot else _container_name(id)))
 		picker.set_item_metadata(picker.item_count - 1, id)
+		if picker == _world_root:
+			for container in _nearby.get("containers", []):
+				if container["container_id"] == id:
+					picker.set_item_text(picker.item_count - 1, "%s · observed %.2f m" % [id, float(container["distance_millimetres"]) / 1000.0])
 		if previous == id:
 			picker.select(picker.item_count - 1)
 
@@ -295,11 +302,15 @@ func _world_action(operation: String) -> void:
 	if not _pending.is_empty():
 		_pending_world = payload.duplicate(true)
 		_result.text = "Waiting for host · %s %s · world %s%s · revision %d. Ownership changes only after host acceptance." % [operation, payload["item_id"], payload["world_container_id"], " → " + str(payload["destination_container_id"]) if operation == "pickup" else "", payload["expected_revision"]]
-		_update_buttons()
+	_world_status.text = _result.text
+	_update_buttons()
 
 
 func _inspect_world() -> void:
 	_world_details.text = "Select a nearby item. Listed roots are host-observed as accessible and in reach; capacity and ownership are rechecked by the host."
+	if _nearby.get("containers", []).is_empty():
+		_world_details.text = "No accessible world storage in the current host reach view. Approach a tray and wait for a fresh observation."
+		return
 	var selected: PackedInt32Array = _world_items.get_selected_items()
 	if selected.is_empty(): return
 	var item: Dictionary = _world_items.get_item_metadata(selected[0])
@@ -320,6 +331,7 @@ func _disconnected(message: String) -> void:
 	for picker in [_source, _destination, _slot, _world_root, _carrier, _tool_parts, _tool_mounts, _loose_parts, _part_blueprints]: picker.clear()
 	for label in [_summary, _equipment, _details, _world_details, _work_status]: label.text = ""
 	_result.text = message + "; pending target cleared. Reconnect and refresh before retrying."
+	_world_status.text = _result.text
 	_update_buttons()
 
 
@@ -394,9 +406,11 @@ func _submit(operation: String, payload: Dictionary, production: bool = false) -
 
 func _completed(command: SimulationCommand, result: ServiceResult) -> void:
 	if String(command.command_id) == _pending:
+		var was_world: bool = not _pending_world.is_empty()
 		_pending = ""
 		_pending_world.clear()
 		_result.text = "Host accepted action; waiting for current inventory observation." if result.is_success else "Host rejected action: " + result.message
+		if was_world: _world_status.text = _result.text
 		_update_buttons()
 
 
