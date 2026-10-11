@@ -44,3 +44,7 @@ The PHP interface returns ReactPHP `PromiseInterface` values. A Godot persistenc
 - Command outcome durability cannot diverge from the persisted world transition; unresolved pending requests have an explicit operator-visible state.
 - Snapshot saves use atomic revision compare-and-swap and idempotent retries, and restore succeeds before ticks begin.
 - Provider, persistence, and networking timeouts never stall a Godot tick; supported deployments remain Windows-compatible.
+
+## Retained extraction Resume results
+
+The local production snapshot retains bounded immutable success receipts. For `resume_tool_extract`, fixed-tick validation and application pass the host-bound canonical request ID into authorization. Current actor permission, registered capable body and available unreserved hand are checked first. An exact retained fingerprint (authenticated principal, operation and complete canonical payload, including expected revision) permits returning the prior receipt before mutable job/source-reach checks. Fresh requests still require an existing reserved extraction and source reach; changed intent, foreign principals and invalid command scope reject. Retrieval does not advance the production revision, append a receipt or apply work again. Original receipt tick/revision/fingerprint remain unchanged. This is bounded production idempotency, not a general durable command journal or crash guarantee.

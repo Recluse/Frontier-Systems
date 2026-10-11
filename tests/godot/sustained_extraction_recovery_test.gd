@@ -218,15 +218,20 @@ func exercise() -> void:
 	resources()
 	steps(180)
 	resources()
-	var resume_receipt: Dictionary = results[String(resumed.command_id)].value.duplicate(true)
+	var resume_receipt: Dictionary = state()["receipts"].filter(func(entry: Dictionary) -> bool: return entry["request_id"] == "net-1-" + String(resumed.command_id))[0].duplicate(true)
 	await production_probe(remote, "resume_tool_extract", resumed.payload, String(resumed.command_id), false, true)
-	check(results[String(resumed.command_id)].value == resume_receipt, "completed identical Resume returns exact immutable prior receipt")
+	check(state()["receipts"].has(resume_receipt), "completed identical Resume preserves exact immutable prior receipt")
 	var changed_resume: Dictionary = resumed.payload.duplicate(true)
 	changed_resume["expected_revision"] = state()["state_revision"]
 	await production_probe(remote, "resume_tool_extract", changed_resume, String(resumed.command_id))
 	check(results[String(resumed.command_id)].message == "Retained request ID identifies different intent.", "changed revision under retained Resume ID rejects")
 	await production_probe(remote, "resume_tool_extract", resumed.payload, "resume.fresh-absent")
 	check(results["resume.fresh-absent"].message == "No sustained extraction is reserved.", "fresh absent-job Resume remains denied")
+	observer = RemoteWorldRuntime.new()
+	root.add_child(observer)
+	observer.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void: foreign_results[String(command.command_id)] = result)
+	check(observer.connect_host("ws://127.0.0.1:27849", KEYS[0]).is_success, "foreign invite reauthenticates replacement host")
+	if not await wait_for(func() -> bool: return observer.server_slot == 0, "foreign replacement shell authenticated"): return
 	await production_probe(observer, "resume_tool_extract", resumed.payload, String(resumed.command_id), true)
 	# Direct canonical ID collision also cannot read another principal's receipt.
 	var foreign_context := AuthenticatedCommandContext.from_authenticated_session(&"local-inventory-actor", &"retry.foreign", world.world_id, world.region_id, PackedStringArray(["inventory.operate"]))
@@ -236,7 +241,15 @@ func exercise() -> void:
 	denied = production.apply_local(revoked_context, String(resume_receipt["request_id"]), "resume_tool_extract", resumed.payload, world.current_tick_number() + 1)
 	check(not denied.is_success, "identical receipt cannot bypass revoked actor permission")
 	await production_probe(remote, "resume_tool_extract", resumed.payload, String(resumed.command_id), false, true)
-	check(results[String(resumed.command_id)].value == resume_receipt, "repeated completed retry keeps prior revision/tick/fingerprint")
+	var original_context := AuthenticatedCommandContext.from_authenticated_session(&"local-inventory-target", &"retry.original", world.world_id, world.region_id, PackedStringArray(["inventory.operate"]))
+	var retrieved: ServiceResult = production.apply_local(original_context, String(resume_receipt["request_id"]), "resume_tool_extract", resumed.payload, world.current_tick_number() + 1)
+	check(retrieved.is_success and retrieved.value == resume_receipt, "repeated completed retry returns original revision/tick/fingerprint")
+	var scope_command := ProductionDevelopmentCommand.new()
+	scope_command.command_id = StringName(resume_receipt["request_id"])
+	scope_command.operation = "resume_tool_extract"
+	scope_command.payload = resumed.payload
+	scope_command.authenticated_context = AuthenticatedCommandContext.from_authenticated_session(&"local-inventory-target", &"retry.scope", &"foreign-world", world.region_id, PackedStringArray(["inventory.operate"]))
+	check(not scope_command.validate(world).is_success, "retained Resume cannot bypass authenticated world scope")
 	await production_probe(remote, "start_tool_extract", start_intent.payload, String(start_intent.command_id), false, true)
 	check(state()["job"].is_empty(), "retained Resume/start cannot resurrect completed work")
 	# Independently restore the same checkpoint; do not synthesize a replacement job.
