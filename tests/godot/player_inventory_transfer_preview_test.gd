@@ -52,9 +52,9 @@ func run() -> void:
 	select_item(panel._items, "crowbar-1")
 	choose(panel._destination, "body.human-1")
 	choose(panel._slot, "hand.right")
-	check(panel._transfer_preview.text.contains("Item: crowbar-1 · source: storage.pouch-1") and panel._transfer_preview.text.contains("Destination: body.human-1") and panel._transfer_preview.text.contains("Slot: hand.right"), "actual selection signals refresh exact source/destination/slot")
+	check(panel._transfer_preview.text.contains("Item: crowbar-1 · source: storage.pouch-1") and panel._transfer_preview.text.contains("Destination: body.human-1") and not panel._transfer_preview.text.contains("Slot:"), "move identifies actual item/source/destination without unrelated equipment slot")
 	choose(panel._destination, "storage.backpack-1")
-	check(panel._transfer_preview.text.contains("Destination: storage.backpack-1") and panel._transfer_preview.text.contains("Observed destination storage.backpack-1"), "destination selection refreshes observed load/capacity")
+	check(panel._transfer_preview.text.contains("Destination: storage.backpack-1") and panel._storage_status.text.contains("Observed destination storage.backpack-1") and not panel._transfer_preview.text.contains("Observed destination"), "destination selection refreshes observed load/capacity")
 	choose(panel._world_root, "world.tray-1")
 	check(panel._world_transfer_preview.text.contains("Item: crowbar-1 · source: storage.pouch-1 · tray destination: world.tray-1"), "drop summary distinguishes world tray from owned move destination")
 	var changed_tray: Dictionary = observed.duplicate(true)
@@ -69,7 +69,7 @@ func run() -> void:
 	var loaded_mass: int = 0
 	for detail in observed["inventory"]["item_details"]:
 		if detail["item"]["item_id"] == "backpack-1": loaded_mass = detail["mass_milligrams"]
-	check(loaded_mass > 0 and panel._transfer_preview.text.contains("Observed loaded mass: %.2f kg" % [float(loaded_mass) / 1000000.0]) and panel._transfer_preview.text.contains("Observed slot item: backpack-1"), "nested backpack uses owner-provided loaded mass and slot occupant")
+	check(loaded_mass > 0 and panel._transfer_preview.text.contains("Observed loaded mass: %.2f kg" % [float(loaded_mass) / 1000000.0]) and panel._equipment.text.contains("backpack-1") and not panel._transfer_preview.text.contains("Observed slot item"), "move quotes loaded mass while equipment retains its observed occupant")
 	# Detached host-observation fixture: deliberately disagree with separate cargo
 	# so the preview must quote item_details once, never add or reconstruct payload.
 	var payload: Dictionary = observed.duplicate(true)
@@ -82,7 +82,7 @@ func run() -> void:
 	missing_details["inventory"].erase("item_details")
 	missing_details["inventory"].erase("container_records")
 	panel.observe(missing_details)
-	check(panel._transfer_preview.text.contains("Loaded mass: unavailable") and panel._transfer_preview.text.contains("capacity is unavailable"), "older observation reports missing mass/capacity")
+	check(panel._transfer_preview.text.contains("Loaded mass: unavailable") and panel._storage_status.text.contains("capacity is unavailable"), "older observation reports missing mass/capacity")
 	var moved: Dictionary = observed.duplicate(true)
 	for entry in moved["inventory"]["items"]:
 		if entry["item_id"] == "backpack-1": entry["container_id"] = "body.human-1"
@@ -94,7 +94,7 @@ func run() -> void:
 	removed["inventory"]["container_ids"].clear()
 	removed["inventory"]["slot_ids"].clear()
 	panel.observe(removed)
-	check(panel._transfer_preview.text.contains("Item/source: unavailable") and panel._transfer_preview.text.contains("Destination: unavailable") and panel._transfer_preview.text.contains("Slot: unavailable") and not panel._transfer_preview.text.contains("12.35"), "removed selection cannot leave stale detail or silently retarget")
+	check(panel._transfer_preview.text.contains("Item/source: unavailable") and panel._transfer_preview.text.contains("Destination: unavailable") and not panel._transfer_preview.text.contains("Slot:") and not panel._transfer_preview.text.contains("12.35"), "removed selection cannot leave stale detail or silently retarget")
 	panel.observe(observed)
 	check(panel._destination.selected == -1 and panel._slot.selected == -1 and panel._selected_id(panel._items).is_empty(), "returning records require explicit reselection")
 	var tray: Dictionary = observed.duplicate(true)
