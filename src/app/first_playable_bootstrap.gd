@@ -41,11 +41,20 @@ func _start_host() -> void:
 	var directory: String = OS.get_environment("FRONTIER_SAVE_DIRECTORY")
 	if directory.is_empty():
 		directory = "user://first-playable-world"
-	var configured: ServiceResult = _store.configure(_world, directory)
+	var history: ServiceResult = CheckpointOperator.history_from_settings(OS.get_environment("FRONTIER_BACKUP_ENTRIES"), OS.get_environment("FRONTIER_BACKUP_BYTES"))
+	if not history.is_success:
+		push_error(history.message)
+		get_tree().quit(CheckpointOperator.EXIT_OPTIONS)
+		return
+	var configured: ServiceResult = _store.configure(_world, directory, null, history.value)
 	if not configured.is_success:
 		push_error(configured.message)
 		get_tree().quit(1)
 		return
+	print("Backup history disabled." if history.value == null else "Backup history enabled: %d entries, %d retained bytes." % [history.value.entries, history.value.retained_bytes])
+	_store.checkpoint_completed.connect(func(tick: int, result: ServiceResult) -> void:
+		print(CheckpointOperator.checkpoint_diagnostic(tick, result, _store.backup_status()))
+	)
 	var host := FirstPlayableHost.new()
 	host.persistence = _store
 	add_child(host)
