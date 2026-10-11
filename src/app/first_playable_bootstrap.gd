@@ -118,6 +118,7 @@ func _start_client() -> void:
 	_inventory_panel.configure(_remote)
 	var settings_scroll := ScrollContainer.new()
 	settings_scroll.name = "Settings"
+	settings_scroll.follow_focus = true
 	_tabs.add_child(settings_scroll)
 	var settings := PlayerControlsPanel.new()
 	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -159,14 +160,9 @@ func _start_client() -> void:
 	var views := VBoxContainer.new()
 	views.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(views)
-	var help := Label.new()
-	help.text = ""
-	var update_help: Callable = func() -> void:
-		help.text = "Hold %s to look · hold %s for UI · %s: inventory · %s: settings" % [PlayerInputSettings.instance().binding_label("look"), PlayerInputSettings.instance().binding_label("ui_cursor"), PlayerInputSettings.instance().binding_label("inventory"), PlayerInputSettings.instance().binding_label("settings")]
-	PlayerInputSettings.instance().bindings_changed.connect(update_help)
-	update_help.call()
-	help.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	var help := FirstPlayableControlsHelp.new()
 	views.add_child(help)
+	help.configure(_tabs)
 	var overview := Button.new()
 	overview.text = "Overview: locate resources and the refinery"
 	overview.pressed.connect(func() -> void: _habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW))

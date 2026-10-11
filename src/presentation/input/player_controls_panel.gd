@@ -13,7 +13,7 @@ var _modifier_candidate: InputEventKey
 func _ready() -> void:
 	add_theme_constant_override("separation", 10)
 	var heading := Label.new()
-	heading.text = "Controls · click a binding, then press a key or button"
+	heading.text = "Controls · choose a binding with mouse or UI confirm, then press a key or button"
 	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(heading)
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -33,6 +33,10 @@ func _ready() -> void:
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		grid.add_child(label)
 		var button := Button.new()
+		button.clip_text = true
+		button.custom_minimum_size.x = 110
+		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		button.tooltip_text = PlayerInputSettings.instance().binding_label(action)
 		button.text = PlayerInputSettings.instance().binding_label(action)
 		button.pressed.connect(_begin.bind(action))
 		grid.add_child(button)
@@ -69,7 +73,7 @@ func _begin(action: String) -> void:
 	_modifier_candidate = null
 	PlayerInputSettings.instance().rebinding = true
 	PlayerInputSettings.instance().release_all()
-	_status.text = "Press a single key, mouse button, controller button or move a controller axis for: %s" % PlayerInputSettings.ACTIONS[action][0]
+	_status.text = "Press a key/chord, mouse button, controller button or move a controller axis for: %s" % PlayerInputSettings.ACTIONS[action][0]
 
 
 func _input(event: InputEvent) -> void:
@@ -107,6 +111,7 @@ func _cancel() -> void:
 func _refresh() -> void:
 	for action in _labels:
 		_labels[action].text = PlayerInputSettings.instance().binding_label(action)
+		_labels[action].tooltip_text = _labels[action].text
 
 
 func _visibility_changed() -> void:
