@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:terrain-observation:v1",
+  "description": "Principal-scoped read-only view; never an owner import. Runtime also verifies stable positions, matching capacities, known provenance and visible mass <= finite capacity.",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_version", "owner_id", "cells", "transfers", "next_request_number", "request_sequence_exhausted"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "owner_id": { "const": "terrain.fixture.dirt" },
+    "next_request_number": { "type": "integer", "minimum": 1, "maximum": 9007199254740990 },
+    "request_sequence_exhausted": { "type": "boolean" },
+    "cells": {
+      "type": "object", "additionalProperties": false,
+      "required": ["terrain.dirt.source", "terrain.dirt.fill"],
+      "properties": {
+        "terrain.dirt.source": { "$ref": "#/$defs/cell", "properties": { "position_millimetres": { "const": [0, 0, 1000] }, "state": { "properties": { "cell_id": { "const": "terrain.dirt.source" } } } } },
+        "terrain.dirt.fill": { "$ref": "#/$defs/cell", "properties": { "position_millimetres": { "const": [500, 0, 1000] }, "state": { "properties": { "cell_id": { "const": "terrain.dirt.fill" } } } } }
+      }
+    },
+    "transfers": {
+      "type": "object", "maxProperties": 256,
+      "propertyNames": { "pattern": "^terrain-transfer-[1-9][0-9]{0,15}$" },
+      "additionalProperties": {
+        "type": "object", "additionalProperties": false,
+        "required": ["material_id", "material_revision", "mass_milligrams", "parcels"],
+        "properties": {
+          "material_id": { "const": "material.dirt" }, "material_revision": { "const": 1 },
+          "mass_milligrams": { "type": "integer", "minimum": 1, "maximum": 2000000 },
+          "parcels": {
+            "type": "object", "additionalProperties": false, "required": ["terrain.dirt.source.generation"],
+            "properties": { "terrain.dirt.source.generation": { "type": "integer", "minimum": 1, "maximum": 2000000 } }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "cell": {
+      "type": "object", "additionalProperties": false,
+      "required": ["state", "position_millimetres", "capacity_milligrams", "work_ready", "work_message"],
+      "properties": {
+        "state": {
+          "$ref": "urn:frontier-systems:schema:terrain-material-state:v1",
+          "properties": { "material_id": { "const": "material.dirt" }, "material_revision": { "const": 1 }, "mass_milligrams": { "maximum": 2000000 } }
+        },
+        "position_millimetres": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "integer" } },
+        "capacity_milligrams": { "enum": [0, 2000000] },
+        "work_ready": { "type": "boolean" },
+        "work_message": { "type": "string", "maxLength": 512 }
+      }
+    }
+  }
+}

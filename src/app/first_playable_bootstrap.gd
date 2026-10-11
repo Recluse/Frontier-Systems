@@ -22,6 +22,8 @@ var _machinery_panel: MachineryPanel
 var _machinery_preview: MachineryPreview
 var _tabs: TabContainer
 var _hands_hud: Label
+var _terrain_panel: TerrainControlsPanel
+var _terrain_preview: TerrainCellPreview
 
 
 func _ready() -> void:
@@ -69,6 +71,7 @@ func _start_host() -> void:
 
 func _start_client() -> void:
 	_remote = RemoteWorldRuntime.new()
+	_remote.terrain_retry_directory = "user://terrain-client-intents"
 	add_child(_remote)
 	_remote.observation_received.connect(_on_observation)
 	_remote.connection_closed.connect(func(message: String) -> void:
@@ -77,6 +80,7 @@ func _start_client() -> void:
 		_body_initialized = false
 		_habitat.production.observe({})
 		_machinery_preview.observe({})
+		_terrain_preview.observe({})
 	)
 	_remote.command_completed.connect(_on_completed)
 	var canvas := CanvasLayer.new()
@@ -123,6 +127,13 @@ func _start_client() -> void:
 	_machinery_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	machinery_scroll.add_child(_machinery_panel)
 	_machinery_panel.configure(_remote)
+	var terrain_scroll := ScrollContainer.new()
+	terrain_scroll.name = "Terrain"
+	_tabs.add_child(terrain_scroll)
+	_terrain_panel = TerrainControlsPanel.new()
+	_terrain_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	terrain_scroll.add_child(_terrain_panel)
+	_terrain_panel.configure(_remote)
 	_status = Label.new()
 	_status.text = "Connecting to the shared host…"
 	_content.add_child(_status)
@@ -170,6 +181,8 @@ func _start_client() -> void:
 	viewport.add_child(_habitat)
 	_machinery_preview = MachineryPreview.new()
 	_habitat.add_child(_machinery_preview)
+	_terrain_preview = TerrainCellPreview.new()
+	_habitat.add_child(_terrain_preview)
 	_machinery_panel.bind_preview(_machinery_preview)
 	_machinery_preview.machine_selected.connect(func(id: String) -> void:
 		_machinery_panel.select_machine(id)
@@ -222,6 +235,8 @@ func _on_observation(record: Dictionary) -> void:
 	_inventory_panel.observe(record)
 	_machinery_panel.observe(record)
 	_machinery_preview.observe(record["production"])
+	_terrain_panel.observe(record)
+	_terrain_preview.observe(record["terrain"])
 	var hand_names: PackedStringArray = []
 	for hand in record["inventory"]["hand_slot_ids"]:
 		var held: String = "Empty"

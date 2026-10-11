@@ -73,6 +73,10 @@ func apply_intent(context: AuthenticatedCommandContext, command_id: String, numb
 	_commands += 1
 	if not ControlContractValidation.is_id(String(context.principal_id)) or not ControlContractValidation.is_integer(number, 1, MAX_INTEGER) or command_id != "terrain-client-%d" % number or not _valid_payload(operation, payload):
 		return _reject(_failure("Use an exact bounded terrain intent and stable principal request ordinal."))
+	# Wire JSON carries floats. Normalize validated integers before retaining the
+	# intent so it matches the domain receipt and restart decoder exactly.
+	payload = payload.duplicate(true)
+	for field in ["expected_cell_revision", "expected_inventory_revision", "expected_tool_revision", "amount_milligrams"]: payload[field] = int(payload[field])
 	var principal: String = String(context.principal_id)
 	var intent: Dictionary = {"operation": operation, "payload": payload.duplicate(true)}
 	for mapping in _requests:
@@ -84,20 +88,12 @@ func apply_intent(context: AuthenticatedCommandContext, command_id: String, numb
 	if number != int(_principals.get(principal, 0)) + 1 or (not _principals.has(principal) and _principals.size() >= MAX_PRINCIPALS):
 		return _reject(_failure("Expired/skipped ordinals or full principal budget reject permanently."))
 	if operation == "fill" and _claims.get(payload["transfer_id"], "") != principal: return _reject(_failure("Only the transfer claimant can consume terrain escrow."))
-	var capable: ServiceResult = _inventory.production_capability(context, true, _positions[payload["cell_id"]])
-	if not capable.is_success: return _reject(capable)
 	var own: ServiceResult = _inventory.own_inventory_observation(context, true)
 	var tool_record: Dictionary = _tools.capture_snapshot().value
 	if payload["expected_inventory_revision"] != own.value["inventory_revision"] or payload["expected_tool_revision"] != tool_record["ledger"]["state_revision"]:
 		return _reject(_failure("Inventory or component revision is stale."))
-	var held: ServiceResult = _inventory.active_tool(context, "tool.shovel")
-	var operational: ServiceResult = _tools.capability(held.value, "tool.shovel") if held.is_success else held
-	if not held.is_success or not operational.is_success or operational.value != true: return _reject(_failure("Hold an operational component-backed shovel in the active unreserved hand."))
-	var hands: ServiceResult = _inventory.local_grip_observation(context)
-	var free_hand: bool = false
-	for hand in hands.value["hands"]:
-		if hand["state"] == "free": free_hand = true
-	if not free_hand: return _reject(_failure("Terrain work requires a free unreserved supporting hand."))
+	var capable: ServiceResult = work_capability(context, payload["cell_id"])
+	if not capable.is_success: return _reject(capable)
 	
 	var sequence: int = _owner.to_record()["last_sequence"] + 1
 	var committed: ServiceResult = _owner.commit(_owner_intent(sequence, intent))
@@ -118,12 +114,30 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 	var record: Dictionary = _owner.to_record()
 	var cells: Dictionary = {}
 	for id in record["cells"]:
-		cells[id] = {"state": record["cells"][id]["state"].duplicate(true), "position_millimetres": _positions[id].duplicate(), "capacity_milligrams": record["cells"][id]["capacity_milligrams"]}
+		var capable: ServiceResult = work_capability(context, id)
+		cells[id] = {"state": record["cells"][id]["state"].duplicate(true), "position_millimetres": _positions[id].duplicate(), "capacity_milligrams": record["cells"][id]["capacity_milligrams"], "work_ready": capable.is_success, "work_message": capable.message}
 	var transfers: Dictionary = {}
 	for id in _claims:
 		if _claims[id] == String(context.principal_id): transfers[id] = record["transfers"][id].duplicate(true)
 	return ServiceResult.success({"schema_version": 1, "owner_id": OWNER_ID, "cells": cells, "transfers": transfers,
 		"next_request_number": mini(int(_principals.get(String(context.principal_id), 0)) + 1, MAX_INTEGER), "request_sequence_exhausted": int(_principals.get(String(context.principal_id), 0)) >= MAX_INTEGER})
+
+
+## Advisory read-only feedback uses the same canonical work gate as fresh commands.
+func work_capability(context: AuthenticatedCommandContext, cell_id: String) -> ServiceResult:
+	var allowed: ServiceResult = authorize(context)
+	if not allowed.is_success: return allowed
+	if not _positions.has(cell_id): return _failure("Unknown terrain cell.")
+	var capable: ServiceResult = _inventory.production_capability(context, true, _positions[cell_id])
+	if not capable.is_success: return capable
+	var held: ServiceResult = _inventory.active_tool(context, "tool.shovel")
+	var operational: ServiceResult = _tools.capability(held.value, "tool.shovel") if held.is_success else held
+	if not held.is_success or not operational.is_success or operational.value != true: return _failure("Hold an operational component-backed shovel in the active unreserved hand.")
+	var hands: ServiceResult = _inventory.local_grip_observation(context)
+	if not hands.is_success: return hands
+	for hand in hands.value["hands"]:
+		if hand["state"] == "free": return ServiceResult.success()
+	return _failure("Terrain work requires a free unreserved supporting hand.")
 
 
 func simulate_tick(tick: int, _fixed_delta: float) -> void:
