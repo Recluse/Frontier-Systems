@@ -6,8 +6,8 @@ param(
     [string]$InviteFile,
     [ValidatePattern('^[A-Za-z0-9_-]{1,64}$')][string]$WorldName = 'main',
     [switch]$BackupHistory,
-    [ValidateRange(1, 8)][int]$BackupEntries = 3,
-    [ValidateRange(1, 67108864)][int]$BackupBytes = 33554432,
+    [ValidateScript({ $_ -cmatch '^[1-9][0-9]{0,7}$' -and [long]$_ -le 8 })][string]$BackupEntries = '3',
+    [ValidateScript({ $_ -cmatch '^[1-9][0-9]{0,7}$' -and [long]$_ -le 67108864 })][string]$BackupBytes = '33554432',
     [switch]$Initialize,
     [switch]$CheckOnly
 )
@@ -69,8 +69,8 @@ $env:FRONTIER_HOST_URL = $HostUrl
 $playablePreviousEntries = [Environment]::GetEnvironmentVariable('FRONTIER_BACKUP_ENTRIES', 'Process')
 $playablePreviousBytes = [Environment]::GetEnvironmentVariable('FRONTIER_BACKUP_BYTES', 'Process')
 try {
-    $env:FRONTIER_BACKUP_ENTRIES = if ($Mode -eq 'Host' -and $BackupHistory) { $BackupEntries.ToString([Globalization.CultureInfo]::InvariantCulture) } else { '' }
-    $env:FRONTIER_BACKUP_BYTES = if ($Mode -eq 'Host' -and $BackupHistory) { $BackupBytes.ToString([Globalization.CultureInfo]::InvariantCulture) } else { '' }
+    $env:FRONTIER_BACKUP_ENTRIES = if ($Mode -eq 'Host' -and $BackupHistory) { $BackupEntries } else { '' }
+    $env:FRONTIER_BACKUP_BYTES = if ($Mode -eq 'Host' -and $BackupHistory) { $BackupBytes } else { '' }
     & $GodotPath @playableArguments
     $playableExit = $LASTEXITCODE
 } finally {

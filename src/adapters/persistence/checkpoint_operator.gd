@@ -34,7 +34,7 @@ static func parse_arguments(arguments: PackedStringArray) -> ServiceResult:
 	if arguments.is_empty() or arguments.size() > 7 or arguments[0] not in ["list", "recover"]:
 		return _options_failure()
 	var options: Dictionary = {"action": arguments[0]}
-	var allowed: Array[String] = ["--source"] if arguments[0] == "list" else ["--source", "--descriptor", "--destination"]
+	var allowed: PackedStringArray = PackedStringArray(["--source"]) if arguments[0] == "list" else PackedStringArray(["--source", "--descriptor", "--destination"])
 	var index: int = 1
 	while index < arguments.size():
 		var key: String = arguments[index]
@@ -78,6 +78,12 @@ static func run(arguments: PackedStringArray, world: WorldRuntime = null, adapte
 		return failure(EXIT_INSPECTION, ServiceResult.failure(&"backup_selection", ""), "Descriptor must be one listed candidate JSON object; parser input is not printed.")
 	if not is_instance_valid(world) or not is_instance_valid(adapter):
 		return failure(EXIT_RECOVERY, ServiceResult.failure(&"backup_recovery", ""), "Recovery requires a fresh initialized stopped world and adapter.")
+	# JSON numbers are floats in Godot; exact Dictionary equality is type-sensitive.
+	# Canonicalize only safely bounded integral metadata, then let the existing owner
+	# compare the full descriptor and enforce its exact shape and current values.
+	for field in ["slot", "sequence", "tick_number", "bytes"]:
+		if ControlContractValidation.is_integer(json.data.get(field), 0, LocalWorldSaveStore.MAX_SEQUENCE):
+			json.data[field] = int(json.data[field])
 	var recovered: ServiceResult = adapter.configure_from_backup(world, options["--source"], json.data, options["--destination"], files)
 	if not recovered.is_success:
 		return failure(EXIT_RECOVERY, recovered, "Recovery rejected. Preserve source and any partial destination; discard this startup world. Re-list changed selections; use an absent destination outside source and a fresh stopped world.")
