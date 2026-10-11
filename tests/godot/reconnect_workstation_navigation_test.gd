@@ -22,7 +22,7 @@ func run() -> void:
 	for cycle in range(4):
 		observe_shell()
 		await settle()
-		client._tabs.current_tab = 1
+		client._open_panel(1)
 		var calls: int = navigation.navigation_calls
 		client._habitat.production.workstation_selected.emit()
 		check(navigation.navigation_calls == calls + 1 and client._tabs.current_tab == 0, "one navigation effect after reconnect %d" % cycle)
@@ -32,7 +32,7 @@ func run() -> void:
 		var old_panel: LocalProductionPanel = client._production_panel
 		remote.connection_closed.emit("Fixture disconnect")
 		check(client._production_panel == null and old_panel.is_queued_for_deletion(), "disconnect releases old production panel")
-		client._tabs.current_tab = 1
+		client._open_panel(1)
 		client._habitat.production.workstation_selected.emit()
 		check(client._tabs.current_tab == 1, "signal during deferred panel deletion cannot navigate")
 		await settle()

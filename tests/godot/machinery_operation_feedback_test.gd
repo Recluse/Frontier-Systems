@@ -153,7 +153,7 @@ func check_paid_shell(record: Dictionary, machine_id: String) -> void:
 	for index in range(panel._recipe.item_count):
 		if panel._recipe.get_item_metadata(index) == "refine.iron": panel._recipe.select(index)
 	panel._choose_group(1)
-	shell._tabs.current_tab = 3
+	shell._open_panel(3)
 	var snapshot: String = world.capture_world_snapshot_json().value
 	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 720)]:
 		root.size = viewport_size

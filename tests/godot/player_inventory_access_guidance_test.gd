@@ -172,7 +172,7 @@ func run() -> void:
 	remote.set_process(false)
 	remote.server_slot = 0
 	panel = client._inventory_panel
-	client._tabs.current_tab = 1
+	client._open_panel(1)
 	panel.observe(frame())
 	choose(panel._source, "storage.pouch-1")
 	select_item(plate)

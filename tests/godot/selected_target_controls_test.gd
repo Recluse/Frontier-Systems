@@ -125,6 +125,8 @@ func run() -> void:
 	check(last.is_success, "canonical backpack drop succeeds")
 	client = PointerClient.new()
 	root.add_child(client)
+	# This existing check covers the opt-in expanded targeting instructions.
+	client._target_feedback.compact = false
 	client.set_process(false)
 	remote = client._remote
 	remote.set_process(false)

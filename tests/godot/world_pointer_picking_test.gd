@@ -158,7 +158,7 @@ func run() -> void:
 	var workstation: Area3D
 	for child in client._habitat.production.get_children():
 		if child is Area3D and child not in client._habitat.production._source_areas.values(): workstation = child
-	client._tabs.current_tab = 1
+	client._open_panel(1)
 	await aim(workstation)
 	await world_click()
 	check(workstation_picks == 1 and feedback.selected == workstation and client._tabs.current_tab == 0, "workstation click routes to real recipes tab")

@@ -96,7 +96,7 @@ func run() -> void:
 	var extraction: SimulationCommand
 	for cycle in range(2):
 		for _batch in range(2):
-			client._tabs.current_tab = 0
+			client._open_panel(0)
 			move(ProductionSimulationSystem.SOURCE_POSITIONS["deposit.iron"])
 			observe_shell()
 			var ui: LocalProductionPanel = client._production_panel
@@ -115,7 +115,7 @@ func run() -> void:
 			ui.refresh()
 			var unload: SimulationCommand = await paid_action(ui._unload_button, "unload_cargo")
 			check(ui._feedback.text.contains(String(unload.command_id)) and ui._feedback.text.contains("resource-canister-1") and ui._feedback.text.contains("ore.iron; 1000000 mg"), "host unload receipt retains exact identity")
-			client._tabs.current_tab = 1
+			client._open_panel(1)
 			await recipe("refine.iron")
 		await recipe("craft.plate")
 		await paid_action(button_named(client._production_panel, "Collect printed plate into inventory"), "materialize_plate")
@@ -133,7 +133,7 @@ func run() -> void:
 	await recipe("craft.plate")
 	await paid_action(button_named(client._production_panel, "Collect printed plate into inventory"), "materialize_plate")
 	var construction_plate: String = frame()["production"]["components"][0]
-	client._tabs.current_tab = 3
+	client._open_panel(3)
 	var machinery: MachineryPanel = client._machinery_panel
 	choose(machinery._part, construction_plate)
 	machinery._new_wall.pressed.emit()
@@ -143,8 +143,8 @@ func run() -> void:
 	check(walls.size() == 1 and frame()["production"]["components"].is_empty(), "paid physical plate becomes one persistent wall")
 	var wall_id: String = walls.keys()[0]
 	check(wall_request.payload["item_id"] == construction_plate and walls[wall_id]["position"] == [0, 0, -1000], "construction receipt uses exact consumed plate and observed wall target")
-	client._tabs.current_tab = 0
 	# Real checkpoint files in unique temporary test storage; UI receipt delivered by adapter.
+	client._open_panel(2)
 	var save_request: CheckpointRequest = await activate_button(client._host_actions[3])
 	var snapshot: String = world.capture_world_snapshot_json().value
 	var directory: String = "user://engineering-shell-%d" % Time.get_ticks_usec()
@@ -153,7 +153,7 @@ func run() -> void:
 	remote.command_completed.emit(save_request, written)
 	observe_shell()
 	await settle()
-	check(client._checkpoint_status.text.contains("confirmed on disk") and visible(client._checkpoint_status, client._scroll), "matching save result automatically revealed after observation")
+	check(client._checkpoint_status.text.contains("confirmed on disk") and visible(client._checkpoint_status, client._checkpoint_scroll), "matching save result automatically revealed after observation")
 	client._checkpoint_status.grab_focus()
 	await settle()
 	check(client._checkpoint_status.has_focus(), "checkpoint feedback accessible to keyboard")

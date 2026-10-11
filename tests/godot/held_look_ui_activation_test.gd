@@ -153,12 +153,18 @@ func run() -> void:
 	for candidate in client.find_children("*", "Button", true, false):
 		if candidate.text == "First person": first_person = candidate
 	check(first_person != null, "actual First person button exists")
+	client._open_panel(2)
+	await settle()
+	client._checkpoint_scroll.ensure_control_visible(first_person)
+	await settle()
 	await pointer(first_person.get_global_rect().get_center())
 	root.gui_release_focus()
 	var body: LocalHabitatCharacter = client._habitat.character
 	check(body.navigation_enabled(), "pointer camera button activates real character")
 	body.read_local_keyboard = true
 	body.set_physics_process(true)
+	client._open_panel(3)
+	root.gui_release_focus()
 	await settle()
 	await look(true, world_point)
 	if DisplayServer.get_name() != "headless":

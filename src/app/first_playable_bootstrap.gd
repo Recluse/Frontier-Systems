@@ -33,6 +33,14 @@ var _look_viewport: SubViewport
 var _reconnect: Button
 var _connection_status: Label
 var _host_actions: Array[Button] = []
+var _drawer_toggle: Button
+var _essential_scroll: ScrollContainer
+var _command_feedback: Label
+var _feedback_summary: Label
+var _checkpoint_scroll: ScrollContainer
+var _production_recovery: String = ""
+var _world_labels_enabled: bool = false
+var _target_feedback: HabitatTargetFeedback
 
 
 func _ready() -> void:
@@ -96,16 +104,27 @@ func _start_client() -> void:
 	background.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	canvas.add_child(background)
+	var shell := VBoxContainer.new()
+	shell.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shell.offset_left = 12
+	shell.offset_top = 12
+	shell.offset_right = -12
+	shell.offset_bottom = -12
+	canvas.add_child(shell)
+	var navigation := HBoxContainer.new()
+	shell.add_child(navigation)
+	_drawer_toggle = Button.new()
+	_drawer_toggle.text = "Open interaction"
+	_drawer_toggle.toggle_mode = true
+	_drawer_toggle.toggled.connect(_set_drawer_open)
+	navigation.add_child(_drawer_toggle)
 	var row := HSplitContainer.new()
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	row.offset_left = 12
-	row.offset_top = 12
-	row.offset_right = -12
-	row.offset_bottom = -12
-	row.split_offset = 540
-	canvas.add_child(row)
+	row.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.split_offset = 420
+	shell.add_child(row)
 	_tabs = TabContainer.new()
 	_tabs.custom_minimum_size.x = 420
+	_tabs.tabs_visible = false
 	row.add_child(_tabs)
 	var scroll := ScrollContainer.new()
 	_scroll = scroll
@@ -118,6 +137,8 @@ func _start_client() -> void:
 	scroll.add_child(_content)
 	var inventory_scroll := ScrollContainer.new()
 	inventory_scroll.name = "Inventory"
+	inventory_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	inventory_scroll.follow_focus = true
 	_tabs.add_child(inventory_scroll)
 	_inventory_panel = PlayerInventoryPanel.new()
 	_inventory_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -125,13 +146,17 @@ func _start_client() -> void:
 	_inventory_panel.configure(_remote)
 	var settings_scroll := ScrollContainer.new()
 	settings_scroll.name = "Settings"
+	settings_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	settings_scroll.follow_focus = true
+	_checkpoint_scroll = settings_scroll
 	_tabs.add_child(settings_scroll)
 	var settings := PlayerControlsPanel.new()
 	settings.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	settings_scroll.add_child(settings)
 	var machinery_scroll := ScrollContainer.new()
 	machinery_scroll.name = "Construction"
+	machinery_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	machinery_scroll.follow_focus = true
 	_tabs.add_child(machinery_scroll)
 	_machinery_panel = MachineryPanel.new()
 	_machinery_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -139,6 +164,8 @@ func _start_client() -> void:
 	_machinery_panel.configure(_remote)
 	var terrain_scroll := ScrollContainer.new()
 	terrain_scroll.name = "Terrain"
+	terrain_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	terrain_scroll.follow_focus = true
 	_tabs.add_child(terrain_scroll)
 	_terrain_panel = TerrainControlsPanel.new()
 	_terrain_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -146,6 +173,8 @@ func _start_client() -> void:
 	_terrain_panel.configure(_remote)
 	var guide_scroll := ScrollContainer.new()
 	guide_scroll.name = "Guide"
+	guide_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	guide_scroll.follow_focus = true
 	_tabs.add_child(guide_scroll)
 	_task_guide = FirstPlayableTaskGuidePanel.new()
 	_task_guide.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -153,38 +182,59 @@ func _start_client() -> void:
 	_status = Label.new()
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_status.text = "Connecting to the shared host…"
-	_content.add_child(_status)
 	var theme_selector := OverlayThemeController.new()
-	_content.add_child(theme_selector)
+	settings.add_child(theme_selector)
 	var themed: ServiceResult = theme_selector.configure(row, background)
 	if not themed.is_success:
 		push_warning(themed.message)
 	var views := VBoxContainer.new()
 	views.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(views)
+	_essential_scroll = ScrollContainer.new()
+	_essential_scroll.custom_minimum_size.y = 86
+	_essential_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_essential_scroll.follow_focus = true
+	_essential_scroll.focus_mode = Control.FOCUS_ALL
+	_essential_scroll.gui_input.connect(func(event: InputEvent) -> void:
+		if event.is_action_pressed("ui_down") or event.is_action_pressed("ui_up"):
+			_essential_scroll.scroll_vertical += 48 if event.is_action_pressed("ui_down") else -48
+			_essential_scroll.accept_event()
+	)
+	views.add_child(_essential_scroll)
+	var essential := VBoxContainer.new()
+	essential.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_essential_scroll.add_child(essential)
+	settings.add_child(_status)
 	_connection_status = Label.new()
 	_connection_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	views.add_child(_connection_status)
+	views.move_child(_connection_status, 0)
+	_feedback_summary = Label.new()
+	_feedback_summary.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	views.add_child(_feedback_summary)
+	views.move_child(_feedback_summary, 1)
 	_movement_status = Label.new()
 	_movement_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_movement_status.text = "Movement unavailable until a fresh host observation."
-	views.add_child(_movement_status)
+	settings.add_child(_movement_status)
 	_reconnect = Button.new()
 	_reconnect.text = "Reconnect to shared host"
 	_reconnect.pressed.connect(_connect_client)
-	views.add_child(_reconnect)
+	navigation.add_child(_reconnect)
 	var help := FirstPlayableControlsHelp.new()
-	views.add_child(help)
+	help.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	navigation.add_child(help)
 	help.configure(_tabs)
+	help.panel_requested.connect(_open_panel)
 	var overview := Button.new()
 	overview.text = "Overview: locate resources and the refinery"
 	overview.pressed.connect(func() -> void: _habitat.activate_inspection(HabitatInspectionCamera.Mode.OVERVIEW))
-	views.add_child(overview)
+	settings.add_child(overview)
 	for mode in [LocalHabitatCharacter.CameraMode.FIRST_PERSON, LocalHabitatCharacter.CameraMode.THIRD_PERSON]:
 		var button := Button.new()
 		button.text = "First person" if mode == LocalHabitatCharacter.CameraMode.FIRST_PERSON else "Third person"
 		button.pressed.connect(func() -> void: _habitat.activate_character(mode))
-		views.add_child(button)
+		settings.add_child(button)
 	var container := SubViewportContainer.new()
 	# World clicks must not make this forwarding surface a GUI focus owner.
 	container.focus_mode = Control.FOCUS_NONE
@@ -198,6 +248,20 @@ func _start_client() -> void:
 	container.add_child(viewport)
 	_habitat = ProceduralHabitatPreview.new()
 	viewport.add_child(_habitat)
+	for control in _habitat.find_children("*", "Control", true, false):
+		if control is HabitatTargetFeedback: _target_feedback = control
+	_target_feedback.compact = true
+	var captions := CheckButton.new()
+	captions.text = "Show world captions"
+	captions.toggled.connect(func(enabled: bool) -> void:
+		_world_labels_enabled = enabled
+		_update_world_labels()
+	)
+	settings.add_child(captions)
+	var target_guidance := CheckButton.new()
+	target_guidance.text = "Show expanded target guidance"
+	target_guidance.toggled.connect(func(enabled: bool) -> void: _target_feedback.compact = not enabled)
+	settings.add_child(target_guidance)
 	_habitat.production.workstation_selected.connect(_navigate_to_workstation)
 	_machinery_preview = MachineryPreview.new()
 	_habitat.add_child(_machinery_preview)
@@ -206,52 +270,127 @@ func _start_client() -> void:
 	_machinery_panel.bind_preview(_machinery_preview)
 	_machinery_preview.machine_selected.connect(func(id: String) -> void:
 		_machinery_panel.select_machine(id)
-		_tabs.current_tab = 3
+		_open_panel(3)
 	)
 	_habitat.production.wall_selected.connect(func(id: String) -> void:
 		_machinery_panel.select_wall(id)
-		_tabs.current_tab = 3
+		_open_panel(3)
 	)
 	_habitat.world_inventory.skip_machine_roots = true
-	_tabs.tab_changed.connect(func(index: int) -> void:
-		var show_workstation_labels: bool = index not in [3, 4]
-		_habitat.production.set_labels_visible(show_workstation_labels)
-		_habitat.world_inventory.labels_visible = show_workstation_labels
-		for label in _habitat.world_inventory.find_children("*", "Label3D", true, false): label.visible = show_workstation_labels
-	)
+	_tabs.tab_changed.connect(func(_index: int) -> void: _update_world_labels())
+	_update_world_labels()
 	_habitat.focus_production()
 	_habitat.world_inventory.player_facing_labels = true
 	_habitat.world_inventory.pickup_requested.connect(_pickup_world_item)
 	_hands_hud = Label.new()
 	_hands_hud.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	views.add_child(_hands_hud)
+	_command_feedback = Label.new()
+	_command_feedback.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_command_feedback.focus_mode = Control.FOCUS_ALL
+	essential.add_child(_command_feedback)
+	essential.move_child(_command_feedback, 0)
 	_inventory_label = Label.new()
 	_inventory_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_content.add_child(_inventory_label)
+	_inventory_panel.add_child(_inventory_label)
 	var pickup := Button.new()
 	pickup.text = "Collect canister from nearby tray"
 	pickup.pressed.connect(_pickup_canister)
-	_content.add_child(pickup)
+	_inventory_panel.add_child(pickup)
 	var drop := Button.new()
 	drop.text = "Drop a carried canister onto the nearby tray"
 	drop.pressed.connect(_drop_canister)
-	_content.add_child(drop)
+	_inventory_panel.add_child(drop)
 	var drop_plate := Button.new()
 	drop_plate.text = "Place a carried plate on the nearby tray"
 	drop_plate.pressed.connect(_drop_first_definition.bind("item.plate.prototype"))
-	_content.add_child(drop_plate)
+	_inventory_panel.add_child(drop_plate)
 	var save := Button.new()
 	save.text = "Save shared world now"
 	save.pressed.connect(_request_checkpoint)
-	_content.add_child(save)
+	settings.add_child(save)
 	_checkpoint_status = Label.new()
 	_checkpoint_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_checkpoint_status.focus_mode = Control.FOCUS_ALL
 	_checkpoint_status.text = "No manual checkpoint requested this session."
-	_content.add_child(_checkpoint_status)
+	settings.add_child(_checkpoint_status)
 	_host_actions.assign([pickup, drop, drop_plate, save])
 	for action in _host_actions: action.disabled = true
+	_set_drawer_open(false)
 	_connect_client()
+
+
+## Hiding a panel never recreates it or clears its submitted identities.
+func _set_drawer_open(open: bool) -> void:
+	var focus: Control = get_viewport().gui_get_focus_owner()
+	var restore_focus: bool = not open and focus != null and _tabs.is_ancestor_of(focus)
+	_tabs.visible = open
+	_update_world_labels()
+	_drawer_toggle.set_pressed_no_signal(open)
+	_drawer_toggle.text = "Close interaction" if open else "Open interaction"
+	if restore_focus: _drawer_toggle.grab_focus()
+	_refresh_command_feedback()
+
+
+func _open_panel(index: int) -> void:
+	PlayerInputSettings.instance().release_all()
+	_tabs.current_tab = index
+	_set_drawer_open(true)
+
+
+func _update_world_labels() -> void:
+	var show_labels: bool = _world_labels_enabled and (not _tabs.visible or _tabs.current_tab not in [3, 4])
+	_habitat.production.set_labels_visible(show_labels)
+	_habitat.world_inventory.labels_visible = show_labels
+	for label in _habitat.world_inventory.find_children("*", "Label3D", true, false): label.visible = show_labels
+
+
+## Mirror full existing receipts in a bounded, keyboard-scrollable persistent area.
+## These labels are presentation; command correlation remains in the original panels.
+func _refresh_command_feedback() -> void:
+	if _command_feedback == null: return
+	var receipts: PackedStringArray = []
+	for label: Label in [_inventory_panel._result, _machinery_panel._request_identity, _machinery_panel._feedback]:
+		if label != null and not label.text.is_empty(): receipts.append(label.text)
+	if not _machinery_panel._pending_wall.is_empty(): receipts.append(_machinery_panel._placement_status.text)
+	if _checkpoint_request != null or _checkpoint_outcome_unknown or _checkpoint_status.text.begins_with("Checkpoint failed") or _checkpoint_status.text.begins_with("Checkpoint not submitted") or _checkpoint_status.text.contains("confirmed on disk"):
+		receipts.append(_checkpoint_status.text)
+	if is_instance_valid(_production_panel) and not _production_panel.is_queued_for_deletion():
+		if not _production_panel._feedback.text.is_empty(): receipts.append(_production_panel._feedback.text)
+		if not _production_panel._pending.is_empty():
+			receipts.append("Production request: " + _production_panel._pending)
+			var request: SimulationCommand = _remote._requests.get(_production_panel._pending)
+			if request != null: receipts.append(_command_identity(request))
+	if not _production_recovery.is_empty(): receipts.append(_production_recovery)
+	if _movement_pending or _movement_status.text.contains("unknown") or _movement_status.text.contains("rejected") or _movement_status.text.contains("not submitted"):
+		receipts.append(_movement_status.text)
+	_command_feedback.text = "\n".join(receipts)
+	_command_feedback.visible = not receipts.is_empty()
+	_essential_scroll.visible = not receipts.is_empty()
+	var pending: bool = not _inventory_panel._pending.is_empty() or not _machinery_panel._pending.is_empty() or _checkpoint_request != null
+	if is_instance_valid(_production_panel): pending = pending or not _production_panel._pending.is_empty()
+	var unknown: bool = _command_feedback.text.to_lower().contains("unknown")
+	var rejected: bool = _command_feedback.text.to_lower().contains("reject") or _command_feedback.text.to_lower().contains("failed")
+	if unknown and pending:
+		_feedback_summary.text = "Action pending · earlier outcome uncertain; review exact targets below"
+	elif unknown:
+		_feedback_summary.text = "Outcome uncertain · review action feedback below"
+	elif pending:
+		_feedback_summary.text = "Action pending · waiting for host; review exact targets below"
+	elif rejected:
+		_feedback_summary.text = "Action rejected or failed · review host feedback below"
+	else:
+		_feedback_summary.text = "Action feedback · review host outcome below"
+	_feedback_summary.visible = not receipts.is_empty()
+
+
+func _command_identity(command: SimulationCommand) -> String:
+	var lines: PackedStringArray = ["Request: " + String(command.command_id)]
+	if command is ProductionDevelopmentCommand:
+		lines.append("Action: " + command.operation.replace("_", " "))
+		for key: String in command.payload:
+			lines.append(key.replace("_", " ").capitalize() + ": " + str(command.payload[key]))
+	return "\n".join(lines)
 
 
 ## One volatile request reference and one bounded result; observations never confirm I/O.
@@ -270,10 +409,11 @@ func _request_checkpoint() -> void:
 
 ## Reveal current feedback after wrapped text settles, without taking keyboard focus.
 func _reveal_checkpoint_status() -> void:
+	_refresh_command_feedback()
 	await get_tree().process_frame
 	await get_tree().process_frame
 	if is_inside_tree() and _checkpoint_status.is_visible_in_tree():
-		_scroll.ensure_control_visible(_checkpoint_status)
+		_checkpoint_scroll.ensure_control_visible(_checkpoint_status)
 
 ## Reuse operator configuration in memory only; never display or journal credentials.
 func _connect_client() -> void:
@@ -318,21 +458,44 @@ func _on_connection_closed(message: String) -> void:
 	_avatars.clear()
 	# Production's disconnect contract releases its transport; rebuild on fresh data.
 	if _production_panel != null:
+		if _production_recovery.is_empty() and (not _production_panel._pending.is_empty() or _production_panel._feedback.text.to_lower().contains("disconnect") or _production_panel._feedback.text.to_lower().contains("unknown")):
+			_production_recovery = "Production connection ended · outcome unknown"
+			if not _production_panel._pending.is_empty(): _production_recovery += " · request " + _production_panel._pending
+			_production_recovery += "\n" + _production_panel._feedback.text
+			if not _production_panel._cargo_pending.is_empty():
+				_production_recovery += "\n" + JSON.stringify(_production_panel._cargo_pending)
+			_production_recovery += "\nFresh observations do not confirm this request; no automatic retry."
 		_production_panel.queue_free()
 		_production_panel = null
+	_refresh_command_feedback.call_deferred()
 
 
 func _navigate_to_workstation() -> void:
 	if _latest.is_empty() or not is_instance_valid(_production_panel) or _production_panel.is_queued_for_deletion():
 		return
-	_tabs.current_tab = 0
+	_open_panel(0)
 	var target: Control = _production_panel.refining_focus_control()
 	# World selection must retain gameplay input for target feedback and sky clearing.
 	# Keyboard focus follows the visible GUI controls when the player enters the pane.
-	_scroll.ensure_control_visible(target)
+	_reveal_interaction.call_deferred(target)
+
+
+func _reveal_interaction(target: Control) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(target) and target.is_visible_in_tree():
+		_scroll.ensure_control_visible(target)
+
+
+func _navigate_to_source(id: String) -> void:
+	if _latest.is_empty() or not is_instance_valid(_production_panel) or _production_panel.is_queued_for_deletion(): return
+	_open_panel(0)
+	_production_panel.select_source(id)
+	_reveal_interaction.call_deferred(_production_panel._deposit)
 
 
 func _on_observation(record: Dictionary) -> void:
+	_refresh_command_feedback.call_deferred()
 	_connection_status.text = "Connected to shared colony · Crew %d" % (_remote.server_slot + 1)
 	_reconnect.disabled = true
 	for action in _host_actions: action.disabled = false
@@ -352,7 +515,7 @@ func _on_observation(record: Dictionary) -> void:
 					if item["item_id"] == binding["item_id"]:
 						held = PlayerInventoryPanel.NAMES.get(item["definition_id"], "Equipment")
 		hand_names.append("%s%s: %s" % ["● " if record["inventory"]["active_hand_slot_id"] == hand else "", hand.replace("hand.", "").capitalize(), held])
-	_hands_hud.text = " · ".join(hand_names) + " · Inventory tab: equip tools and open portable storage"
+	_hands_hud.text = " · ".join(hand_names) + " · Inventory: equipment and storage"
 	_status.text = "Connected to shared colony · Crew %d" % (_remote.server_slot + 1)
 	if not record.get("persistence", {}).is_empty():
 		_status.text += " · saved tick %d" % record["persistence"]["saved_tick"]
@@ -361,7 +524,8 @@ func _on_observation(record: Dictionary) -> void:
 		_content.add_child(_production_panel)
 		_production_panel.configure(_remote)
 		_production_panel.observation_changed.connect(_habitat.production.observe)
-		_habitat.production.source_selected.connect(_production_panel.select_source)
+		if not _habitat.production.source_selected.is_connected(_navigate_to_source):
+			_habitat.production.source_selected.connect(_navigate_to_source)
 		_habitat.production.extraction_requested.connect(_production_panel.extract_source)
 	if not _body_initialized:
 		var position: Array = record["position"]
@@ -401,6 +565,7 @@ func _on_observation(record: Dictionary) -> void:
 
 
 func _process(delta: float) -> void:
+	_refresh_command_feedback()
 	if _remote == null or not _body_initialized or _movement_pending:
 		return
 	_elapsed += delta
@@ -426,6 +591,9 @@ func _process(delta: float) -> void:
 
 
 func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
+	_refresh_command_feedback.call_deferred()
+	if command is ProductionDevelopmentCommand and result.error_code == &"remote_disconnected":
+		_production_recovery = "Production outcome unknown after disconnect\n" + _command_identity(command) + "\nFresh observations do not confirm this request; no automatic retry."
 	if command == _movement_request and _movement_request != null:
 		_movement_pending = false
 		_movement_request = null
@@ -482,11 +650,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _remote == null or PlayerInputSettings.instance().rebinding or event.is_echo():
 		return
 	if event.is_action_pressed("settings"):
-		_tabs.current_tab = 0 if _tabs.current_tab == 2 else 2
+		if _tabs.visible and _tabs.current_tab == 2: _set_drawer_open(false)
+		else: _open_panel(2)
 	elif event.is_action_pressed("inventory"):
-		PlayerInputSettings.instance().release_all()
-		_tabs.current_tab = 0 if _tabs.current_tab == 1 else 1
-	elif _tabs.current_tab == 2 or Input.is_action_pressed("ui_cursor"):
+		if _tabs.visible and _tabs.current_tab == 1: _set_drawer_open(false)
+		else: _open_panel(1)
+	elif event.is_action_pressed("ui_cancel") and _tabs.visible:
+		_set_drawer_open(false)
+	elif (_tabs.visible and _tabs.current_tab == 2) or Input.is_action_pressed("ui_cursor"):
 		return
 	elif event.is_action_pressed("switch_hand"):
 		_inventory_panel.switch_active_hand()

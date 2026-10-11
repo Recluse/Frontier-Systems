@@ -10,6 +10,8 @@ var _card: PanelContainer
 var _lines: Array[Label] = []
 var _markers: Array[Vector2] = []
 var _marker_colors: Array[Color] = []
+## Clients may collapse instructions while retaining exact selected names/markers.
+var compact: bool = false
 
 
 func _ready() -> void:
@@ -186,7 +188,17 @@ func _update_card(info: Dictionary, selection: Dictionary, extent: Vector2) -> v
 	_lines[3].text = "Requests: reach, permission and resources rechecked at tick. Success not guaranteed."
 	_lines[4].text = selection_hint(selection)
 	_lines[4].visible = not _lines[4].text.is_empty()
+	if compact:
+		_lines[0].visible = selection.is_empty() and not info.is_empty()
+		_lines[1].hide()
+		_lines[2].visible = not selection.is_empty()
+		_lines[3].hide()
+		_lines[4].hide()
+	else:
+		for index in range(4): _lines[index].show()
 	_layout_card(extent)
+	if compact and info.is_empty() and selection.is_empty(): _card.hide()
+	else: _card.show()
 
 
 ## Wrapped text owns height; hide only when the complete advice cannot fit.

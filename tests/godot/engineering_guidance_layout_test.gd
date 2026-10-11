@@ -33,7 +33,7 @@ func run() -> void:
 		await settle()
 		check(client._tabs.size.x <= (420 if extent.x == 1100 else 540), "requested sidebar width remains supported")
 		for tab_index: int in [0, 1, 3]:
-			client._tabs.current_tab = tab_index
+			client._open_panel(tab_index)
 			await settle()
 			var feedback: Label
 			var scroll: ScrollContainer
@@ -77,7 +77,7 @@ func run() -> void:
 				await RenderingServer.frame_post_draw
 				DirAccess.make_dir_recursive_absolute("res://var/ci/guidance-layout")
 				check(root.get_texture().get_image().save_png("res://var/ci/guidance-layout/%dx%d-tab%d.png" % [extent.x, extent.y, tab_index]) == OK, "ordinary native internal capture")
-		client._tabs.current_tab = 0
+		client._open_panel(0)
 		production._show_section(3)
 		production._send("repair_tool_component", {})
 		remote.command_completed.emit(remote.sent[-1], ServiceResult.failure(&"production_rejected", reason))
