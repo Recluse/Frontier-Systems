@@ -24,6 +24,7 @@ var _tabs: TabContainer
 var _hands_hud: Label
 var _terrain_panel: TerrainControlsPanel
 var _terrain_preview: TerrainCellPreview
+var _task_guide: FirstPlayableTaskGuidePanel
 
 
 func _ready() -> void:
@@ -77,6 +78,7 @@ func _start_client() -> void:
 	_remote.connection_closed.connect(func(message: String) -> void:
 		_status.text = message
 		_latest = {}
+		_task_guide.observe({})
 		_body_initialized = false
 		_habitat.production.observe({})
 		_machinery_preview.observe({})
@@ -134,6 +136,12 @@ func _start_client() -> void:
 	_terrain_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	terrain_scroll.add_child(_terrain_panel)
 	_terrain_panel.configure(_remote)
+	var guide_scroll := ScrollContainer.new()
+	guide_scroll.name = "Guide"
+	_tabs.add_child(guide_scroll)
+	_task_guide = FirstPlayableTaskGuidePanel.new()
+	_task_guide.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	guide_scroll.add_child(_task_guide)
 	_status = Label.new()
 	_status.text = "Connecting to the shared host…"
 	_content.add_child(_status)
@@ -233,6 +241,7 @@ func _start_client() -> void:
 
 func _on_observation(record: Dictionary) -> void:
 	_latest = record
+	_task_guide.observe(record)
 	_inventory_panel.observe(record)
 	_machinery_panel.observe(record)
 	_machinery_preview.observe(record["production"])
