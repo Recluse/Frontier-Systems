@@ -1,0 +1,13 @@
+# Canister extraction feedback milestone
+
+PlayerInventoryPanel now identifies receiving canisters by stable item ID and requires explicit selection. The shared picker preserves a removed selection as unavailable rather than choosing another receiver. Existing extraction actions reject an empty or unavailable picker before submitting the unchanged command contract.
+
+The work target guidance shows scoped host-observed material contents and the inventory item loaded mass, including shell and payload. Missing item details report mass unavailable; missing cargo reports contents unavailable rather than empty. The current observation supplies no payload capacity quote, so the panel explicitly reports capacity unavailable and makes no calculated fit, compatibility, acceptance or reach promise. Intended cycles, pinned pending payloads, host reservations and host-completed cycles remain separate. Resume/cancel still target the existing reservation. The redundant consecutive _update_buttons() call in _pin_component_intent is removed.
+
+This presentation slice owns no canonical resources. ProductionSimulationSystem, InventorySimulationSystem and ToolSimulationSystem retain fixed-tick validation, finite material conservation/provenance, existing persistence/schema versions, failure behavior and profiling. No core, movement/controller, network, schemas, transfers, retry automation or business rules change. First-party code/tests/docs are MIT; no creative assets or generated art, captures/media uploads, external services or ports are involved.
+
+## Verification
+
+Windows Godot 4.7.2 bounded runner import/startup and canister_extraction_feedback_test.gd exercise the actual panel with real extraction, unloading, physical canister drop, sustained reservation/completion and full-canister rejection. Checks cover contents versus shell-inclusive load, unavailable capacity/mass/cargo/frame, stable missing selection, pending and reserved targets surviving selection changes, rejection reason/receiver, detached rendering conservation, focus/scroll and disconnect/late receipt without retry.
+
+Focused player_inventory_components, player_inventory_feedback, player_inventory_handoffs, tool_maintenance_target_feedback and tool_runtime regressions pass. Logs/JUnit stay ignored under var/ci/canister-feedback-final. Windows/Linux exact feature-head CI is reported separately through the draft PR. Headless Control layout/focus/scroll checks do not establish graphical usability, controller/VR or live multiplayer acceptance. No merge, deployment or release is performed; retain the managed worktree.

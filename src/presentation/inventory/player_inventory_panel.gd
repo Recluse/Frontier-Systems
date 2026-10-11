@@ -184,7 +184,7 @@ func observe(frame: Dictionary) -> void:
 	_nearby = frame.get("world_items", {})
 	_tools = frame.get("tools", {})
 	var work: Dictionary = _production.get("tool_extraction", {})
-	_work_status.text = "No sustained extraction reserved by you."
+	_work_status.text = "Work-cycle observation unavailable." if _production.is_empty() else "No sustained extraction reserved by you; this does not confirm past completion."
 	if not work.is_empty():
 		_work_status.text = "Extraction %s · %d completed, %d reserved · %s" % [work["status"], work["completed_cycles"], work["remaining_cycles"], work["pause_reason"]]
 	var loose: Dictionary = {}
@@ -206,13 +206,9 @@ func observe(frame: Dictionary) -> void:
 	_fill_picker(_source, containers, true)
 	_fill_picker(_destination, containers)
 	_fill_picker(_slot, _record["slot_ids"])
-	var previous_carrier: String = str(_carrier.get_item_metadata(_carrier.selected)) if _carrier.selected >= 0 else ""
-	_carrier.clear()
-	for id in _production.get("cargo", {}):
-		_carrier.add_item("Canister %d" % (_carrier.item_count + 1))
-		_carrier.set_item_metadata(_carrier.item_count - 1, id)
-		if id == previous_carrier:
-			_carrier.select(_carrier.item_count - 1)
+	var carriers: Dictionary = {}
+	for id in _production.get("cargo", {}): carriers[id] = "Canister"
+	EquipmentPrerequisiteView.fill(_carrier, carriers, "Select a receiving canister")
 	_fill_items()
 	_fill_picker(_world_root, world_containers)
 	_fill_world_items()
@@ -455,7 +451,7 @@ func _use_tool() -> void:
 	if not _pending.is_empty(): return
 	if _record.is_empty():
 		return
-	if _carrier.selected < 0:
+	if _picker_id(_carrier).is_empty() or _carrier.is_item_disabled(_carrier.selected):
 		_result.text = "Carry a resource canister first."
 		return
 	var payload: Dictionary = {"deposit_id": _deposit.get_item_metadata(_deposit.selected), "carrier_id": _carrier.get_item_metadata(_carrier.selected), "amount_milligrams": 1000000, "expected_revision": _production["state_revision"]}
@@ -482,7 +478,7 @@ func _sustained_action(operation: String) -> void:
 	if _production.is_empty(): return
 	var payload: Dictionary = {"expected_revision": _production["state_revision"]}
 	if operation == "start_tool_extract":
-		if _carrier.selected < 0: return
+		if _picker_id(_carrier).is_empty() or _carrier.is_item_disabled(_carrier.selected): return
 		payload.merge({"deposit_id": _deposit.get_item_metadata(_deposit.selected), "carrier_id": _carrier.get_item_metadata(_carrier.selected), "cycles": int(_work_cycles.value)})
 	_submit(operation, payload, true)
 	_pin_component_intent(operation, payload)
@@ -561,7 +557,6 @@ func _pin_component_intent(operation: String, payload: Dictionary) -> void:
 			for field: String in ["request_id", "tool_id", "deposit_id", "carrier_id"]:
 				if work.has(field): _pending_component["observed_reserved_" + field] = work[field]
 		_result.text = "Waiting for host\n" + _pending_component_text() + "\nNo repair, output, mount change or work-cycle completion confirmed."
-		_update_buttons()
 		_update_buttons()
 
 
@@ -755,9 +750,24 @@ func _work_target_text() -> String:
 		"Intended sustained cycles: %d of 1000000 mg; selection completes no work." % int(_work_cycles.value),
 		"Start uses active equipment above, independently of inspected maintenance item. Host rechecks tool, source, canister and reach."
 	])
+	lines.append(_canister_observation_text(carrier))
 	var work: Dictionary = _production.get("tool_extraction", {})
 	if not work.is_empty():
 		for field: String in ["tool_id", "deposit_id", "carrier_id"]:
 			lines.append("Observed reserved " + field + ": " + str(work.get(field, "unavailable")))
 		lines.append("Resume/cancel target this host-observed reservation, not the current selections.")
+	return "\n".join(lines)
+
+
+func _canister_observation_text(carrier: String) -> String:
+	var lines := PackedStringArray()
+	if carrier.is_empty() or not _production.get("cargo", {}).has(carrier):
+		return "Receiving contents and loaded mass unavailable; choose a currently observed canister. Payload capacity unavailable in this observation."
+	lines.append("Observed receiving contents: " + WorkstationResourceView.stock_text(_production["cargo"][carrier]))
+	var mass: String = "unavailable"
+	for detail in _record.get("item_details", []):
+		if detail.get("item", {}).get("item_id", "") == carrier and detail.has("mass_milligrams"):
+			mass = "%d mg (shell and payload included)" % int(detail["mass_milligrams"])
+	lines.append("Observed receiving loaded mass: " + mass + ".")
+	lines.append("Payload capacity unavailable in this observation. No fit or acceptance quote; host rechecks capacity, compatibility and reach.")
 	return "\n".join(lines)
