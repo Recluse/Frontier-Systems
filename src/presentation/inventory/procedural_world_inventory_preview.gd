@@ -82,7 +82,13 @@ func _rebuild() -> void:
 			var location: Vector3 = origin + Vector3(-0.3 + float(index % 4) * 0.2, 0.75 + dimensions.y / 2.0, -0.15 + float(index / 4) * 0.3)
 			var mesh: MeshInstance3D = _box(_rendered, dimensions, location, color)
 			var key: String = JSON.stringify([container["container_id"], item["item_id"]])
-			_visible_items[key] = {"mesh": mesh, "color": color}
+			var identity := Label3D.new()
+			identity.position = location + Vector3(0, 0.25, 0)
+			identity.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+			identity.font_size = 22
+			identity.text = "%s\n%s · observed %.2f m" % [item["item_id"], container["container_id"], float(container["distance_millimetres"]) / 1000.0]
+			_rendered.add_child(identity)
+			_visible_items[key] = {"mesh": mesh, "color": color, "identity": identity}
 			var area := Area3D.new()
 			area.position = location
 			area.collision_layer = 4
@@ -116,6 +122,7 @@ func _highlight() -> void:
 		var entry: Dictionary = _visible_items[key]
 		var material: StandardMaterial3D = entry["mesh"].material_override
 		material.albedo_color = Color("#ffe066") if key == _selected_key else entry["color"]
+		entry["identity"].visible = labels_visible and key == _selected_key
 
 
 func _box(parent: Node3D, dimensions: Vector3, location: Vector3, color: Color) -> MeshInstance3D:
