@@ -1,0 +1,11 @@
+# Machinery power and job feedback
+
+Presentation-only successor to machinery bounds, based on fe84cf365779c151b34d80b547521a508a239c99. Production remains the fixed-tick canonical owner (v7 snapshot/observation, v1 workshop); inventory owns physical conditions and placement. No commands, schemas, persistence, network, bootstrap, materials or authority rules change.
+
+MachineryOperationFeedback consumes detached scoped production observations. Panel and preview report enabled/isolation, damaged and broken retained frames/modules, observed component combinations, frame-local buffers in joules and the sum of visible buffers with visible cable count. This sum is not pooled usable energy; cable visibility does not certify source operation, routing, bandwidth, charge or delivery. Component combinations do not establish readiness, reach, permission, materials or capacity. Host operations remain the validator.
+
+Job text reports recipe, observed progress ticks and spent energy. Only increasing progress over increasing host ticks earns “Running”; an unpaused flag alone earns no claim. Explicit paused jobs require Resume. Unchanged progress gives possible blocker categories without asserting an unobserved cause. Disappearing jobs show no active batch and an ended-batch transition: the projection has no completion receipt, so completion cannot be distinguished from cancellation or packing. Synchronous printing remains a command result and physical output, not a fabricated continuous job.
+
+Lower host ticks clear visible telemetry/history and actions until current observations arrive. Empty observations/disconnect reset telemetry; no age timeout is inferred from wall-clock time. The existing transport owns connection liveness. Equal-tick updates are accepted without claiming progress. Feedback owns no persistence or simulation cadence; it refreshes on observations and shares the existing preview telemetry cache without rebuilding physics for energy/job changes. Existing selected envelopes and frozen pending deployments remain independent.
+
+Verification and graphical provenance are recorded below after execution. No VR, human usability, controller, live service, release or deployment acceptance is implied.

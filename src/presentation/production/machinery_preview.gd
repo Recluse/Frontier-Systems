@@ -9,10 +9,12 @@ var _feedback_root: Node3D
 var _feedback_signature: String = ""
 var _labels: Dictionary = {}
 var _socket_labels: Dictionary = {}
+var _operation_feedback := MachineryOperationFeedback.new()
 const ROLES: Dictionary = {"autolathe": "AUTOLATHE","solar": "SOLAR GENERATOR", "printhead": "3D PRINTER", "refinery": "REFINERY", "extractor": "RESOURCE EXTRACTOR", "router": "POWER ROUTER"}
 
 
 func observe(record: Dictionary) -> void:
+	if not _operation_feedback.observe(record): record = {}
 	if record.is_empty():
 		_signature = ""
 		_labels.clear()
@@ -135,9 +137,7 @@ func _update_labels(workshop: Dictionary) -> void:
 		var roles: PackedStringArray = []
 		for kind in _labels[id]["fitted"]:
 			if ROLES.has(kind): roles.append(ROLES[kind])
-		var state: String = "READY" if workshop["placements"][id]["enabled"] else "ISOLATED"
-		if workshop["jobs"].has(id): state = "%s · %d ticks" % [workshop["jobs"][id]["recipe"], workshop["jobs"][id]["progress"]]
-		_labels[id]["label"].text = "%s\n%s · %d J" % ["\n".join(roles) if not roles.is_empty() else "MACHINE FRAME", state, workshop["placements"][id]["energy"]]
+		_labels[id]["label"].text = "%s\n%s" % ["\n".join(roles) if not roles.is_empty() else "MACHINE FRAME", _operation_feedback.machines[id]["text"]]
 		if _labels[id]["fitted"].has("autolathe"):
 			_labels[id]["label"].text += "\nHOPPER %.3f kg IRON" % (float(workshop["cargo"].get(id, {}).get("iron", 0)) / 1000000.0)
 		if int(_labels[id]["outputs"]) > 0: _labels[id]["label"].text += "\n%d PRINTED OUTPUT" % _labels[id]["outputs"]
