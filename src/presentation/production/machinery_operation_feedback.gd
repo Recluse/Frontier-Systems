@@ -23,6 +23,7 @@ func observe(production: Dictionary) -> bool:
 	var workshop: Dictionary = production["machinery"]
 	var total: int = 0
 	var next: Dictionary = {}
+	var prior_text: Dictionary = machines.duplicate(true)
 	machines.clear()
 	for id in workshop["placements"]:
 		var placement: Dictionary = workshop["placements"][id]
@@ -52,7 +53,7 @@ func observe(production: Dictionary) -> bool:
 			var missing: PackedStringArray = []
 			for required in ["power", "controller", kind]:
 				if not usable.has(required): missing.append(required)
-			capabilities.append(kind + (": observed components intact" if missing.is_empty() else ": missing/broken/unobserved " + ", ".join(missing)))
+			capabilities.append(kind + (": components observed with nonzero condition" if missing.is_empty() else ": missing/broken/unobserved " + ", ".join(missing)))
 		if capabilities.is_empty(): capabilities.append("No work head / generator / router observed")
 		if not broken.is_empty(): capabilities.append("Broken modules retained: " + ", ".join(broken))
 		if not damaged.is_empty(): capabilities.append("Damaged modules: " + ", ".join(damaged))
@@ -73,6 +74,8 @@ func observe(production: Dictionary) -> bool:
 			elif not prior.is_empty() and prior["recipe"] == job["recipe"] and tick > _tick:
 				activity = "Running · observed progress" if int(job["progress"]) > int(prior["progress"]) else "Not advancing · parts/power/feedstock/capacity may block"
 			job_text = "%s · %d ticks · %d J spent · %s" % [job["recipe"], job["progress"], job["energy_spent"], activity]
+		if tick == _tick and job == prior and prior_text.has(id):
+			job_text = prior_text[id]["job"]
 		next[id] = job.duplicate(true)
 		machines[id] = {"text": "%s\n%s\n%s\n%s" % [state, "; ".join(capabilities), power, job_text], "job": job_text}
 	grid_text = "Observed grid: %d frame buffers total %d J · %d cable links. Buffers are separate; links do not certify delivery or job readiness. Host validates operations." % [workshop["placements"].size(), total, workshop["links"].size()]

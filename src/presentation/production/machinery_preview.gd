@@ -28,7 +28,10 @@ func observe(record: Dictionary) -> void:
 	var workshop: Dictionary = record["machinery"]
 	var poses: Dictionary = {}
 	for id in workshop["placements"]: poses[id] = workshop["placements"][id]["position"]
-	var signature: String = JSON.stringify([poses, workshop["mounts"], workshop["links"], workshop["inventory_items"]], "", true)
+	var physical_layout: Array = []
+	for physical in workshop["inventory_items"]:
+		physical_layout.append([physical["item_id"], physical["definition_id"], physical["container_id"]])
+	var signature: String = JSON.stringify([poses, workshop["mounts"], workshop["links"], physical_layout], "", true)
 	if signature == _signature:
 		_update_labels(workshop)
 		return
