@@ -12,6 +12,7 @@ var _socket := OptionButton.new()
 var _other := OptionButton.new()
 var _kind := OptionButton.new()
 var _recipe := OptionButton.new()
+var _recipe_prerequisites := Label.new()
 var _eject_amount := SpinBox.new()
 var _mode := OptionButton.new()
 var _axes: Array[SpinBox] = []
@@ -185,6 +186,10 @@ func configure(world: WorldRuntime) -> void:
 		_recipe.set_item_metadata(_recipe.item_count - 1, id)
 	add_child(_recipe)
 	_operation_controls.append(_recipe)
+	_recipe.item_selected.connect(func(_index: int) -> void: _refresh_placement())
+	_recipe_prerequisites.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(_recipe_prerequisites)
+	_operation_controls.append(_recipe_prerequisites)
 	_button("Run powered canister batch", "machine_run")
 	_button("Resume batch after restart", "machine_resume")
 	_button("Cancel batch (inputs stay in canisters)", "machine_cancel")
@@ -512,6 +517,7 @@ func _exit_tree() -> void:
 
 
 func _refresh_placement() -> void:
+	_recipe_prerequisites.text = _operation_feedback.recipe_text(_selected(_machine), _selected(_recipe))
 	_status.text = _operation_feedback.grid_text
 	var selected_operation: String = _selected(_machine)
 	if _operation_feedback.machines.has(selected_operation):

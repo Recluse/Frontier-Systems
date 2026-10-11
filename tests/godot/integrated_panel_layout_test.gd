@@ -162,6 +162,13 @@ func run() -> void:
 			check(visible(machinery._group, group_scroll), "desktop/narrow keyboard focus reveals group chooser")
 			check(machinery._recipe.is_visible_in_tree() == (group_index == 1) and machinery._coordinate_grid.is_visible_in_tree() == (group_index == 0), "real shell groups isolate recipes from assembly placement")
 			check(MachineryPanel._selected(machinery._part) == selected_part, "real shell group roundtrip retains physical part identity")
+			check(machinery._recipe_prerequisites.is_visible_in_tree() == (group_index == 1), "desktop/narrow prerequisite text belongs to operation group")
+			if group_index == 1:
+				group_scroll.ensure_control_visible(machinery._recipe_prerequisites)
+				await settle()
+				check(visible(machinery._recipe_prerequisites, group_scroll), "desktop/narrow entire prerequisite text accessible through shell scroll")
+				group_scroll.ensure_control_visible(machinery._group)
+				await settle()
 			await key(KEY_TAB)
 			var focused: Control = root.gui_get_focus_owner()
 			check(focused != null and focused.is_visible_in_tree(), "Tab from chooser reaches visible control")
