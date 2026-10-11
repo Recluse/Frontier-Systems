@@ -24,3 +24,7 @@ A reviewer follows the tutorial from a fresh temporary profile/world using only 
 Verify the final edited videos play, captions stay synchronized and legible, links/chapters/transcripts match the build, and no step depends on unshown resources or administrator privileges. Record completed versus unverified acceptance separately. Public tutorial publication requires Coordinator owner clearance for the concrete final videos and destination.
 
 Dispatch one narrow implementation chat when readiness is met: isolated current-origin/dev-master managed worktree, descriptive branch without `codex/`, attached draft PR for source/documentation changes and this milestone's evidence. Split a substantial independent recording/editing task into a separate owner-requested chat when useful; avoid simultaneous shared UI/authority edits. Use Sol/medium for routine implementation and Luna/medium for simple copy/caption edits; one agent by default.
+
+## Current readiness evidence
+
+The [isolated readiness review](basic-gameplay-tutorial-readiness.md) reran the bounded Windows runtime checks and native real-client finite collection loop on the equipment PR #34 integration base. Both passed. Tutorial readiness remains open: character motion/guide calls were scripted, and physical keyboard/mouse selection, fresh character construction and actual client-UI save/reconnect still need human acceptance. Captures remain ignored internal evidence; no videos or public media were produced.

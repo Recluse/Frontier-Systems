@@ -92,6 +92,8 @@ func _run() -> void:
 	if machinery_route: directory = "res://reports/machinery"
 	if wall_route: directory = "res://reports/spatial-walls"
 	if terrain_route: directory = "res://docs/gallery/terrain-controls"
+	if not OS.get_environment("FRONTIER_VERIFICATION_CAPTURE_DIRECTORY").is_empty():
+		directory = OS.get_environment("FRONTIER_VERIFICATION_CAPTURE_DIRECTORY")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
 	var error: Error = image.save_png(directory.path_join("terrain-dig-fill.png" if terrain_route else "client.png"))
 	print("First playable graphical client completed its seven-step loop using local physics and authenticated guide commands; screenshot result: %d" % error)

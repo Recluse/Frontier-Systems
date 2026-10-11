@@ -1,6 +1,6 @@
 param(
     [string]$Godot = 'godot',
-    [ValidateSet('terrain', 'walls', 'machinery', 'equipment-fabrication', 'tool-parts')]
+    [ValidateSet('basic', 'terrain', 'walls', 'machinery', 'equipment-fabrication', 'tool-parts')]
     [string]$Route = 'terrain',
     [ValidateRange(1, 300)][int]$TimeoutSeconds = 120
 )
