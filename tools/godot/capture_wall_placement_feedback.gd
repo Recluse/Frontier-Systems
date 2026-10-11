@@ -3,6 +3,13 @@ extends "res://tests/godot/spatial_wall_runtime_test.gd"
 const CAPTURE_DIRECTORY: String = "res://reports/wall-placement-feedback"
 
 
+func _initialize() -> void:
+	# This reproduction tool must remain local even in an operator-configured shell.
+	OS.set_environment("FRONTIER_EVENT_URL", "")
+	OS.set_environment("FRONTIER_EVENT_TOKEN", "")
+	super._initialize()
+
+
 func capture_view(client: FirstPlayableBootstrap, filename: String) -> void:
 	var panel: MachineryPanel = client._machinery_panel
 	await process_frame
