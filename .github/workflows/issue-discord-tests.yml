@@ -2,10 +2,10 @@ name: Issue Discord routing contracts
 on:
   pull_request:
     branches: [dev-master]
-    paths: ['tools/github/**', '.github/workflows/issue-discord*.yml']
+    paths: ['tools/github/**', 'changelogs/**', '.github/workflows/issue-discord*.yml', '.github/workflows/changelog-discord.yml']
   push:
     branches: [dev-master]
-    paths: ['tools/github/**', '.github/workflows/issue-discord*.yml']
+    paths: ['tools/github/**', 'changelogs/**', '.github/workflows/issue-discord*.yml', '.github/workflows/changelog-discord.yml']
 permissions:
   contents: read
 jobs:
@@ -22,4 +22,8 @@ jobs:
       - shell: pwsh
         run: |
           & (Get-Command node -CommandType Application).Source --test tools/github/issue-discord.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & (Get-Command node -CommandType Application).Source --test tools/github/changelog-discord.test.mjs
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & (Get-Command node -CommandType Application).Source tools/github/changelog-discord.mjs --validate
 

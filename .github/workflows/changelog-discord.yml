@@ -1,0 +1,45 @@
+name: Reviewed Discord player changelog
+on:
+  workflow_dispatch:
+    inputs:
+      manifest:
+        description: Reviewed manifest ID in changelogs/
+        required: true
+        type: string
+      commit:
+        description: Full SHA independently confirmed available to players
+        required: true
+        type: string
+      dry_run:
+        description: Preview without Discord or receipt writes
+        default: true
+        type: boolean
+      confirm_live:
+        description: I confirmed this exact game version is available to players
+        default: false
+        type: boolean
+permissions:
+  contents: read
+concurrency:
+  group: discord-player-changelog
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.repository == 'Valgorithms/Frontier-Systems' && github.ref == 'refs/heads/dev-master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: dev-master
+          persist-credentials: false
+      - shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          DISCORD_CHANGELOG_ENABLED: ${{ vars.DISCORD_CHANGELOG_ENABLED }}
+          DISCORD_CHANGELOG_CHANNEL_ID: ${{ vars.DISCORD_CHANGELOG_CHANNEL_ID }}
+          DISCORD_CHANGELOG_WEBHOOK_URL: ${{ secrets.DISCORD_CHANGELOG_WEBHOOK_URL }}
+        run: |
+          & (Get-Command node -CommandType Application).Source tools/github/changelog-discord.mjs
