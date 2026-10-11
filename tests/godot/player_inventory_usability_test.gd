@@ -90,6 +90,13 @@ func run() -> void:
 		await settle()
 		check(scroll.follow_focus and scroll.horizontal_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED, "panel owns bounded focus-following presentation")
 		check_width(panel)
+		check(panel._maintenance_targets.focus_mode == Control.FOCUS_ALL and panel._component_details.focus_mode == Control.FOCUS_ALL and panel._work_targets.focus_mode == Control.FOCUS_ALL, "maintenance and work targets accept keyboard review")
+		panel._maintenance_targets.grab_focus()
+		await settle()
+		await capture_panel("%d-maintenance-targets" % viewport_size.x)
+		var target_scroll: int = scroll.scroll_vertical
+		await key(KEY_PAGEDOWN)
+		check(root.gui_get_focus_owner() == panel._maintenance_targets and scroll.scroll_vertical >= target_scroll, "focused target guidance scrolls without changing selection")
 		panel._tool_mounts.grab_focus()
 		await settle()
 		check(visible(panel._tool_mounts), "keyboard focus reveals offscreen mount picker")

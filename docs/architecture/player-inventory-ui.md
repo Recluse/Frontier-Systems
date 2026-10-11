@@ -53,3 +53,12 @@ Use Tab/Shift+Tab to review them and Up/Down or Page Up/Page Down to scroll
 the Inventory pane while keeping guidance focused, including receipts taller
 than the pane. Enabled action buttons remain in the same relative order and
 focus-following scrolling reveals them. See [transfer layout verification](../development/inventory-transfer-layout-milestone.md).
+
+Maintenance target feedback now identifies the inspected item, selected repair
+part and loose part separately from the host-observed mount occupant. Repair and
+work intents retain exact submitted fields through matching receipts. Work source,
+canister and cycle selections are distinct from an existing host reservation and
+its completed counts. Missing inventory frames and disconnect remove these scoped
+claims; no after-state, compatibility or reach is inferred. See
+[maintenance target feedback](../development/tool-maintenance-target-feedback-milestone.md)
+for actual-panel authority, keyboard review and verification limits.

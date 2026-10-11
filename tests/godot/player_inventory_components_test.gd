@@ -118,6 +118,7 @@ func run() -> void:
 	reordered["tools"]["assemblies"].reverse()
 	for assembly in reordered["tools"]["assemblies"]: assembly["parts"].reverse()
 	panel.observe(reordered)
+	check(panel._maintenance_targets.text.contains("Observed installed part ID: " + old_head) and panel._maintenance_targets.text.contains("Selected repair part ID: " + old_head), "mount occupant and repair selection are explicit")
 	check(panel._picker_id(panel._tool_parts) == old_head and panel._picker_id(panel._tool_mounts) == "head", "component and mount IDs survive reordered records")
 	var missing_mount: Dictionary = reordered.duplicate(true)
 	missing_mount["tools"]["schema_version"] = 2
@@ -149,7 +150,9 @@ func run() -> void:
 	choose(panel._tool_mounts, "head")
 	panel._update_buttons()
 	check(panel._component_details.text.contains("Matching recycling specification") and panel._component_details.text.contains("construction power: on"), "recycle cost and station prerequisites displayed")
+	check(panel._maintenance_targets.text.contains("Observed installed part ID: " + old_head) and panel._maintenance_targets.text.contains("Selected loose part ID: " + loose), "replacement intent distinguishes loose selection from installed occupant")
 	panel_action("fit_tool_part")
+	check(panel._maintenance_targets.text.contains("Observed installed part ID: " + loose) and panel._maintenance_targets.text.contains("Selected repair part ID: " + old_head + "; unavailable"), "displaced repair selection does not follow component into loose inventory")
 	check(panel._picker_id(panel._loose_parts) == loose and panel._loose_parts.is_item_disabled(panel._loose_parts.selected), "mounted loose ID remains unavailable without retarget to displaced part")
 	var returned: bool = false
 	for part in frame()["tools"]["loose_parts"]:
@@ -157,7 +160,15 @@ func run() -> void:
 	check(returned, "displaced head retained as same owned physical ID")
 	panel_action("detach_tool_part")
 	check(panel._picker_id(panel._loose_parts) == loose and not panel._loose_parts.is_item_disabled(panel._loose_parts.selected), "detached same ID reappears")
+	check(panel._maintenance_targets.text.contains("Observed installed part ID: empty"), "empty mount never claims detached selection is installed")
 	check(panel._component_details.text.contains("disabled; missing"), "missing head reports observed capability loss")
+	select_tool(loose)
+	choose(panel._tool_parts, loose)
+	panel._update_buttons()
+	check(panel._maintenance_targets.text.contains("Inspected detached part ID: " + loose) and not panel._maintenance_targets.text.contains("Observed installed part ID:"), "detached inspection and repair selection claim no installed occupant")
+	select_tool(tool)
+	choose(panel._tool_mounts, "head")
+	panel._update_buttons()
 	energy = frame()["production"]["energy_joules"]
 	cost = frame()["tools"]["part_blueprints"]["part.head.basic"]["salvage_energy_joules"]
 	panel_action("recycle_tool_part")
@@ -186,6 +197,12 @@ func run() -> void:
 	check(panel._picker_id(panel._part_blueprints) == "part.head.basic" and panel._component_buttons["fabricate_tool_part"].disabled, "missing blueprint stable ID retained and blocked")
 	panel.observe(legacy)
 	check(panel._picker_id(panel._part_blueprints) == "part.head.basic", "returning blueprint restores same ID")
+	var canonical: Dictionary = frame()
+	var sent_count: int = remote.sent.size()
+	panel.observe({})
+	check(panel._maintenance_targets.text.contains("unavailable") and not panel._maintenance_targets.text.contains("Observed installed part ID:"), "missing inventory clears maintenance claims")
+	panel.observe(canonical)
+	check(frame() == canonical and remote.sent.size() == sent_count, "missing/recovery rendering mutates no state and submits no commands")
 	panel._part_action("fit_tool_part")
 	remote.connection_closed.emit("Disconnected")
 	check(panel._pending_component.is_empty() and panel._tools.is_empty() and panel._tool_mounts.item_count == 0 and panel._result.text.contains("outcome is unknown"), "disconnect clears observations and pending IDs without success claim")

@@ -67,3 +67,36 @@ static func describe(tools: Dictionary, production: Dictionary, selected_id: Str
 	if not reason.is_empty():
 		lines.append("Unavailable: " + reason)
 	return "\n".join(lines)
+
+
+## Exact scoped selection is distinct from the host-observed mount occupant.
+static func targets(tools: Dictionary, production: Dictionary, inspected_id: String, repair_id: String, mount_id: String, loose_id: String) -> String:
+	if not ToolObservationValidation.valid(tools):
+		return "Maintenance targets unavailable: current tool observation missing."
+	var lines := PackedStringArray(["Inspected item ID: " + (inspected_id if not inspected_id.is_empty() else "unavailable")])
+	var repair_observed: bool = false
+	var assembly_found: bool = false
+	for assembly in tools["assemblies"]:
+		if assembly["assembly_id"] != inspected_id: continue
+		assembly_found = true
+		lines.append("Observed tool ID: " + inspected_id + "; selection does not equip it.")
+		if assembly["slots"].has(mount_id):
+			var occupant: String = assembly["slots"][mount_id]
+			lines.append("Selected mount ID: " + mount_id)
+			lines.append("Observed installed part ID: " + (occupant if not occupant.is_empty() else "empty"))
+		else:
+			lines.append("Selected mount ID: " + mount_id + "; unavailable in current tool observation.")
+		for part in assembly["parts"]:
+			if part["part_id"] == repair_id: repair_observed = true
+	var loose_found: bool = false
+	for part in tools["loose_parts"]:
+		if part["part_id"] == loose_id: loose_found = true
+		if part["part_id"] == inspected_id and part["part_id"] == repair_id:
+			repair_observed = true
+			lines.append("Inspected detached part ID: " + inspected_id + "; no installed tool or mount.")
+	if not assembly_found: lines.append("Inspected tool/mount unavailable in current observation.")
+	lines.append("Selected loose part ID: " + loose_id + ("; observed detached, intended fit/recycle target." if loose_found else "; unavailable in current loose inventory."))
+	lines.append("Selected repair part ID: " + repair_id + ("; observed for inspected item." if repair_observed else "; unavailable for inspected item."))
+	if repair_observed: lines.append(describe(tools, production, repair_id))
+	lines.append("Fit intent uses the selected loose part and mount; detach intent uses the observed mount occupant. Selection confirms no replacement, repair or compatibility.")
+	return "\n".join(lines)
