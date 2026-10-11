@@ -36,6 +36,13 @@ var _buttons: Array[Button] = []
 var _record: Dictionary = {}
 var _elapsed: float = 0.0
 var _pending: String = ""
+var _tool_record: Dictionary = {}
+var _maintenance_parts: OptionButton
+var _maintenance_details: Label
+var _maintenance_feedback: Label
+var _maintenance_button: Button
+var _selected_part_id: String = ""
+var _maintenance_choice_key: String = ""
 var _nonce: String = str(Time.get_ticks_usec())
 
 
@@ -46,6 +53,19 @@ func configure(world: WorldRuntime) -> ServiceResult:
 	_world = world
 	_world.command_completed.connect(_on_completed)
 	_world.tree_exiting.connect(_on_closed)
+	if _world is RemoteWorldRuntime:
+		_world.observation_received.connect(_observe_tools)
+		_world.connection_closed.connect(func(_message: String) -> void: _on_closed())
+	var maintenance_title := _label()
+	maintenance_title.text = "Tool diagnosis and maintenance"
+	_maintenance_parts = _picker()
+	_maintenance_parts.clip_text = true
+	_maintenance_parts.fit_to_longest_item = false
+	_maintenance_parts.item_selected.connect(_select_maintenance_part)
+	_maintenance_details = _label()
+	_maintenance_button = _button("Maintain selected component", _maintain_component)
+	_maintenance_feedback = _label()
+	_maintenance_feedback.text = "Preview: select a component to inspect."
 	var title := _label()
 	title.text = "Extract, store, refine and recycle"
 	var instructions := _label()
@@ -146,6 +166,10 @@ func refresh() -> void:
 			if selected == id:
 				_equipment.select(_equipment.item_count - 1)
 	_record = observed.value if observed.is_success else {}
+	if not _world is RemoteWorldRuntime:
+		var tools := _world.get_simulation_system(ToolSimulationSystem.SYSTEM_ID) as ToolSimulationSystem
+		var tool_view: ServiceResult = tools.observation(_context()) if tools != null else ServiceResult.failure(&"tools_unavailable", "Tools unavailable")
+		_tool_record = tool_view.value if tool_view.is_success else {}
 	observation_changed.emit(_record.duplicate(true))
 	_fill_carriers(_record.get("cargo", {}).keys())
 	_fill_components(_record.get("components", []))
@@ -155,6 +179,7 @@ func refresh() -> void:
 	var suggested: Dictionary = _guide.suggested_action()
 	_guide_button.text = suggested["label"]
 	_guide_button.disabled = not _pending.is_empty() or suggested["operation"] == "" or _record.is_empty() or (not _record.get("can_operate", false) if suggested["operation"] != "extract" else not _record.get("extractable_sources", []).has("deposit.iron"))
+	_refresh_maintenance()
 	if _record.is_empty():
 		_status.text = "Production unavailable: move within reach of the logical workstation."
 		return
@@ -317,6 +342,10 @@ func _on_completed(command: SimulationCommand, result: ServiceResult) -> void:
 	if not command is ProductionDevelopmentCommand or String(command.command_id) != _pending:
 		return
 	_pending = ""
+	if command.operation == "repair_tool_component":
+		_maintenance_feedback.text = ("Accepted: maintenance command completed. Await current condition observation." if result.is_success else "Rejected: " + result.message)
+		refresh()
+		return
 	if result.is_success:
 		_guide.note_command(command.operation, command.payload)
 	_feedback.text = "Applied " + command.operation if result.is_success else "Rejected: " + result.message
@@ -331,12 +360,15 @@ func _on_batch_completed(recipe_id: String, _tick: int) -> void:
 func _on_closed() -> void:
 	_world = null
 	_record = {}
+	_tool_record = {}
 	observation_changed.emit({})
 	_pending = ""
 	_status.text = "Production unavailable: world closed"
 	_guide_label.text = "Collection guide closed; progress was session-only."
 	_fill_carriers([])
 	_feedback.text = ""
+	_refresh_maintenance()
+	_maintenance_feedback.text = "Unavailable: world or host connection closed; command outcome requires a fresh observation."
 	for button in _buttons:
 		button.disabled = true
 	set_process(false)
@@ -374,3 +406,52 @@ static func _stock_text(stock: Dictionary) -> String:
 		if int(stock[id]) > 0:
 			entries.append("%s %.3f kg" % [id, float(stock[id]) / 1000000.0])
 	return ", ".join(entries) if not entries.is_empty() else "empty"
+
+
+func _observe_tools(frame: Dictionary) -> void:
+	_tool_record = frame.get("tools", {}).duplicate(true)
+	refresh()
+
+
+func _select_maintenance_part(index: int) -> void:
+	_selected_part_id = str(_maintenance_parts.get_item_metadata(index))
+	_maintenance_feedback.text = "Preview: selection changed; no command submitted."
+	_refresh_maintenance()
+
+
+func _refresh_maintenance() -> void:
+	if _maintenance_parts == null:
+		return
+	var entries: Dictionary = ToolMaintenanceView.components(_tool_record)
+	var choices: Array = []
+	for id in entries:
+		choices.append([id, entries[id]["part"]["name"]])
+	var choice_key: String = JSON.stringify(choices)
+	if choice_key != _maintenance_choice_key:
+		_maintenance_choice_key = choice_key
+		_maintenance_parts.clear()
+		_maintenance_parts.add_item("Select a component")
+		_maintenance_parts.set_item_metadata(0, "")
+		for choice in choices:
+			_maintenance_parts.add_item("%s · %s" % [choice[1], choice[0]])
+			_maintenance_parts.set_item_metadata(_maintenance_parts.item_count - 1, choice[0])
+			if choice[0] == _selected_part_id:
+				_maintenance_parts.select(_maintenance_parts.item_count - 1)
+	# Missing IDs remain remembered but never retarget to the first remaining part.
+	_maintenance_details.text = ToolMaintenanceView.describe(_tool_record, _record, _selected_part_id)
+	var reason: String = ToolMaintenanceView.blocker(_tool_record, _record, _selected_part_id)
+	_maintenance_button.disabled = not _pending.is_empty() or not reason.is_empty()
+	_maintenance_button.tooltip_text = reason
+	_maintenance_parts.disabled = _tool_record.is_empty() or not _pending.is_empty()
+
+
+func _maintain_component() -> void:
+	if not _pending.is_empty() or not is_instance_valid(_world):
+		return
+	refresh()
+	var reason: String = ToolMaintenanceView.blocker(_tool_record, _record, _selected_part_id)
+	if not reason.is_empty():
+		_maintenance_feedback.text = "Unavailable: " + reason
+		return
+	_send("repair_tool_component", {"part_id": _selected_part_id, "amount_ppm": 1000000, "expected_tool_revision": _tool_record["state_revision"]})
+	_maintenance_feedback.text = "Queued: maintenance awaits the authoritative tick result." if not _pending.is_empty() else "Rejected: " + _feedback.text
