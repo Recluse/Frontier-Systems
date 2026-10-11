@@ -26,7 +26,9 @@ No runtime, schema, authority, shared runner or creative asset changes have been
 
 ## Integrated native prerequisite result
 
-At clean `c78c3bd3a62b1ab7a31a1f640507ab5ab2c75baa`, the exclusive Coordinator 27850 lease was confirmed and a listener probe succeeded. Windows Godot 4.7.2 Compatibility ClientOnly **failed** after the guide's explicit stale-revision retry: the subsequent "Collect printed plate into inventory" command received "The production revision is stale or exhausted." Logs/manifest remain internal at `var/ci/tutorial-readiness/6b0933d3116441edbb9520fa9e6dfc8c`. No successful capture was produced. Shared PR38 scripts remain unchanged. This result requires Coordinator triage in its owning scope; it is not waived by the dedicated fixture.
+### Historical initial failure (retained)
+
+At clean `c78c3bd3a62b1ab7a31a1f640507ab5ab2c75baa`, the exclusive Coordinator 27850 lease was confirmed and a listener probe succeeded. Windows Godot 4.7.2 Compatibility ClientOnly **failed** after the guide's explicit stale-revision retry: the subsequent "Collect printed plate into inventory" command received "The production revision is stale or exhausted." Logs/manifest remain internal at `var/ci/tutorial-readiness/6b0933d3116441edbb9520fa9e6dfc8c`. No successful capture was produced. The original failure remains part of the record; the corrected final-head rerun below supersedes its pending status.
 
 ## Dedicated fixture
 
@@ -40,7 +42,7 @@ Five baseline Windows headless checks passed at c78c3bd: import/startup, integra
 
 ## Native dedicated result
 
-Clean immutable 76d0755fb0a732b13de91636ea6a4a9e6d940416 passed Windows Godot 4.7.2 Compatibility native execution: zero fixture failures. Rejected and accepted captures were visually inspected: full matching host message fits the narrow actual shell; no private data or generated artwork. Profile override removed and child process exited. This verifies the logical inventory body supplied by the injected observer; it does not verify physical habitat-body binding or real network transport. Integrated ClientOnly failure above remains unresolved and requires owning-scope triage. Later documentation-only head retains identical fixture/runner bytes.
+Clean immutable 76d0755fb0a732b13de91636ea6a4a9e6d940416 passed Windows Godot 4.7.2 Compatibility native execution: zero fixture failures. Rejected and accepted captures were visually inspected: full matching host message fits the narrow actual shell; no private data or generated artwork. Profile override removed and child process exited. This verifies the logical inventory body supplied by the injected observer; it does not verify physical habitat-body binding or real network transport. The separate integrated ClientOnly issue is resolved by the corrected final-head rerun below. Later documentation-only head retains identical fixture/runner bytes.
 
 ## Coordinator-authorized integrated fixture correction
 
@@ -48,4 +50,10 @@ Coordinator narrowly authorized editing the merged ClientOnly script after the i
 
 Collection now waits for an actual observation with no job and at least 1 kg printed stock. It requires a successful host receipt; at most three same-button attempts are permitted only for the exact production stale/exhausted message, with the rejection still visible and both client/panel observations newer than the submitted revision before retry. Every attempt records request ID/revision. Non-stale failures remain fatal. Original finite depletion, construction, item and durable-recovery assertions remain intact; no injected resources or host bypass.
 
-Godot 4.7.2 check-only compilation passed without a socket. **Fresh exclusive 27850 Coordinator lease requested** for the corrected immutable ClientOnly rerun. Historical native failure is retained; correction is not accepted as a graphical pass until that rerun. Unaffected dedicated-native and baseline results are reused within their original scopes.
+Godot 4.7.2 check-only compilation passed without a socket. The corrected immutable ClientOnly rerun was then completed under a fresh exclusive Coordinator 27850 lease. The initial failure above remains retained as historical evidence; see the final result below.
+
+## Final PR46 result
+
+Final feature head `6325f4693b30f35281adc2e7f3d9b95686da03f4` passed the corrected Windows Godot 4.7.2 Compatibility actual-client rerun in **28.23 seconds**. The visible collection retry advanced to production revision 14; finite collection, construction/equipment, save acknowledgement and durable restart/recovery assertions passed. The final capture and manifest remained internal. PR46 passed its exact-head CI checks and merged to `dev-master` as `e0e450e5e1b411f7020f0c36b48a89a5013f1484`.
+
+This is automated injected acceptance: it uses the actual client UI with injected keyboard/GUI activation and a fixture host/persistence adapter. The run does not demonstrate physical human navigation, unaided discovery, human save/reconnect, or tutorial readiness. The human tutorial gate remains open. See the [fresh-profile playable review guide](fresh-profile-playable-review-guide-milestone.md) for a reviewer-assisted procedure and failure-notes template.
