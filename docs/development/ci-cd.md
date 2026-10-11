@@ -2,7 +2,11 @@
 
 ## Required checks
 
-`.github/workflows/ci.yml` runs for pushes, pull requests to `dev-master`, merge queue groups and manual dispatch. Configure repository branch/ruleset protection to require **CI required**. That stable aggregate fails if any quality, integration or export job fails, is cancelled or is skipped. Workflow files alone do not configure repository branch protection.
+`.github/workflows/ci.yml` runs for pushes to `dev-master`, pull requests to `dev-master`, merge queue groups and manual dispatch. Feature branches validate through their pull request, avoiding duplicate push and PR matrices. Configure repository branch/ruleset protection to require **CI required**. Workflow files alone do not configure repository branch protection; inspection on 2026-10-11 found no protection or effective rules on `dev-master`.
+
+The always-reporting **Classify CI scope** job compares immutable PR base/head commits using the actual merge base. Only `README.md` and Markdown prose under the explicitly listed architecture, community, design, development, fundraising and research documentation directories can take the cheap PR route. Every other path, including schema documents, JSON, workflows, policies, tools, media and unknown paths, runs the full matrix. Renames include both paths; empty/unknown event diffs default to full validation. A missing or failed comparison fails the required gate. There are no workflow-level path filters that leave a required check pending.
+
+For prose-only PRs, **CI required** requires a successful classifier and verifies that all runtime/export jobs were intentionally skipped. That result establishes documentation classification only, with no runtime or build acceptance. All other runs require every quality, integration and export job to succeed; failure, cancellation or an unexpected skip fails the aggregate. Pushes to `dev-master`, merge groups and manual dispatch always run the full matrix, preserving release artifacts and merge-queue evidence. Existing focused schema/terrain workflows retain their path filters and contracts.
 
 - PHP quality covers 8.3 on Windows/Linux and 8.5 on Linux: locked installation, PSR-4, Windows runtime policy, formatting, unit suites, audit, Linux API docs and production PHAR builds on both operating systems.
 - Package validation discovers every `packages/*/composer.json`, including foundation/world contracts. Two platform jobs replace the earlier ten package jobs. Package libraries without lock files intentionally resolve their declared production dependency constraints; the control-plane application remains locked.
@@ -34,6 +38,8 @@ The Godot runner disables inherited Discord event delivery. Artifact uploads are
 Use PowerShell 7 on Windows/Linux:
 
 ```powershell
+./tools/ci/test-ci-policy.ps1
+./tools/coordination/test-snapshot.ps1 # PowerShell 7.5+; temporary offline fixtures
 ./tools/ci/run-godot-checks.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe'
 ./tools/ci/run-godot-checks.ps1 -Godot godot -TestNames machinery_runtime_test.gd
 ./tools/ci/build-development-export.ps1 -Platform windows -Godot godot
