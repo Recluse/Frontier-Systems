@@ -165,6 +165,37 @@ func run() -> void:
 		viewport.size = extent
 		feedback._physics_process(0)
 		check(Rect2(Vector2.ZERO, Vector2(extent)).encloses(Rect2(feedback._card.position, feedback._card.size)), "target advice remains bounded at narrow viewport size")
+	# Measure real wrapped rows after container layout, including selected state.
+	feedback.selected = source
+	for extent in [Vector2i(1920, 1080), Vector2i(640, 480), Vector2i(360, 640)]:
+		viewport.size = extent
+		feedback._physics_process(0)
+		await process_frame
+		await process_frame
+		feedback._physics_process(0)
+		check(feedback.visible, "complete advice visible at %s" % extent)
+		check(feedback._lines[2].text.contains("deposit.iron") and feedback._lines[3].text.contains("permission") and feedback._lines[3].text.contains("Success not guaranteed"), "selection preserves authority uncertainty")
+		for line in feedback._lines:
+			check(not line.clip_text and line.text_overrun_behavior == TextServer.OVERRUN_NO_TRIMMING, "essential advice never ellipsized")
+			check(line.get_visible_line_count() == line.get_line_count(), "all wrapped lines remain visible")
+			check(Rect2(Vector2.ZERO, feedback._card.size).encloses(Rect2(line.global_position - feedback._card.global_position, line.size)), "wrapped row contained by card")
+		check(Rect2(Vector2.ZERO, Vector2(extent)).encloses(Rect2(feedback._card.position, feedback._card.size)), "responsive selected card fits viewport")
+	viewport.size = Vector2i(360, 640)
+	var long_info: Dictionary = {"name": "item.maintenance-crowbar.prototype in world.external-storage-tray-123456", "action": "Request collection", "mouse_only": false}
+	feedback._update_card(info, long_info, Vector2(viewport.size))
+	await process_frame
+	await process_frame
+	feedback._update_card(info, long_info, Vector2(viewport.size))
+	check(feedback._lines[0].text == "Hover: deposit.iron" and feedback._lines[2].text.contains("external-storage-tray-123456"), "different hover/selection identities retain full text")
+	for line in feedback._lines:
+		check(line.size.y >= line.get_line_count() * line.get_line_height(), "long identity and action rows have full wrapped height")
+	InputMap.action_erase_events("world_select")
+	feedback._update_card(info, long_info, Vector2(viewport.size))
+	check(feedback._lines[1].text.contains("unbound") and feedback._lines[3].text.contains("permission"), "unbound selection preserves authority advice")
+	PlayerInputSettings.instance()._reset_map()
+
+	check(feedback.mouse_filter == Control.MOUSE_FILTER_IGNORE and feedback._card.mouse_filter == Control.MOUSE_FILTER_IGNORE, "advice preserves native mouse passthrough")
+
 	viewport.size = Vector2i(100, 100)
 	feedback._physics_process(0)
 	check(not feedback.visible, "tiny viewport suppresses advice")

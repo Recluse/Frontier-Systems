@@ -103,10 +103,31 @@ func run() -> void:
 	edit.free()
 	await create_timer(0.2).timeout
 	check(feedback.visible and feedback._lines[2].text.contains("deposit.iron"), "selected feedback resumes after UI focus release")
-	await RenderingServer.frame_post_draw
+	# Freeze only presentation sampling during screenshots so the physical OS
+	# cursor cannot replace the synthetic viewport pointer between frames.
+	feedback.set_physics_process(false)
+	container.stretch = false
 	var directory: String = "res://var/ci/habitat-target-feedback/captures"
 	DirAccess.make_dir_recursive_absolute(directory)
-	check(viewport.get_texture().get_image().save_png(directory.path_join("selected-source.png")) == OK, "local render capture saved")
+	for extent in [Vector2i(1920, 1080), Vector2i(640, 480), Vector2i(360, 640)]:
+		viewport.size = extent
+		root.size = extent
+		await create_timer(0.3).timeout
+		motion.position = Vector2(extent) / 2.0
+		motion.global_position = motion.position
+		viewport.push_input(motion, true)
+		feedback._physics_process(0)
+		# Explicit local hover presentation fixture; native selection/request/focus
+		# dispatch above is tested separately from OS cursor-dependent hover.
+		feedback._update_card(feedback.describe(source), feedback.describe(feedback.selected), Vector2(extent))
+		await create_timer(0.2).timeout
+		await RenderingServer.frame_post_draw
+		check(feedback.visible and feedback.selected == source, "hover and selected state visible at %s" % extent)
+		check(feedback._lines[3].text.contains("permission"), "authority advice survives selected state")
+		for line in feedback._lines:
+			check(line.get_visible_line_count() == line.get_line_count(), "capture displays every wrapped line")
+		check(viewport.get_texture().get_image().save_png(directory.path_join("selected-source-%dx%d.png" % [extent.x, extent.y])) == OK, "local render capture saved")
+
 	print("Native habitat targeting: %d failures" % failures)
 	PlayerInputSettings.instance()._reset_map()
 	container.free()

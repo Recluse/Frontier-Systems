@@ -27,12 +27,12 @@ func _ready() -> void:
 	var rows := VBoxContainer.new()
 	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_card.add_child(rows)
-	for index in range(3):
+	for index in range(4):
 		var line := Label.new()
 		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		line.add_theme_font_size_override("font_size", 16)
-		line.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		line.clip_text = true
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		rows.add_child(line)
 		_lines.append(line)
 	visible = false
@@ -124,12 +124,8 @@ func _physics_process(_delta: float) -> void:
 		if not describe(target).is_empty(): hovered = target
 	var info: Dictionary = describe(hovered)
 	var selection: Dictionary = describe(selected)
-	_lines[0].text = "Target: " + String(info.get("name", "Aim at an item, source, workstation or wall"))
-	_lines[1].text = hint(info) if not info.is_empty() else "World selection: " + PlayerInputSettings.instance().binding_label("world_select")
-	_lines[2].text = "Selected: " + String(selection["name"]) if not selection.is_empty() else "Requests recheck reach, access and resources at the simulation tick"
+	_update_card(info, selection, extent)
 	size = extent
-	_card.size = Vector2(minf(540, extent.x - 24), 90)
-	_card.position = Vector2(12, extent.y - _card.size.y - 12)
 	for target in [hovered, selected]:
 		if is_instance_valid(target) and not camera.is_position_behind(target.global_position):
 			var point: Vector2 = camera.unproject_position(target.global_position)
@@ -137,6 +133,29 @@ func _physics_process(_delta: float) -> void:
 				_markers.append(point)
 				_marker_colors.append(Color("#ffe066") if target == selected else Color("#6cdbed"))
 	queue_redraw()
+
+
+## Presentation-only rows; callers supply already described local targets.
+func _update_card(info: Dictionary, selection: Dictionary, extent: Vector2) -> void:
+	_lines[0].text = "Hover: " + String(info.get("name", "Aim at an item, source, workstation or wall"))
+	_lines[1].text = hint(info) if not info.is_empty() else "World selection: " + PlayerInputSettings.instance().binding_label("world_select")
+	_lines[2].text = "Selected: " + String(selection["name"]) if not selection.is_empty() else "Selected: none"
+	_lines[3].text = "Requests: reach, permission and resources rechecked at tick. Success not guaranteed."
+	_layout_card(extent)
+
+
+## Wrapped text owns height; hide only when the complete advice cannot fit.
+func _layout_card(extent: Vector2) -> void:
+	var width: float = minf(720, extent.x - 24)
+	var font_size: int = 12 if width < 480 else 16
+	for line in _lines:
+		line.add_theme_font_size_override("font_size", font_size)
+		# Prime wrapping before asking the container for its minimum height.
+		line.size.x = width - 20
+	_card.size = Vector2(width, 0)
+	_card.size.y = _card.get_combined_minimum_size().y
+	_card.position = Vector2(12, extent.y - _card.size.y - 12)
+	visible = visible and _card.size.y <= extent.y - 24
 
 
 func _draw() -> void:
