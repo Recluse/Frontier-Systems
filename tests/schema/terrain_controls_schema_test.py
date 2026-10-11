@@ -13,7 +13,7 @@ registry = Registry().with_resources(
     for schema in schemas if "$id" in schema
 )
 selected = [schema for schema in schemas if schema.get("$id") in (
-    "urn:frontier-systems:schema:terrain-observation:v1",
+    "urn:frontier-systems:schema:terrain-observation:v2",
     "urn:frontier-systems:schema:terrain-client-intent:v1",
 )]
 validators = {}
@@ -21,7 +21,7 @@ for schema in selected:
     Draft202012Validator.check_schema(schema)
     validators[schema["$id"]] = Draft202012Validator(schema, registry=registry)
 fixture = json.loads((ROOT / "var/terrain-controls-fixture.json").read_text(encoding="utf-8"))
-observation = validators["urn:frontier-systems:schema:terrain-observation:v1"]
+observation = validators["urn:frontier-systems:schema:terrain-observation:v2"]
 intent = validators["urn:frontier-systems:schema:terrain-client-intent:v1"]
 observation.validate(fixture["observation"])
 intent.validate(fixture["intent"])

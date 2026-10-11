@@ -196,7 +196,13 @@ func observation(context: AuthenticatedCommandContext) -> ServiceResult:
 	var transfers: Dictionary = {}
 	for id in _claims:
 		if _claims[id] == String(context.principal_id): transfers[id] = record["transfers"][id].duplicate(true)
-	return ServiceResult.success({"schema_version": 1, "owner_id": OWNER_ID, "cells": cells, "transfers": transfers,
+	var next_claim: int = 1
+	for entry in _portable.values():
+		if entry["principal_id"] == String(context.principal_id): next_claim += 1
+	var claim_capability: ServiceResult = _inventory.production_capability(context, true, [])
+	return ServiceResult.success({"schema_version": 2, "owner_id": OWNER_ID, "cells": cells, "transfers": transfers,
+		"next_materialize_request_number": mini(next_claim, MAX_PORTABLE), "materialize_sequence_exhausted": _portable.size() >= MAX_PORTABLE,
+		"materialize_ready": claim_capability.is_success, "materialize_message": claim_capability.message,
 		"next_request_number": mini(int(_principals.get(String(context.principal_id), 0)) + 1, MAX_INTEGER), "request_sequence_exhausted": int(_principals.get(String(context.principal_id), 0)) >= MAX_INTEGER})
 
 

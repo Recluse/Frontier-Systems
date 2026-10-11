@@ -1,0 +1,79 @@
+name: Terrain parcel client contracts
+
+on:
+  pull_request:
+    branches: [dev-master]
+    paths:
+      - 'src/core/materials/**'
+      - 'src/adapters/network/**'
+      - 'src/presentation/terrain/**'
+      - 'src/core/inventory/**'
+      - 'src/core/runtime/world_runtime.gd'
+      - 'data/inventory/**'
+      - 'data/production/construction-coverage*.json'
+      - 'tests/godot/construction_catalog_test.gd'
+      - 'docs/schema/**'
+      - 'tests/godot/terrain*'
+      - 'tests/schema/terrain*'
+      - '.github/workflows/terrain-parcel-client.yml'
+  push:
+    branches: [codex/terrain-parcel-client]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terrain-parcel-client-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    name: Terrain parcel client (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: chickensoft-games/setup-godot@ac93246ea68518a384c1c280a496e5989341f2f6 # v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: false
+      - name: Run bounded owner, inventory, factory and checkpoint regressions
+        shell: pwsh
+        run: ./tools/ci/run-godot-checks.ps1 -TestNames 'construction_catalog_test.gd','terrain_portable_test.gd','terrain_runtime_test.gd','terrain_cooperative_test.gd','terrain_parcel_client_test.gd','terrain_material_owner_test.gd','inventory_runtime_test.gd','world_inventory_runtime_test.gd','equipment_fabrication_test.gd','machinery_runtime_test.gd','checkpoint_recovery_test.gd'
+      - name: Validate real emitted JSON against local versioned schemas
+        shell: pwsh
+        run: |
+          $schemaPython = (Get-Command python -CommandType Application | Select-Object -First 1).Source
+          & $schemaPython --version
+          if ($LASTEXITCODE -ne 0) { throw 'A working hosted Python runtime is required.' }
+          & $schemaPython -m pip install --disable-pip-version-check --target var/ci/schema-python jsonschema==4.23.0
+          if ($LASTEXITCODE -ne 0) { throw 'Schema development dependencies failed.' }
+          $env:PYTHONPATH = [IO.Path]::GetFullPath('var/ci/schema-python')
+          & $schemaPython tests/schema/terrain_portable_schema_test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Portable schema checks failed.' }
+          & $schemaPython tests/schema/terrain_runtime_schema_test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Terrain bridge schema checks failed.' }
+          & $schemaPython tests/schema/terrain_controls_schema_test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Terrain controls schema checks failed.' }
+          & $schemaPython tests/schema/terrain_parcel_client_schema_test.py
+          if ($LASTEXITCODE -ne 0) { throw 'Terrain parcel client schema checks failed.' }
+      - name: Preserve bounded evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: terrain-parcel-client-${{ matrix.os }}
+          path: |
+            var/ci/godot/
+            var/terrain-portable-fixture.json
+            var/terrain-runtime-fixture.json
+            var/terrain-controls-fixture.json
+            var/terrain-parcel-client-fixture.json
+          retention-days: 3

@@ -1,0 +1,122 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:frontier-systems:schema:terrain-client-intent:v2",
+  "description": "Bounded local client retry journal, max 8192 UTF-8 bytes. No invite secret, context or authoritative state. Slot/world/region bind it to the same authenticated host scope.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "world_id",
+    "region_id",
+    "slot",
+    "request_number",
+    "operation",
+    "payload"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "world_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "region_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "slot": {
+      "enum": [
+        0,
+        1
+      ]
+    },
+    "request_number": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740990
+    },
+    "operation": {
+      "enum": [
+        "excavate",
+        "fill",
+        "materialize"
+      ]
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "excavate"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "transfer_id": {
+                "const": ""
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "fill"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "transfer_id": {
+                "pattern": "^terrain-transfer-[1-9][0-9]*$"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "operation": {
+            "const": "materialize"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "payload": {
+            "$ref": "urn:frontier-systems:schema:terrain-command:v1#/$defs/payload"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "request_number": {
+            "maximum": 128
+          },
+          "payload": {
+            "$ref": "urn:frontier-systems:schema:terrain-materialize-command:v1#/properties/payload"
+          }
+        }
+      }
+    }
+  ]
+}

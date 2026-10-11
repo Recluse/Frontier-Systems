@@ -118,7 +118,7 @@ func _receive(frame: Dictionary) -> void:
 			if _requests.has(frame.get("request_id")) and typeof(frame.get("ok")) == TYPE_BOOL and typeof(frame.get("code")) == TYPE_STRING and frame["code"].length() <= 128 and typeof(frame.get("message")) == TYPE_STRING and frame["message"].length() <= 512:
 				var command: SimulationCommand = _requests[frame["request_id"]]
 				_requests.erase(frame["request_id"])
-				if command is TerrainCommand and frame["code"] != "request_pending":
+				if TerrainTransportCodec.is_terrain(command) and frame["code"] != "request_pending":
 					if terrain_retry_directory.is_empty() or LocalTerrainRetryStore.clear_intent(_retry_path()).is_success: _terrain_intent = {}
 					# Wait for a post-completion projection before allocating fresh
 					# work; the pre-ack next ordinal may identify the retained receipt.
@@ -153,12 +153,7 @@ func restore_terrain_intent(record: Dictionary) -> ServiceResult:
 
 func retry_terrain_intent() -> ServiceResult:
 	if _terrain_intent.is_empty(): return ServiceResult.failure(&"terrain_retry_missing", "There is no unresolved terrain intent.")
-	var command := TerrainCommand.new()
-	command.request_number = int(_terrain_intent["request_number"])
-	command.command_id = StringName("terrain-client-%d" % command.request_number)
-	command.operation = _terrain_intent["operation"]
-	command.payload = _terrain_intent["payload"].duplicate(true)
-	return enqueue_command(command)
+	return enqueue_command(TerrainTransportCodec.command(int(_terrain_intent["request_number"]), _terrain_intent["operation"], _terrain_intent["payload"]))
 
 
 func _retry_path() -> String:
@@ -168,18 +163,21 @@ func _retry_path() -> String:
 func enqueue_command(command: SimulationCommand) -> ServiceResult:
 	if not _authenticated or _socket.get_ready_state() != WebSocketPeer.STATE_OPEN or _requests.size() >= 8:
 		return ServiceResult.failure(&"remote_not_ready", "Host is not ready or requests are pending.")
-	var system: String = "terrain" if command is TerrainCommand else ("production" if command is ProductionDevelopmentCommand else ("inventory" if command is InventoryDevelopmentCommand else ("world" if command is CheckpointRequest else "")))
+	var system: String = "terrain" if TerrainTransportCodec.is_terrain(command) else ("production" if command is ProductionDevelopmentCommand else ("inventory" if command is InventoryDevelopmentCommand else ("world" if command is CheckpointRequest else "")))
 	if system.is_empty() or String(command.command_id).length() > 90 or _requests.has(String(command.command_id)):
 		return ServiceResult.failure(&"remote_command_invalid", "Unsupported or duplicate client request.")
 	var frame: Dictionary = {"type": "command", "request_id": String(command.command_id), "system": system, "operation": command.operation, "payload": command.payload}
-	if command is TerrainCommand:
-		if _terrain_record.is_empty() or not TerrainObservationValidation.valid_intent(command.request_number, command.operation, command.payload) or String(command.command_id) != "terrain-client-%d" % command.request_number:
+	if TerrainTransportCodec.is_terrain(command):
+		if (command is TerrainMaterializeCommand) != (command.operation == "materialize") or _terrain_record.is_empty() or not TerrainObservationValidation.valid_intent(command.request_number, command.operation, command.payload) or String(command.command_id) != TerrainTransportCodec.request_id(command.request_number, command.operation):
 			return ServiceResult.failure(&"terrain_intent_invalid", "Use an observed bounded terrain intent and its stable ordinal.")
-		var intent: Dictionary = {"schema_version": 1, "world_id": String(world_id), "region_id": String(region_id), "slot": server_slot, "request_number": command.request_number, "operation": command.operation, "payload": command.payload.duplicate(true)}
+		var intent: Dictionary = {"schema_version": 2 if command is TerrainMaterializeCommand else 1, "world_id": String(world_id), "region_id": String(region_id), "slot": server_slot, "request_number": command.request_number, "operation": command.operation, "payload": command.payload.duplicate(true)}
+		if not _terrain_intent.is_empty(): intent["schema_version"] = _terrain_intent["schema_version"]
 		intent = LocalTerrainRetryStore.normalized(intent)
 		if not _terrain_intent.is_empty() and _terrain_intent != intent:
 			return ServiceResult.failure(&"terrain_retry_required", "Reconcile the original unresolved terrain intent before starting fresh work.")
-		if _terrain_intent.is_empty() and (command.request_number != _terrain_record["next_request_number"] or _terrain_record["request_sequence_exhausted"]):
+		var ordinal_field: String = "next_materialize_request_number" if command is TerrainMaterializeCommand else "next_request_number"
+		var exhausted_field: String = "materialize_sequence_exhausted" if command is TerrainMaterializeCommand else "request_sequence_exhausted"
+		if _terrain_intent.is_empty() and (not _terrain_record.has(ordinal_field) or command.request_number != _terrain_record[ordinal_field] or _terrain_record[exhausted_field]):
 			return ServiceResult.failure(&"terrain_ordinal_invalid", "Use the observed next ordinal for fresh work only.")
 		if not terrain_retry_directory.is_empty():
 			var stored: ServiceResult = LocalTerrainRetryStore.write_intent(_retry_path(), intent)
@@ -188,12 +186,7 @@ func enqueue_command(command: SimulationCommand) -> ServiceResult:
 		frame["request_number"] = command.request_number
 		frame["payload"] = intent["payload"].duplicate(true)
 		# Freeze the completion identity too: callers may reuse their mutable object.
-		var frozen := TerrainCommand.new()
-		frozen.command_id = command.command_id
-		frozen.request_number = command.request_number
-		frozen.operation = command.operation
-		frozen.payload = intent["payload"].duplicate(true)
-		command = frozen
+		command = TerrainTransportCodec.command(command.request_number, command.operation, intent["payload"])
 	var sent: Error = _socket.send_text(JSON.stringify(frame))
 	if sent != OK:
 		return ServiceResult.failure(&"remote_send", "Host send buffer is unavailable.")

@@ -140,14 +140,10 @@ func _receive(id: int, value: Dictionary) -> void:
 			_ack(id, value["request_id"], checkpoint)
 		return
 	if value["system"] == "terrain":
-		if not TerrainObservationValidation.valid_intent(value.get("request_number"), value.get("operation"), value["payload"]) or value["request_id"] != "terrain-client-%d" % int(value["request_number"]):
+		if not TerrainObservationValidation.valid_intent(value.get("request_number"), value.get("operation"), value["payload"]) or value["request_id"] != TerrainTransportCodec.request_id(int(value["request_number"]), value["operation"]):
 			_ack(id, value["request_id"], ServiceResult.failure(&"terrain_intent_invalid", "Use a bounded terrain intent with its original principal ordinal."))
 			return
-		var terrain_command := TerrainCommand.new()
-		terrain_command.request_number = int(value["request_number"])
-		terrain_command.operation = value["operation"]
-		terrain_command.payload = value["payload"].duplicate(true)
-		command = terrain_command
+		command = TerrainTransportCodec.command(int(value["request_number"]), value["operation"], value["payload"])
 	elif value["system"] == "production":
 		var production_command := ProductionDevelopmentCommand.new()
 		production_command.operation = value["operation"] if typeof(value["operation"]) == TYPE_STRING else ""
@@ -172,7 +168,7 @@ func _receive(id: int, value: Dictionary) -> void:
 	else:
 		_ack(id, value["request_id"], ServiceResult.failure(&"system_denied", "This session cannot access that command system."))
 		return
-	command.command_id = StringName(value["request_id"] if command is TerrainCommand else "net-%d-%s" % [peer["slot"], value["request_id"]])
+	command.command_id = StringName(value["request_id"] if TerrainTransportCodec.is_terrain(command) else "net-%d-%s" % [peer["slot"], value["request_id"]])
 	command.authenticated_context = _context(peer["slot"], id)
 	var route: String = _route_key(command)
 	if _pending.has(route):

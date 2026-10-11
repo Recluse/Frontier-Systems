@@ -1,7 +1,8 @@
 extends SimulationCommand
 class_name TerrainMaterializeCommand
 
-## Server-only typed entry point; no wire/UI endpoint or caller-supplied matter.
+## Typed fixed-tick claim; transport binds identity and never accepts matter.
+const operation: String = "materialize"
 var request_number: int = 0
 var payload: Dictionary = {}
 
