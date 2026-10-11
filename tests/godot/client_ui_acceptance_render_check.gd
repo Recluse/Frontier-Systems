@@ -35,7 +35,7 @@ func _run() -> void:
 	else:
 		await _exercise(client)
 	if not _failed:
-		client._tabs.current_tab = 0
+		client._open_panel(0)
 		var persisted: Dictionary = {}
 		client._remote.command_completed.connect(func(command: SimulationCommand, result: ServiceResult) -> void:
 			if command is CheckpointRequest:
@@ -112,7 +112,7 @@ func _exercise(client: FirstPlayableBootstrap) -> void:
 	_key(KEY_I, false)
 	await process_frame
 	await process_frame
-	if not await _wait_until(func() -> bool: return client._tabs.current_tab == 0): _failed = true
+	if not await _wait_until(func() -> bool: return not client._tabs.visible): _failed = true
 	if _failed: return
 	print("Acceptance walk to ore")
 	if not await _walk(client, Vector3(-9, 0.95, 1)): _failed = true; return
@@ -144,7 +144,7 @@ func _exercise(client: FirstPlayableBootstrap) -> void:
 		push_error("Equipment fabrication: " + client._production_panel._feedback.text)
 		_failed = true
 		return
-	client._tabs.current_tab = 3
+	client._open_panel(3)
 	var panel: MachineryPanel = client._machinery_panel
 	_select_wall_plate(panel, client._latest["production"]["components"][0])
 	panel._axes[0].value = 0
@@ -168,7 +168,7 @@ func _exercise(client: FirstPlayableBootstrap) -> void:
 
 func _walk(client: FirstPlayableBootstrap, target: Vector3) -> bool:
 	var body: LocalHabitatCharacter = client._habitat.character
-	client._tabs.current_tab = 0
+	client._open_panel(0)
 	root.gui_release_focus()
 	client._habitat.activate_character(LocalHabitatCharacter.CameraMode.FIRST_PERSON)
 	_mouse(true)

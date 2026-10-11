@@ -123,7 +123,7 @@ func _terrain_route(client: FirstPlayableBootstrap) -> bool:
 	for item in client._latest["inventory"]["items"]:
 		if item["definition_id"] == "item.shovel.fabricated": shovel = item["item_id"]
 	if shovel.is_empty(): return false
-	client._tabs.current_tab = 1
+	client._open_panel(1)
 	var inventory: PlayerInventoryPanel = client._inventory_panel
 	for index in range(inventory._items.item_count):
 		if inventory._items.get_item_metadata(index)["item_id"] == shovel: inventory._items.select(index)
@@ -134,7 +134,7 @@ func _terrain_route(client: FirstPlayableBootstrap) -> bool:
 	inventory._self_action("select_hand")
 	await create_timer(0.5).timeout
 	if not await _walk(client, Vector3(-6, 0.95, 3)): return false
-	client._tabs.current_tab = 4
+	client._open_panel(4)
 	var terrain: TerrainControlsPanel = client._terrain_panel
 	terrain._amount.value = 0.25
 	if terrain._dig.disabled: return false
@@ -157,7 +157,7 @@ func _wall_route(client: FirstPlayableBootstrap) -> bool:
 	await create_timer(0.5).timeout
 	var plates: Array = client._latest["production"]["components"]
 	if plates.size() != 1: return false
-	client._tabs.current_tab = 3
+	client._open_panel(3)
 	var panel: MachineryPanel = client._machinery_panel
 	_select_wall_plate(panel, plates[0])
 	panel._axes[0].value = 0
@@ -217,7 +217,7 @@ func _tool_parts_route(client: FirstPlayableBootstrap) -> bool:
 	production._send("fabricate_equipment", {"blueprint_id":"equipment.extractor"})
 	await create_timer(0.5).timeout
 	var tool: String = client._latest["production"]["structures"].keys()[0]
-	client._tabs.current_tab = 1
+	client._open_panel(1)
 	var panel: PlayerInventoryPanel = client._inventory_panel
 	for blueprint in ["part.head.basic", "part.controller.space"]:
 		for index in range(panel._part_blueprints.item_count):
@@ -273,7 +273,7 @@ func _equipment_route(client: FirstPlayableBootstrap) -> bool:
 	panel._amount.value = 100.0
 	panel._cargo_action("load_cargo")
 	await create_timer(0.5).timeout
-	client._tabs.current_tab = 1
+	client._open_panel(1)
 	var inventory: PlayerInventoryPanel = client._inventory_panel
 	for index in range(inventory._items.item_count):
 		if inventory._items.get_item_metadata(index)["item_id"] == id:
@@ -344,7 +344,7 @@ func _machinery_route(client: FirstPlayableBootstrap) -> bool:
 	client._production_panel._send("process", {"recipe_id": "salvage.plate"})
 	await create_timer(2.0).timeout
 	var panel: MachineryPanel = client._machinery_panel
-	client._tabs.current_tab = 3
+	client._open_panel(3)
 	for kind in ["frame", "controller", "power", "solar"]:
 		panel._kind.select(MachineryWorkshop.KINDS.keys().find(kind))
 		panel._send("machine_craft")

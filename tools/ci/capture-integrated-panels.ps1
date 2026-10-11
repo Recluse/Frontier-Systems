@@ -1,6 +1,6 @@
 param(
     [string]$Godot = 'godot',
-    [ValidateSet('integrated', 'engineering-loop')][string]$Route = 'integrated',
+    [ValidateSet('integrated', 'engineering-loop', 'organization')][string]$Route = 'integrated',
     [ValidateSet('gl_compatibility', 'forward_plus')][string]$RenderingMethod = 'gl_compatibility',
     [ValidateRange(1, 120)][int]$TimeoutSeconds = 60
 )
@@ -13,7 +13,11 @@ $overridePath = Join-Path $projectRoot 'override.cfg'
 if (Test-Path -LiteralPath $overridePath) { throw 'Preserve existing override.cfg; use a clean isolated worktree.' }
 New-Item -ItemType Directory -Force -Path $output | Out-Null
 $profileName = 'FrontierSystems-integrated-' + [Guid]::NewGuid().ToString('N')
-$fixture = if ($Route -eq 'engineering-loop') { 'engineering_loop_shell_test.gd' } else { 'integrated_panel_layout_test.gd' }
+$fixture = switch ($Route) {
+    'engineering-loop' { 'engineering_loop_shell_test.gd' }
+    'organization' { 'gameplay_ui_organization_test.gd' }
+    default { 'integrated_panel_layout_test.gd' }
+}
 $process = $null
 $head = (& git -C $projectRoot rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Cannot pin fixture HEAD.' }

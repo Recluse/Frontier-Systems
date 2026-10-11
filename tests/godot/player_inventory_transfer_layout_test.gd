@@ -91,7 +91,7 @@ func run() -> void:
 	remote.server_slot = 0
 	observe_shell()
 	panel = client._inventory_panel
-	client._tabs.current_tab = 1
+	client._open_panel(1)
 	var canonical: String = world.capture_world_snapshot_json().value
 	var encoded: String = JSON.stringify(frame())
 	for id: String in ["storage.pouch-1", "storage.backpack-1", "body.human-1", "crowbar-1", "hand.right", "world.tray-1"]:

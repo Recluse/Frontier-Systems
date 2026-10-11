@@ -48,7 +48,11 @@ func run() -> void:
 	observe_shell() # Receipt then observation in one frame, matching the socket poll race.
 	check(client._checkpoint_status.text == "Shared world checkpoint confirmed on disk.", "same-frame observation preserves disk confirmation")
 	await settle()
-	check(client._checkpoint_status.is_visible_in_tree() and client._scroll.get_global_rect().encloses(client._checkpoint_status.get_global_rect()), "wrapped confirmation fully visible in actual shell")
+	check(not client._tabs.visible and client._command_feedback.text.contains("confirmed on disk") and client._command_feedback.is_visible_in_tree(), "confirmation available in persistent feedback with drawer closed")
+	client._open_panel(2)
+	client._checkpoint_scroll.ensure_control_visible(client._checkpoint_status)
+	await settle()
+	check(client._checkpoint_scroll.get_global_rect().encloses(client._checkpoint_status.get_global_rect()), "wrapped confirmation fully accessible in on-demand pane")
 	client._checkpoint_status.grab_focus()
 	await settle()
 	check(client._checkpoint_status.has_focus(), "checkpoint feedback supports keyboard focus")

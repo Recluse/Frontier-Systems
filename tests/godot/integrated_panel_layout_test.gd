@@ -109,13 +109,13 @@ func run() -> void:
 	var plate: String = frame()["production"]["components"][0]
 	choose(machinery._part, plate)
 	var before: String = world.capture_world_snapshot_json().value
-	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 720)]:
+	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 700)]:
 		root.size = viewport_size
 		(client._tabs.get_parent() as HSplitContainer).split_offset = 420 if viewport_size.x == 1100 else 540
-		client._tabs.current_tab = 0
+		client._open_panel(0)
 		await settle()
 		check(client._tabs.get_global_rect().end.x <= root.size.x, "actual tab shell fits desktop/narrow window")
-		check(client._content.get_child(1) is OverlayThemeController, "real client theme header retained")
+		check(client._tabs.get_tab_control(2).find_children("*", "OverlayThemeController", true, false).size() == 1, "theme diagnostics available on demand")
 		bounded(client._content, client._scroll.size.x)
 		client._scroll.scroll_vertical = 0
 		await settle()
@@ -133,7 +133,7 @@ func run() -> void:
 		check(visible(production._salvage_button, production._section_scroll), "inner focus reveals lower equipment action")
 		check(visible(production._salvage_button, client._scroll), "outer focus reveals focused action through nested viewport")
 		await snap("%d-workstation" % viewport_size.x)
-		client._tabs.current_tab = 1
+		client._open_panel(1)
 		await settle()
 		var inventory_scroll := panel.get_parent() as ScrollContainer
 		bounded(panel, inventory_scroll.size.x)
@@ -149,7 +149,7 @@ func run() -> void:
 		await key(KEY_DOWN)
 		check(inventory_scroll.scroll_vertical > scroll_before, "integrated focused pane scrolls")
 		await snap("%d-inventory" % viewport_size.x)
-		client._tabs.current_tab = 3
+		client._open_panel(3)
 		machinery._placement_kind.item_selected.emit(0)
 		var selected_part: String = MachineryPanel._selected(machinery._part)
 		for group_index in [0, 1, 0]:
@@ -209,7 +209,7 @@ func run() -> void:
 	observe_shell()
 	await settle()
 	check(machinery._pending_wall == wall_pending and machinery._placement_kind.selected == 1 and machinery._placement_status.text == wall_receipt, "real shell mode switch and observation retain exact pending plate/pose/revision")
-	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 720)]:
+	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 700)]:
 		root.size = viewport_size
 		(machinery.get_parent() as ScrollContainer).ensure_control_visible(machinery._placement_status)
 		await settle()
@@ -220,7 +220,7 @@ func run() -> void:
 
 	check(visible(machinery._feedback, machinery.get_parent()), "complete wall outcome accessible in narrow pane")
 	check(world.capture_world_snapshot_json().value == before, "real shell wall intent and rejection preserve canonical snapshot")
-	client._tabs.current_tab = 1
+	client._open_panel(1)
 	panel._part_action("fit_tool_part")
 	var pinned: Dictionary = panel._pending_component.duplicate(true)
 	var request: SimulationCommand = remote.sent[-1]
@@ -234,7 +234,7 @@ func run() -> void:
 	await settle()
 	check(visible(panel._result, panel.get_parent()), "full desktop pending receipt visible")
 	await snap("desktop-pending")
-	root.size = Vector2i(1100, 720)
+	root.size = Vector2i(1100, 700)
 	(panel.get_parent() as ScrollContainer).scroll_vertical = 0
 	await settle()
 	apply(request)
@@ -248,8 +248,8 @@ func run() -> void:
 	await settle()
 	check(visible(panel._result, panel.get_parent()), "full desktop accepted receipt visible")
 	await snap("desktop-accepted")
-	root.size = Vector2i(1100, 720)
-	client._tabs.current_tab = 0
+	root.size = Vector2i(1100, 700)
+	client._open_panel(0)
 	production._send("process", {"recipe_id": "refine.iron"})
 	await settle()
 	check(not production._pending.is_empty(), "workstation pending intent retained")
@@ -261,7 +261,7 @@ func run() -> void:
 	bounded(client._content, client._scroll.size.x)
 	check((client._tabs.get_parent() as Control).get_global_rect().end.x <= root.size.x, "long host failure does not expand shell beyond window")
 	await snap("narrow-rejected")
-	client._tabs.current_tab = 3
+	client._open_panel(3)
 	machinery._choose_mode(0)
 	var machine_id: String = frame()["production"]["machinery"]["parts"].keys()[0]
 	machinery.select_machine(machine_id)
@@ -270,7 +270,7 @@ func run() -> void:
 	var pinned_deploy: Dictionary = machinery._pending_deploy.duplicate(true)
 	var pinned_identity: String = machinery._request_identity.text
 	var submitted_snapshot: String = world.capture_world_snapshot_json().value
-	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 720)]:
+	for viewport_size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 700)]:
 		root.size = viewport_size
 		for group_index in [1, 0]:
 			machinery._group.item_selected.emit(group_index)

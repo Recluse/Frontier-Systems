@@ -1,6 +1,8 @@
 extends VBoxContainer
 class_name FirstPlayableControlsHelp
 
+signal panel_requested(index: int)
+
 ## Local navigation and binding descriptions only: no world observations or commands.
 var _tabs: TabContainer
 var _selector := OptionButton.new()
@@ -33,6 +35,7 @@ func _ready() -> void:
 	_selector.item_selected.connect(func(index: int) -> void:
 		PlayerInputSettings.instance().release_all()
 		_tabs.current_tab = _selector.get_item_id(index)
+		panel_requested.emit(_selector.get_item_id(index))
 	)
 	_toggle.text = "Controls help"
 	_toggle.toggle_mode = true
@@ -87,12 +90,12 @@ func _unhandled_key_input(event: InputEvent) -> void:
 
 func _refresh() -> void:
 	var controls := PlayerInputSettings.instance()
-	_summary.text = "Hold %s: look / move · hold %s: UI cursor · %s: inventory · %s: settings" % [controls.binding_label("look"), controls.binding_label("ui_cursor"), controls.binding_label("inventory"), controls.binding_label("settings")]
+	_summary.text = "Hold %s: look / move · %s: inventory" % [controls.binding_label("look"), controls.binding_label("inventory")]
 	_text.text = "\n".join(PackedStringArray([
 		"Look and move: hold %s to capture the camera. Move with %s / %s / %s / %s; %s jumps, %s sprints. Overview uses %s / %s to zoom." % [controls.binding_label("look"), controls.binding_label("move_forward"), controls.binding_label("move_back"), controls.binding_label("move_left"), controls.binding_label("move_right"), controls.binding_label("jump"), controls.binding_label("sprint"), controls.binding_label("zoom_in"), controls.binding_label("zoom_out")],
 		"Hold %s to expose the UI cursor and pause movement/look. Releasing it resumes capture only while look stays held. %s releases capture; window focus loss also releases it." % [controls.binding_label("ui_cursor"), controls.binding_label("release_cursor")],
 		"World interaction: %s selects. Click a station to open Workstation. With a mouse, double-click deposits/items to use or collect; selecting a machine or wall opens Construction. A keyboard/controller selection activates the pointed object. The host checks reach and permissions." % controls.binding_label("world_select"),
-		"Inventory: %s toggles the Inventory tab. %s switches active hand; %s uses the active tool. Inventory buttons manage observed items." % [controls.binding_label("inventory"), controls.binding_label("switch_hand"), controls.binding_label("use_tool")],
+		"Inventory: %s opens or closes inventory and equipment. %s switches active hand; %s uses the active tool. Inventory buttons manage observed items. Close interaction hides the drawer without clearing request identities; essential feedback remains beside the scene." % [controls.binding_label("inventory"), controls.binding_label("switch_hand"), controls.binding_label("use_tool")],
 		"Guide shows the current finite engineering loop and prerequisites; it does not perform actions or remember completed steps. Construction provides machine and wall controls; select a world machine/wall to inspect it.",
 		"Choose any existing panel with the selector above. Focus controls with %s / %s; confirm with %s and navigate choices with %s / %s. Focus the help scroll area and use %s / %s to scroll. Close focused help with %s or Close help. No extra gameplay shortcuts are added." % [controls.binding_label("ui_focus_next"), controls.binding_label("ui_focus_prev"), controls.binding_label("ui_accept"), controls.binding_label("ui_left"), controls.binding_label("ui_right"), controls.binding_label("ui_up"), controls.binding_label("ui_down"), controls.binding_label("ui_cancel")],
 		"Settings (%s) edits local bindings and sensitivity. It pauses navigation while visible. Camera shortcuts: %s first person, %s third person, %s overview." % [controls.binding_label("settings"), controls.binding_label("camera_first"), controls.binding_label("camera_third"), controls.binding_label("camera_overview")]

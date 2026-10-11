@@ -92,7 +92,7 @@ func run() -> void:
 	capture = OS.get_cmdline_user_args().has("--capture-inventory")
 	PlayerInputSettings.instance()._reset_map()
 	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
-	root.size = Vector2i(1100, 720)
+	root.size = Vector2i(1100, 700)
 	world = WorldRuntime.new()
 	root.add_child(world)
 	check(world.start_simulation().is_success, "canonical fixture starts")
@@ -107,7 +107,7 @@ func run() -> void:
 	remote.server_slot = 0
 	observe_shell()
 	panel = client._inventory_panel
-	client._tabs.current_tab = 1
+	client._open_panel(1)
 	await settle()
 	choose(panel._source, "storage.pouch-1")
 	panel._fill_items()
