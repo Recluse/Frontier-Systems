@@ -1,5 +1,9 @@
 # Coordinated milestone work
 
+## Art production policy
+
+Owner prohibits AI image generation in project artwork, including source imagery and generative editing/upscaling. Every successor handoff must permit only rights-cleared existing artwork and standard non-generative drawing/modeling/compositing/rendering tools, with provenance and existing MIT/CC0 requirements. Procedural geometry, independently authored vectors and ordinary engine captures remain allowed. This does not grant public upload clearance for current captures. Codex, Claude and all contributors follow the same rule.
+
 ## Planned rail logistics sequence
 
 The owner requested Astroneer's train mechanics as milestone inspiration. [Rail logistics milestones](rail-logistics-milestones.md) queues rail-01 through rail-05: finite track construction, manual powered cart, coupled cargo/stations, junctions/automated dispatch, then sensors/repair/optional utility links. Select these successors after foundational finite construction, vehicle motion, inventory recovery and relevant network contracts are ready. Active gameplay chats retain their current scope; this sequence is planned, not implemented or promised for a release.

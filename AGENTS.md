@@ -15,6 +15,8 @@
 
 ## Code and documentation
 
+- Project art assets must not use AI image generation at any stage, including Stable Diffusion, generated source images, generative edits, fills, textures or upscaling. Codex, Claude and other agents may use rights-cleared existing artwork and standard non-generative drawing, modeling, compositing and rendering tools. Independently authored SVG/vector geometry, procedural meshes and ordinary game-engine renders are allowed; do not use generative imagery as intermediate assets. Record source artwork, author/license and creation tools in provenance. Existing MIT/CC0 requirements still apply.
+
 - First-party code, schemas, and created assets must be distributable under MIT. For shipped third-party creative assets, use CC0 by default; do not add fonts or other creative assets under a different license unless the project owner explicitly changes this policy. Track exact provenance and licenses in `THIRD_PARTY_NOTICES.md`; do not include anything until commercial use and redistribution are verified.
 - PHP follows PSR-12 and documents public contracts in PHPDoc. Godot scripts use typed GDScript, `class_name` only for reusable types, and XML/Markdown documentation for assets and data definitions.
 - Update architecture and API documentation in the same change as a contract change. Prefer machine-readable schemas and explicit versions for data exchanged across PHP and Godot.
