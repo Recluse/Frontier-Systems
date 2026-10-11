@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Real loopback host/client; graphical-only. Temporary in-memory world, no services.
-const DIRECTORY: String = "res://reports/inventory-feedback"
+const DIRECTORY: String = "res://var/captures/inventory-feedback"
 var failures: int = 0
 
 func _initialize() -> void:

@@ -83,7 +83,7 @@ func _rebuild() -> void:
 			var mesh: MeshInstance3D = _box(_rendered, dimensions, location, color)
 			var key: String = JSON.stringify([container["container_id"], item["item_id"]])
 			var identity := Label3D.new()
-			identity.position = location + Vector3(0, 0.25, 0)
+			identity.position = location + Vector3(0, 0.9, 0)
 			identity.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 			identity.font_size = 22
 			identity.text = "%s\n%s · observed %.2f m" % [item["item_id"], container["container_id"], float(container["distance_millimetres"]) / 1000.0]
