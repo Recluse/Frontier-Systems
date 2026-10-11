@@ -2,9 +2,53 @@ extends SceneTree
 
 class RecordingRemote extends RemoteWorldRuntime:
 	var sent: Array[SimulationCommand] = []
+	func connect_host(_url: String, _invite: String) -> ServiceResult:
+		return ServiceResult.success()
 	func enqueue_command(command: SimulationCommand) -> ServiceResult:
 		sent.append(command)
 		return ServiceResult.success()
+
+class InventoryClient extends FirstPlayableBootstrap:
+	func _create_client_remote() -> RemoteWorldRuntime:
+		return RecordingRemote.new()
+
+var client: InventoryClient
+
+func settle() -> void:
+	for _frame in range(6): await process_frame
+
+func layout() -> void:
+	var canonical: String = world.capture_world_snapshot_json().value
+	var sent: int = remote.sent.size()
+	var selected: String = panel._selected_id(panel._items)
+	var slot: String = panel._picker_id(panel._slot)
+	var destination: String = panel._picker_id(panel._destination)
+	for size: Vector2i in [Vector2i(1920, 1080), Vector2i(1100, 720), Vector2i(900, 640)]:
+		root.size = size
+		await settle()
+		var scroll := panel.get_parent() as ScrollContainer
+		check(panel.get_child(panel._slot.get_index() - 1) == panel._equipment, "equipment guidance immediately precedes its slot control")
+		check(panel._equipment.size.x <= scroll.size.x + 1 and panel._equipment.get_line_count() == panel._equipment.get_visible_line_count(), "paid equipment guidance wraps in actual shell")
+		panel._equipment.grab_focus()
+		await settle()
+		check(scroll.get_global_rect().intersects(panel._equipment.get_global_rect()), "focus reveals paid equipment guidance")
+		panel._slot.grab_focus()
+		await settle()
+		var event := InputEventKey.new()
+		event.keycode = KEY_TAB
+		event.physical_keycode = KEY_TAB
+		event.pressed = true
+		root.push_input(event)
+		await process_frame
+		event = InputEventKey.new()
+		event.keycode = KEY_TAB
+		event.physical_keycode = KEY_TAB
+		root.push_input(event)
+		await settle()
+		var focused: Control = root.gui_get_focus_owner()
+		check(focused != null and focused != panel._slot and scroll.get_global_rect().encloses(focused.get_global_rect()), "keyboard Tab reveals next enabled equipment control")
+		check(panel._selected_id(panel._items) == selected and panel._picker_id(panel._slot) == slot and panel._picker_id(panel._destination) == destination, "focus/scroll retains exact selections")
+	check(remote.sent.size() == sent and world.capture_world_snapshot_json().value == canonical, "paid shell layout/focus queues nothing and conserves canonical world")
 
 var failures: int = 0
 var sequence: int = 0
@@ -65,6 +109,9 @@ func select_item(id: String) -> void:
 			panel._items.item_selected.emit(index)
 
 func run() -> void:
+	create_timer(60.0).timeout.connect(func() -> void: push_error("Paid equipment shell fixture deadline"); quit(1))
+	PlayerInputSettings.instance()._reset_map()
+	root.content_scale_mode = Window.CONTENT_SCALE_MODE_DISABLED
 	world = WorldRuntime.new()
 	world.resource_carriers_enabled = true
 	root.add_child(world)
@@ -98,11 +145,14 @@ func run() -> void:
 	closure("close_container")
 	var before: Dictionary = inventory.capture_snapshot().value
 	var paid_before: Dictionary = world.production_observation(actor).value.duplicate(true)
-	remote = RecordingRemote.new()
-	root.add_child(remote)
-	panel = PlayerInventoryPanel.new()
-	root.add_child(panel)
-	panel.configure(remote)
+	client = InventoryClient.new()
+	root.add_child(client)
+	client.set_process(false)
+	remote = client._remote as RecordingRemote
+	remote.set_process(false)
+	remote.server_slot = 0
+	panel = client._inventory_panel
+	client._tabs.current_tab = 1
 	panel.observe(frame())
 	choose(panel._source, "storage.pouch-1")
 	select_item(plate)
@@ -146,6 +196,7 @@ func run() -> void:
 	choose(panel._destination, "storage.pouch-1")
 	check(panel._equipment.text.contains("Equip source physical access: observed closed container storage.backpack-1"), "equip names actual paid nested source")
 	check(panel._equipment.text.contains("storage destination selection is not used"), "equip target differs from move destination")
+	await layout()
 	before = inventory.capture_snapshot().value
 	equipment("equip", plate, "storage.pouch-1", "", "hand.right", false)
 	check(last.error_code == &"inventory_container_closed" and inventory.capture_snapshot().value["owner"] == before["owner"], "closed equip rejection is atomic")
@@ -175,7 +226,23 @@ func run() -> void:
 	panel.observe(frame())
 	choose(panel._slot, "hand.right")
 	choose(panel._destination, "body.human-1")
-	panel._self_action("unequip")
+	# Activate the paid-item unequip through the existing focused GUI control.
+	var button: Button = panel._inventory_buttons["unequip"]
+	button.grab_focus()
+	await settle()
+	check(not button.disabled and button.has_focus() and (panel.get_parent() as ScrollContainer).get_global_rect().encloses(button.get_global_rect()), "paid unequip button focused and visible")
+	var enter := InputEventKey.new()
+	enter.keycode = KEY_ENTER
+	enter.physical_keycode = KEY_ENTER
+	enter.pressed = true
+	root.push_input(enter)
+	await process_frame
+	enter = InputEventKey.new()
+	enter.keycode = KEY_ENTER
+	enter.physical_keycode = KEY_ENTER
+	root.push_input(enter)
+	await settle()
+	button.release_focus()
 	check(remote.sent.size() == 1 and panel._pending_equipment_observation.contains("slot item " + plate), "submission freezes actual paid slot occupant")
 	var pending_payload: Dictionary = remote.sent[0].payload.duplicate(true)
 	equipment("unequip", "", "", "body.human-1")
@@ -184,8 +251,12 @@ func run() -> void:
 	panel.observe(frame())
 	check(panel._equipment.text.contains("Unequip slot item: crowbar-1") and panel._equipment.text.contains("Submitted equipment observation · slot hand.right · slot item " + plate), "fresh slot occupant does not replace submitted identity")
 	check(remote.sent[0].payload == pending_payload and not pending_payload.has("observed_slot_item"), "presentation metadata never enters command payload")
+	await layout()
+	check(remote.sent[0].payload == pending_payload and panel._pending_equipment_observation.contains("slot item " + plate), "narrow focus preserves frozen paid submission identity")
 	remote.command_completed.emit(remote.sent[0], unequip_result)
 	check(panel._pending_equipment_observation.is_empty() and panel._pending.is_empty() and panel._result.text.contains("slot item " + plate), "matching receipt retains submitted identity in feedback")
+	await settle()
+	check((panel.get_parent() as ScrollContainer).get_global_rect().encloses(panel._result.get_global_rect()), "complete paid receipt revealed in narrow shell")
 	for field in ["deposits", "store", "cargo", "energy_joules", "state_revision", "components", "structures"]:
 		check(world.production_observation(actor).value[field] == paid_before[field], "equipment conserves paid " + field)
 	# Return the exact paid item to its nested location for freshness checks below.
@@ -231,8 +302,8 @@ func run() -> void:
 	panel.observe({})
 	check(panel._transfer_preview.text.is_empty(), "unavailable inventory removes disposable hints")
 	check(PlayerInventoryPresentation.access_hint({}, "retained.id", "Source").contains("unknown"), "unavailable closure honest")
-	panel.free()
-	remote.free()
+	client.free()
+	PlayerInputSettings.instance().release_all()
 	world.free()
 	print("Owned nested access guidance: %d failures" % failures)
 	quit(0 if failures == 0 else 1)

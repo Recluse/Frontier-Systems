@@ -78,7 +78,6 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	for label in [_summary, _equipment, _details, _result]:
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(_summary)
-	add_child(_equipment)
 	_label("Browse owned knowledge (double-click a backpack or pouch to browse)")
 	add_child(_source)
 	_source.item_selected.connect(func(_index: int) -> void: _fill_items(); _inspect(); _update_buttons())
@@ -100,7 +99,8 @@ func configure(remote: RemoteWorldRuntime) -> void:
 	for operation in ["open_container", "close_container"]:
 		_button(closure_actions, "Open container" if operation == "open_container" else "Close container", _closure_action.bind(operation))
 		_closure_buttons[operation] = _buttons[-1]
-	_label("Selected equipment slot · selection alone does not make a hand active")
+	_label("Equipment · selected slot")
+	add_child(_equipment)
 	add_child(_slot)
 	var equipment_actions := HFlowContainer.new()
 	add_child(equipment_actions)

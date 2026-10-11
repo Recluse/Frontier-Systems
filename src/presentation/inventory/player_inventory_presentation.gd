@@ -49,7 +49,7 @@ static func active_equipment(record: Dictionary, selected_item: String, selected
 			lines.append("Active hand item: %s · %s" % [PlayerInventoryPanel.NAMES.get(entry["definition_id"], "Equipment"), held])
 	lines.append("Selected inventory item: " + (selected_item if not item(record, selected_item).is_empty() else "unavailable"))
 	lines.append("Selected equipment slot: " + (selected_slot if record.get("slot_ids", []).has(selected_slot) else "unavailable"))
-	lines.append("Selections do not change active equipment. Engineering actions use the active hand; the host rechecks tool requirements and reach.")
+	lines.append("Selections do not change active equipment. Engineering uses the active hand; the host checks tool and reach.")
 	return "\n".join(lines)
 
 
@@ -62,14 +62,14 @@ static func equipment_access(record: Dictionary, selected_item: String, slot: St
 	var equipped_item: Dictionary = item(record, occupant)
 	var lines := PackedStringArray([
 		"Equip item: %s · source: %s · target slot: %s" % [selected_item if not selected.is_empty() else "unavailable", selected.get("container_id", "unavailable"), slot if record.get("slot_ids", []).has(slot) else "unavailable"],
-		access_hint(record, str(selected.get("container_id", "")), "Equip source"),
-		access_hint(record, str(record.get("body_container_id", "")), "Equip body-root target"),
+		access_hint(record, str(selected.get("container_id", "")), "Equip source", true),
+		access_hint(record, str(record.get("body_container_id", "")), "Equip body-root target", true),
 		"Equip uses the body root and selected slot; the storage destination selection is not used.",
 		"Unequip slot item: %s · source: %s · destination: %s" % [occupant if not equipped_item.is_empty() else "unavailable", equipped_item.get("container_id", "unavailable"), destination if record.get("container_ids", []).has(destination) else "unavailable"],
-		access_hint(record, str(equipped_item.get("container_id", "")), "Unequip source"),
-		access_hint(record, destination, "Unequip destination"),
-		"Container shells use their containing path; equipping or unequipping a shell does not access its contents.",
-		"Select hand uses the configured selected hand slot; switch hand cycles configured hands. Neither moves items or opens storage. The host decides acceptance."
+		access_hint(record, str(equipped_item.get("container_id", "")), "Unequip source", true),
+		access_hint(record, destination, "Unequip destination", true),
+		"Paths describe closure only; the host checks access, fit, hands, reach and revision. Known contents remain browsable. Open closed ancestors explicitly and refresh; unknown paths need a fresh complete v4 observation. Shells use their containing path, not their contents.",
+		"Select hand uses the selected hand slot; switch cycles hands. Neither moves items or opens storage."
 	])
 	return "\n".join(lines)
 
@@ -125,8 +125,12 @@ static func observed_access(record: Dictionary, container_id: String) -> Diction
 	return {"state": "unknown"}
 
 
-static func access_hint(record: Dictionary, container_id: String, role: String) -> String:
+static func access_hint(record: Dictionary, container_id: String, role: String, compact: bool = false) -> String:
 	var access: Dictionary = observed_access(record, container_id)
+	if compact:
+		if access["state"] == "closed": return "%s physical access: observed closed container %s blocks this path." % [role, access["container_id"]]
+		if access["state"] == "open": return "%s closure path: observed open." % role
+		return "%s physical access: unknown." % role
 	if access["state"] == "closed":
 		return "%s physical access: observed closed container %s blocks this path. Known contents remain browsable; explicitly open it and refresh before transferring." % [role, access["container_id"]]
 	if access["state"] == "open":
