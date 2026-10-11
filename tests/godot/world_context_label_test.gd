@@ -74,10 +74,10 @@ func run() -> void:
 	check(not layout.cards.has(id), "removed/rebuilt target retires card")
 	var terrain := TerrainCellPreview.new()
 	viewport.add_child(terrain)
-	var record: Dictionary = {"cells": {"terrain.dirt.source": {"position_millimetres": [0, 0, 0], "state": {"mass_milligrams": 1234567}}}}
+	var record: Dictionary = {"cells": {"terrain.dirt.source": {"position_millimetres": [0, 0, 0], "state": {"mass_milligrams": 1234567}, "capacity_milligrams": 2000000, "work_ready": true, "work_message": ""}}}
 	terrain.observe(record)
 	var label: WorldContextLabel = terrain._markers["terrain.dirt.source"].get_child(0)
-	check(label.text.contains("terrain.dirt.source") and label.text.contains("1.235 kg"), "terrain preserves identity and observed units")
+	check(label.text.contains("terrain.dirt.source") and label.text.contains("1.234567 kg"), "terrain preserves identity and observed units")
 	terrain.observe({})
 	check(not terrain.is_visible_in_tree(), "empty observation hides terrain labels")
 	terrain.observe({"cells": {}})
