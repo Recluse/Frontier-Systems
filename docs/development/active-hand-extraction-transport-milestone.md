@@ -1,0 +1,31 @@
+# Active-hand extraction transport acceptance
+
+Tests/docs successor to merged PR94 (`ac64696c6aacabdf87e2b75e1e18ec3ccfb61a9a`). `player_extraction_loopback_test.gd` inherits the existing equipment/owned-container/movement fixtures without editing them. The real `FirstPlayableBootstrap` shell connects through traced `RemoteWorldRuntime` WebSockets to an authenticated `FirstPlayableHost`. Button signals, local walker pose sampling and manually scheduled fixed ticks are synthetic; principals, body binding, admission, canonical commands, work, acknowledgements and observations are production paths.
+
+## Existing contracts exercised
+
+Inventory remains the owner of physical items, equipment and active hands. Production owns finite deposits, material payloads, energy, command receipts and one bounded sustained-work reservation. ToolSimulationSystem owns the independent component ledger and completed-work wear. No runtime, schema, fixture seed, UI, configuration or shared fixture changes are included. No canonical owner, actor position, tool capability or resource grant is injected. Actual shell pickup acquires the existing tray canister before extraction.
+
+The owner equips the existing crowbar, explicitly selects its hand, moves through two bounded authenticated walker requests to the iron site and receives a wrong-tool rejection. Actual equipment controls replace it with the existing extractor in that active hand. Direct transport probes, labeled separately from button controls, reject a foreign-owned canister and an out-of-reach ice site while preserving the complete production, inventory and tool snapshots except their advancing tick metadata.
+
+The real Start sustained extraction button requests exactly the selected iron deposit, owned canister, three cycles and observed production revision. Held ticks prove that changing the source picker/cycle count and repeating the action neither retargets the original payload nor reserves optimistically. The host binds the original request, authenticated principal, active tool and receiving carrier. Start/resume/cancel acknowledgements match the client ID and precede fresh revision observations; retained canonical receipts bind the `net-1-` request, independently computed wire-normalized payload fingerprint, applying tick and next command revision. Prior receipt history remains intact.
+
+Midwork Switch hand and Unequip controls each cause the existing canonical `capability` pause. Two seconds of paused ticks cannot change the countdown, source, reservation, cargo, energy or wear. Resume attempts without the bound active tool fail. Selecting the original hand or re-equipping does not resume automatically; explicit Resume reserved extraction buttons do. Two completed cycles fill the 2 kg canister, then the final reserved cycle pauses for capacity. Cancel releases exactly that remaining 1 kg to its original source, preserving the completed 2 kg yield. A fresh nine-cycle start exceeds the remaining finite source and rejects atomically.
+
+Retried original start commands receive new wire acknowledgements and compare complete canonical snapshots; the fixture clears cached results before retrying so old acknowledgements cannot satisfy the assertion. The paused reservation is not duplicated, and the canceled reservation is not resurrected. A separately authenticated principal cannot cancel the owner's work.
+
+At each checkpoint, exact integer iron mass in the finite deposit, reserved inputs and cargo equals its initial total. The complete cargo map contains only the bound carrier's expected ore identity; unrelated material stocks/deposits and production records remain unchanged. Only two completed cycles debit 500 J. Every extractor component's whole and fractional wear is checked against the pinned catalog; component identities, material grades, mounts and provenance survive, and the tool ledger advances once per completed cycle. Complete physical inventory records survive after normalizing only intentional crowbar/extractor locations. Foreign-body metadata stays unchanged and shell-inclusive observed carried mass adds completed payload exactly once. Full production snapshot validation independently checks the closed resource budget.
+
+## Verification and limits
+
+Pinned Windows Godot `4.7.2.stable.official.ed1daf0bf` passed import/startup and both focused checks with the unchanged bounded runner:
+
+```powershell
+./tools/ci/run-godot-checks.ps1 -Godot 'D:\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe' -TestNames 'player_extraction_loopback_test.gd','sustained_extraction_test.gd' -OutputDirectory 'var/ci/extraction-transport' -TestTimeoutSeconds 120
+```
+
+Execution uses a unique worktree-local temporary APPDATA profile and restores the environment afterward. The fixture cleans only its owned host/client nodes and checkpoint directory. Coordinator-exclusive 27863/27864 lease was granted; this fixture uses only 27863, fails if occupied and never terminates other listeners. Final committed-head local results, cleanup and exact-head Windows/Linux CI are reported at PR handoff. CI discovers the new test through the existing runner without workflow edits.
+
+Initial exploratory failures were fixture assumptions about the 4 m movement budget, selected unequip destination, wire numeric representation, advancing snapshot ticks and fractional component wear. Corrected assertions passed without runtime changes. Source review and these runtime checks established no production gap requiring scope expansion. Older environmental-extraction wording predates the existing sustained implementation; the current binding contract is described in [sustained extraction](sustained-extraction-milestone.md).
+
+This is in-process loopback and synthetic control evidence. It does not establish human tutorial, graphical, controller/VR, external-network, process-crash, power-loss or release/deployment acceptance. Restart behavior is covered by the existing focused domain regression; this new shell fixture does not claim transport restart coverage. No captures were needed for this tests/docs scope, and none were generated. The Coordinator owns review and merge; the managed worktree remains attached until that handoff is complete.
