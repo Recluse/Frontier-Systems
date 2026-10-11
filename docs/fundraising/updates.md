@@ -48,3 +48,20 @@ Development evidence: https://github.com/Valgorithms/Frontier-Systems/commit/8bc
 Support initial development: https://ko-fi.com/valgorithms
 
 Verified in the creator's public page feed immediately after Post, with the complete wording and evidence link visible. This is a free stage update, not the monthly supporter roundup/engineering note due by 2026-11-09. No images, payment details, supporters' data or funding-total claims were posted.
+
+## Ready daily update draft — 2026-10-11 11:36 UTC (not published)
+
+Frontier Systems progress: reconnecting now clears uncertain session state and requires fresh host observations before controls become ready. Checkpoint feedback keeps the host acknowledgement visible, including when an interrupted request has an unknown outcome.
+
+Inventory now names the observed item, source, destination and equipment slot before transfer. It shows host-reported loaded mass and capacity where available, and marks missing information explicitly. Longer construction failure messages remain readable, with controls reachable through scrolling.
+
+These changes were reviewed and merged with Windows/Linux CI passing. Automated fixtures cover receipt matching, disconnect behavior, inventory conservation and layout. Human, controller/VR and Linux graphical usability remain unverified. This remains a source prototype, not a packaged release or announced public playtest.
+
+Next: clearer movement feedback, inventory layout checks and stronger controller command validation. Colonies, ships and advanced transport remain future scope.
+
+Development evidence: https://github.com/Valgorithms/Frontier-Systems/commit/4e69bdb18fefe9da32f64f4a2884c23a695f3531
+Support development: https://ko-fi.com/valgorithms
+
+Evidence: reconnect PR53 mergeefd3bd7ef6d8eb0465065bc0d5529a6c92d8d533; checkpoint feedback PR56 mergefef907634ce3a1fd9ea7a1ea6bfc9ba52557fb81; construction layout PR57 merge31faab5e744064761e175c80bbfc03d4819d78ff; observed inventory preview PR59 merge4e69bdb18fefe9da32f64f4a2884c23a695f3531. Exact CI evidence is in milestone-coordination.md. Free public text-only intended audience. Not the monthly supporter deliverable.
+
+Publication evaluation: public feed refreshed at 2026-10-11 11:36 UTC shows the same previous confirmed wording/evidence at 8h, with no newer post. No exact timestamp is exposed by visible date metadata. Conservative preparation cutoff remains2026-10-12T01:30Z. Meaningful unreported progress exists, so this is not a no-progress skip. Available in-app browser is signed out and the earlier signed-in Edge session is unavailable to current browser tools. Preserve draft until account access is restored; drafts do not reset the publication timer. No public send attempted or claimed.
