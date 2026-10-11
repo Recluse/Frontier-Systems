@@ -122,6 +122,7 @@ func run() -> void:
 	check(MachineryPlacement.half_size(production.capture_snapshot().value["machinery"], first) == MachineryPlacement.EXPANDED_HALF, "removing expander never shrinks retained six-socket footprint")
 	fit(first, expander)
 	move([0, 0, 0])
+	var spare_socket: String = craft("socket")
 	var solar: String = craft("solar")
 	var power: String = craft("power")
 	var controller: String = craft("controller")
@@ -146,7 +147,7 @@ func run() -> void:
 	command("machine_enable", {"machine_id": first, "enabled": false})
 	var snapshot: ServiceResult = world.capture_world_snapshot_json()
 	check(snapshot.is_success, "finite machine placement and nested materials checkpoint")
-	restore_checks(snapshot.value, first, second, expander, final_request, final_intent)
+	restore_checks(snapshot.value, first, second, expander, spare_socket, final_request, final_intent)
 	context = crew
 	move([4000, 0, -2500])
 	context = actor
@@ -174,7 +175,7 @@ func deny(operation: String, payload: Dictionary, label: String) -> void:
 	check(canonical() == before, label + " leaves inventory, matter, placements, mounts, receipts and buffers atomic")
 
 
-func restore_checks(json: String, first: String, second: String, expander: String, request: String, intent: Dictionary) -> void:
+func restore_checks(json: String, first: String, second: String, expander: String, spare_socket: String, request: String, intent: Dictionary) -> void:
 	var saved: Dictionary = JSON.parse_string(json)
 	for variant in ["clear", "legacy-v6", "legacy-v7"]:
 		var legacy: bool = variant != "clear"
@@ -188,7 +189,7 @@ func restore_checks(json: String, first: String, second: String, expander: Strin
 			for location in record["systems"]["inventory"]["world_storage"]:
 				if location["container_id"] == MachineryWorkshop.root_id(second): location["position_millimetres"] = [0, 0, -2500]
 			for physical in record["systems"]["inventory"]["owner"]["ledger"]["items"]:
-				if physical["item_id"] in [first, expander]: physical["condition_permille"] = 0
+				if physical["item_id"] in [first, expander] or record["systems"]["production"]["machinery"]["parts"].get(physical["item_id"], {}).get("kind") == "socket" and record["systems"]["production"]["machinery"]["mounts"].has(physical["item_id"]): physical["condition_permille"] = 0
 		var restored := WorldRuntime.new()
 		restored.resource_carriers_enabled = true
 		root.add_child(restored)
@@ -210,6 +211,8 @@ func restore_checks(json: String, first: String, second: String, expander: Strin
 				var graph: Dictionary = restored_inventory.capture_snapshot().value
 				var denied: ServiceResult = owner.apply_local(actor, "legacy-new-fit", "machine_fit", {"machine_id": first, "item_id": expander, "socket_id": "", "expected_revision": state["state_revision"] - 1}, int(record["tick_number"]) + 1)
 				check(not denied.is_success and before == owner.capture_snapshot().value and graph == restored_inventory.capture_snapshot().value, "stale legacy command cannot alter grandfathered state")
+				var socket_denial: ServiceResult = owner.apply_local(actor, "legacy-broken-socket", "machine_fit", {"machine_id": first, "item_id": spare_socket, "socket_id": "", "expected_revision": state["state_revision"]}, int(record["tick_number"]) + 1)
+				check(not socket_denial.is_success and before == owner.capture_snapshot().value and graph == restored_inventory.capture_snapshot().value, "broken sockets retain physical mounting capacity")
 				check(not MachineryWorkshop.operational(state["machinery"], graph["owner"], first, "solar"), "zero condition wreck remains physical while functions stop")
 				check(restored.start_simulation().is_success, "grandfathered world resumes ticking")
 				var restored_runner: SimulationRunner = restored.get_node("SimulationRunner")

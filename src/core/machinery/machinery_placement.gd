@@ -9,12 +9,13 @@ const EXPANDED_HALF: Vector3 = Vector3(1250, 750, 650)
 
 static func half_size(workshop: Dictionary, machine: String) -> Vector3:
 	var sockets: int = 0
+	var expanded: bool = false
 	for part in workshop["mounts"]:
 		if workshop["mounts"][part] != machine: continue
-		if workshop["parts"][part]["kind"] == "expander": return EXPANDED_HALF
+		if workshop["parts"][part]["kind"] == "expander": expanded = true
 		if workshop["parts"][part]["kind"] == "socket": sockets += 1
 	# A removed expander can leave sockets fitted; their geometry remains present.
-	return Vector3(maxi(int(HALF.x), sockets * 300 - 550), HALF.y, HALF.z)
+	return Vector3(maxi(int(EXPANDED_HALF.x if expanded else HALF.x), sockets * 300 - 550), HALF.y, HALF.z)
 
 
 static func center(position: Array) -> Vector3:

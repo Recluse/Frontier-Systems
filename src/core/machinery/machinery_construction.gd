@@ -101,7 +101,7 @@ static func plan(production: ProductionSimulationSystem, state: Dictionary, inve
 		var storage: String = MachineryWorkshop.container(owner, machine)
 		if operation == "machine_fit":
 			if (not own_ids.has(id) and physical["container_id"] != storage) or not workshop["parts"].has(id) or workshop["parts"][id]["kind"] in ["frame", "cable"]: return failure("Fit an owned machine module.")
-			var installed: Dictionary = MachineryWorkshop.modules(workshop, owner, machine)
+			var installed: Dictionary = MachineryWorkshop.modules(workshop, owner, machine, true)
 			var kind: String = workshop["parts"][id]["kind"]
 			if kind == "socket":
 				if installed.get("socket", []).size() >= (6 if installed.has("expander") else 3): return failure("Add an expander for more than three sockets.")
