@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "repository": "Valgorithms/Frontier-Systems",
+  "active_tasks": [],
+  "website": {
+    "status": "refresh_required",
+    "checked_at": null,
+    "next_check_at": null
+  },
+  "fundraising": {
+    "last_confirmed_public_post_at": null,
+    "next_monthly_due_at": null,
+    "unreported_progress": true
+  },
+  "pending_approvals": [],
+  "tutorial_gate": "open",
+  "ledger_sha256": null
+}

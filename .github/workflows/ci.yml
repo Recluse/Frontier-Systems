@@ -5,6 +5,8 @@ on:
     branches:
       - dev-master
   push:
+    branches:
+      - dev-master
   merge_group:
   workflow_dispatch:
 
@@ -16,8 +18,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Classify CI scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      scope: ${{ steps.scope.outputs.scope }}
+    steps:
+      - name: Check out source and PR comparison history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Verify CI policy contracts
+        shell: pwsh
+        run: ./tools/ci/test-ci-policy.ps1
+      - name: Verify coordinator snapshot contracts
+        shell: pwsh
+        run: ./tools/coordination/test-snapshot.ps1
+      - name: Classify immutable PR paths
+        id: scope
+        shell: pwsh
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: ./tools/ci/classify-changes.ps1
+
   php-quality:
     name: PHP quality (PHP ${{ matrix.php-version }}, ${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.scope == 'full'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -136,6 +166,8 @@ jobs:
 
   php-packages:
     name: PHP package contracts (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.scope == 'full'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -179,6 +211,8 @@ jobs:
 
   godot-import:
     name: Godot project import (${{ matrix.os }})
+    needs: changes
+    if: needs.changes.outputs.scope == 'full'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     strategy:
@@ -235,7 +269,8 @@ jobs:
 
   game-export:
     name: Development export (${{ matrix.platform }})
-    needs: [php-quality, php-packages, godot-import]
+    needs: [changes, php-quality, php-packages, godot-import]
+    if: needs.changes.outputs.scope == 'full'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
@@ -282,17 +317,24 @@ jobs:
   required:
     name: CI required
     if: always()
-    needs: [php-quality, php-packages, godot-import, game-export]
+    needs: [changes, php-quality, php-packages, godot-import, game-export]
     runs-on: ubuntu-latest
     timeout-minutes: 2
     steps:
+      - name: Check out gate policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
       - name: Require every quality and build gate
         shell: pwsh
         env:
           RESULTS: ${{ toJSON(needs) }}
+          SCOPE: ${{ needs.changes.outputs.scope }}
         run: |
-          $jobs = $env:RESULTS | ConvertFrom-Json
-          foreach ($job in $jobs.PSObject.Properties) {
-            if ($job.Value.result -ne 'success') { throw "Required gate $($job.Name) ended as $($job.Value.result)." }
+          . ./tools/ci/ci-policy.ps1
+          Assert-CiResults -Scope $env:SCOPE -Results ($env:RESULTS | ConvertFrom-Json -AsHashtable)
+          if ($env:SCOPE -eq 'docs') {
+            'Prose-only PR validated; runtime and export jobs intentionally omitted. No build artifacts or runtime acceptance claimed.' >> $env:GITHUB_STEP_SUMMARY
+          } else {
+            'All quality, integration and exported-host checks passed.' >> $env:GITHUB_STEP_SUMMARY
           }
-          'All quality, integration and exported-host checks passed.' >> $env:GITHUB_STEP_SUMMARY
